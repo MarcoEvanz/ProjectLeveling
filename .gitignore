@@ -1,0 +1,9 @@
+# Project exclude paths
+/.gradle/
+/build/
+
+# Run
+/run/
+
+# Claude
+/.claude/

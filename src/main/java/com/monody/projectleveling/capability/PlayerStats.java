@@ -1,5 +1,6 @@
 package com.monody.projectleveling.capability;
 
+import com.monody.projectleveling.skill.PlayerClass;
 import com.monody.projectleveling.skill.SkillData;
 import com.monody.projectleveling.skill.SkillType;
 import net.minecraft.nbt.CompoundTag;
@@ -61,7 +62,7 @@ public class PlayerStats {
         int base = 100 + (intelligence - 1) * 10;
         int dpLv = skillData.getLevel(SkillType.DARK_PACT);
         if (dpLv > 0) {
-            base = (int) (base * (1 + dpLv * 0.03));
+            base = (int) (base * (1 + dpLv * 0.02));
         }
         if (skillData.isToggleActive(SkillType.SHADOW_PARTNER)) {
             base /= 2;
@@ -166,14 +167,24 @@ public class PlayerStats {
             level++;
             remainingPoints += POINTS_PER_LEVEL;
             // Tier-separated SP: each tier earns SP in its own level range
+            // Class-specific bonus SP is defined in PlayerClass.getBonusSPPerEvenLevel()
+            PlayerClass playerClass = skillData.getSelectedClass();
             if (level >= 2 && level <= 10) {
-                skillData.addTierSP(0, level == 10 ? 2 : 1);
+                int sp = level == 10 ? 2 : 1;
+                if (level % 2 == 0) sp += playerClass.getBonusSPPerEvenLevel(0);
+                skillData.addTierSP(0, sp);
             } else if (level >= 11 && level <= 30) {
-                skillData.addTierSP(1, 1 + (level % 2 == 0 ? 1 : 0));
+                int sp = 1 + (level % 2 == 0 ? 1 : 0);
+                if (level % 2 == 0) sp += playerClass.getBonusSPPerEvenLevel(1);
+                skillData.addTierSP(1, sp);
             } else if (level >= 31 && level <= 60) {
-                skillData.addTierSP(2, 1 + (level % 2 == 0 ? 1 : 0));
+                int sp = 1 + (level % 2 == 0 ? 1 : 0);
+                if (level % 2 == 0) sp += playerClass.getBonusSPPerEvenLevel(2);
+                skillData.addTierSP(2, sp);
             } else if (level >= 61 && level <= 100) {
-                skillData.addTierSP(3, 1 + (level % 2 == 0 ? 1 : 0));
+                int sp = 1 + (level % 2 == 0 ? 1 : 0);
+                if (level % 2 == 0) sp += playerClass.getBonusSPPerEvenLevel(3);
+                skillData.addTierSP(3, sp);
             }
             levelsGained++;
         }

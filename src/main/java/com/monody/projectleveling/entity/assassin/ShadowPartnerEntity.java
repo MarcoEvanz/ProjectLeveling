@@ -1,6 +1,7 @@
-package com.monody.projectleveling.entity;
+package com.monody.projectleveling.entity.assassin;
 
 import com.monody.projectleveling.capability.PlayerStatsCapability;
+import com.monody.projectleveling.entity.ModEntities;
 import com.monody.projectleveling.skill.SkillData;
 import com.monody.projectleveling.skill.CombatLog;
 import com.monody.projectleveling.skill.SkillParticles;

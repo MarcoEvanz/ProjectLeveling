@@ -37,6 +37,7 @@ public class S2CSyncStatsPacket {
     private final int deathMarkTicks;
     private final int deathMarkTargetId;
     private final int undyingWillCooldown;
+    private final int fervorTicks;
 
     public S2CSyncStatsPacket(PlayerStats stats) {
         this.level = stats.getLevel();
@@ -77,6 +78,7 @@ public class S2CSyncStatsPacket {
         this.deathMarkTicks = sd.getDeathMarkTicks();
         this.deathMarkTargetId = sd.getDeathMarkTargetId();
         this.undyingWillCooldown = sd.getUndyingWillCooldown();
+        this.fervorTicks = sd.getFervorTicks();
     }
 
     public S2CSyncStatsPacket(FriendlyByteBuf buf) {
@@ -136,6 +138,7 @@ public class S2CSyncStatsPacket {
         this.deathMarkTicks = buf.readInt();
         this.deathMarkTargetId = buf.readInt();
         this.undyingWillCooldown = buf.readInt();
+        this.fervorTicks = buf.readInt();
     }
 
     public void encode(FriendlyByteBuf buf) {
@@ -187,6 +190,7 @@ public class S2CSyncStatsPacket {
         buf.writeInt(deathMarkTicks);
         buf.writeInt(deathMarkTargetId);
         buf.writeInt(undyingWillCooldown);
+        buf.writeInt(fervorTicks);
     }
 
     public void handle(Supplier<NetworkEvent.Context> ctx) {
@@ -234,6 +238,7 @@ public class S2CSyncStatsPacket {
             sd.setDeathMarkTicks(deathMarkTicks);
             sd.setDeathMarkTargetId(deathMarkTargetId);
             sd.setUndyingWillCooldown(undyingWillCooldown);
+            sd.setFervorTicks(fervorTicks);
         });
 
         ctx.get().setPacketHandled(true);

@@ -1,6 +1,5 @@
-package com.monody.projectleveling.entity.renderer;
+package com.monody.projectleveling.entity.mage;
 
-import com.monody.projectleveling.entity.SkillFireballEntity;
 import net.minecraft.client.renderer.entity.EntityRendererProvider;
 import net.minecraft.client.renderer.entity.ThrownItemRenderer;
 

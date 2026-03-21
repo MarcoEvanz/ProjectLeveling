@@ -1,7 +1,8 @@
-package com.monody.projectleveling.entity;
+package com.monody.projectleveling.entity.necromancer;
 
 import com.monody.projectleveling.capability.PlayerStats;
 import com.monody.projectleveling.capability.PlayerStatsCapability;
+import com.monody.projectleveling.entity.ModEntities;
 import com.monody.projectleveling.skill.CombatLog;
 import com.monody.projectleveling.skill.SkillDamageSource;
 import com.monody.projectleveling.skill.SkillData;
@@ -223,6 +224,23 @@ public class SkeletonMinionEntity extends PathfinderMob implements RangedAttackM
         }
 
         if (isRemoved()) return;
+
+        // Unholy Fervor: speed boost while active
+        owner.getCapability(PlayerStatsCapability.PLAYER_STATS).ifPresent(stats -> {
+            SkillData sd = stats.getSkillData();
+            if (sd.getFervorTicks() > 0) {
+                if (this.getAttribute(Attributes.MOVEMENT_SPEED).getBaseValue() < 0.4) {
+                    this.getAttribute(Attributes.MOVEMENT_SPEED).setBaseValue(0.4);
+                }
+                if (tickCount % 40 == 0 && level() instanceof ServerLevel sl) {
+                    SkillParticles.burst(sl, getX(), getY() + 1, getZ(), 3, 0.3, ParticleTypes.ENCHANT);
+                }
+            } else {
+                if (this.getAttribute(Attributes.MOVEMENT_SPEED).getBaseValue() > 0.3) {
+                    this.getAttribute(Attributes.MOVEMENT_SPEED).setBaseValue(0.3);
+                }
+            }
+        });
 
         // Follow owner if no target and far away
         if (getTarget() == null || !getTarget().isAlive()) {

@@ -1,5 +1,7 @@
-package com.monody.projectleveling.entity;
+package com.monody.projectleveling.entity.mage;
 
+import com.monody.projectleveling.entity.ModEntities;
+import com.monody.projectleveling.entity.assassin.ShadowPartnerEntity;
 import com.monody.projectleveling.skill.CombatLog;
 import com.monody.projectleveling.skill.SkillParticles;
 import com.monody.projectleveling.skill.SkillSounds;

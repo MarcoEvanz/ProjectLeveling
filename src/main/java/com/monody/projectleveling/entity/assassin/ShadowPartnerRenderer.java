@@ -1,7 +1,6 @@
-package com.monody.projectleveling.entity.renderer;
+package com.monody.projectleveling.entity.assassin;
 
 import com.mojang.blaze3d.vertex.PoseStack;
-import com.monody.projectleveling.entity.ShadowPartnerEntity;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.model.HumanoidModel;
 import net.minecraft.client.model.PlayerModel;

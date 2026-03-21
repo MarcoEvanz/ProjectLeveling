@@ -8,6 +8,7 @@ import com.monody.projectleveling.network.C2SUnlockSkillPacket;
 import com.monody.projectleveling.network.ModNetwork;
 import com.monody.projectleveling.skill.PlayerClass;
 import com.monody.projectleveling.skill.SkillData;
+import com.monody.projectleveling.skill.SkillTooltips;
 import com.monody.projectleveling.skill.SkillType;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
@@ -16,9 +17,7 @@ import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.entity.player.Player;
 
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 public class SkillTreeScreen extends Screen {
     private static final float PANEL_WIDTH_RATIO = 0.42f;
@@ -69,76 +68,6 @@ public class SkillTreeScreen extends Screen {
     private static final int CLASS_NECROMANCER = 0xFF40E0A0;
     private static final int PASSIVE_COLOR = 0xFF60A0C0;
 
-    // Abbreviation map
-    private static final Map<SkillType, String> ABBREV_MAP = new HashMap<>();
-    static {
-        // T0
-        ABBREV_MAP.put(SkillType.DASH, "DSH");
-        ABBREV_MAP.put(SkillType.ENDURANCE, "END");
-        // Warrior
-        ABBREV_MAP.put(SkillType.BLOODLUST, "BL");
-        ABBREV_MAP.put(SkillType.WAR_CRY, "WC");
-        ABBREV_MAP.put(SkillType.WEAPON_MASTERY, "WM");
-        ABBREV_MAP.put(SkillType.IRON_WILL, "IW");
-        ABBREV_MAP.put(SkillType.GROUND_SLAM, "GS");
-        ABBREV_MAP.put(SkillType.RAGE, "RG");
-        ABBREV_MAP.put(SkillType.DOMAIN_OF_MONARCH, "DM");
-        ABBREV_MAP.put(SkillType.UNBREAKABLE, "UB");
-        ABBREV_MAP.put(SkillType.BERSERKER_SPIRIT, "BS");
-        // Assassin
-        ABBREV_MAP.put(SkillType.SHADOW_STRIKE, "SS");
-        ABBREV_MAP.put(SkillType.VENOM, "VN");
-        ABBREV_MAP.put(SkillType.CRITICAL_EDGE, "CE");
-        ABBREV_MAP.put(SkillType.STEALTH, "STH");
-        ABBREV_MAP.put(SkillType.BLADE_FURY, "BF");
-        ABBREV_MAP.put(SkillType.EVASION, "EV");
-        ABBREV_MAP.put(SkillType.RULERS_AUTHORITY, "RA");
-        ABBREV_MAP.put(SkillType.SHADOW_PARTNER, "SP");
-        ABBREV_MAP.put(SkillType.FATAL_BLOW, "FB");
-        // Archer
-        ABBREV_MAP.put(SkillType.ARROW_RAIN, "AR");
-        ABBREV_MAP.put(SkillType.SOUL_ARROW, "SA");
-        ABBREV_MAP.put(SkillType.SHARP_EYES, "SE");
-        ABBREV_MAP.put(SkillType.ARROW_BOMB, "AB");
-        ABBREV_MAP.put(SkillType.COVERING_FIRE, "CF");
-        ABBREV_MAP.put(SkillType.EVASION_BOOST, "EB");
-        ABBREV_MAP.put(SkillType.PHOENIX, "PX");
-        ABBREV_MAP.put(SkillType.HURRICANE, "HC");
-        ABBREV_MAP.put(SkillType.MORTAL_BLOW, "MB");
-        // Healer
-        ABBREV_MAP.put(SkillType.HOLY_LIGHT, "HL");
-        ABBREV_MAP.put(SkillType.BLESS, "BLS");
-        ABBREV_MAP.put(SkillType.MP_RECOVERY, "MR");
-        ABBREV_MAP.put(SkillType.HOLY_SHELL, "HS");
-        ABBREV_MAP.put(SkillType.DISPEL, "DSP");
-        ABBREV_MAP.put(SkillType.DIVINE_PROTECTION, "DP");
-        ABBREV_MAP.put(SkillType.BENEDICTION, "BN");
-        ABBREV_MAP.put(SkillType.ANGEL_RAY, "ARL");
-        ABBREV_MAP.put(SkillType.BLESSED_ENSEMBLE, "BE");
-        // Mage
-        ABBREV_MAP.put(SkillType.FLAME_ORB, "FO");
-        ABBREV_MAP.put(SkillType.MAGIC_GUARD, "MG");
-        ABBREV_MAP.put(SkillType.ELEMENTAL_DRAIN, "ED");
-        ABBREV_MAP.put(SkillType.FROST_BIND, "FrB");
-        ABBREV_MAP.put(SkillType.POISON_MIST, "PM");
-        ABBREV_MAP.put(SkillType.ELEMENT_AMPLIFICATION, "EA");
-        ABBREV_MAP.put(SkillType.MIST_ERUPTION, "ME");
-        ABBREV_MAP.put(SkillType.INFINITY, "INF");
-        ABBREV_MAP.put(SkillType.ARCANE_OVERDRIVE, "AO");
-        // Necromancer
-        ABBREV_MAP.put(SkillType.LIFE_DRAIN, "LD");
-        ABBREV_MAP.put(SkillType.RAISE_SKELETON, "RS");
-        ABBREV_MAP.put(SkillType.DARK_PACT, "DkP");
-        ABBREV_MAP.put(SkillType.BONE_SHIELD, "BnS");
-        ABBREV_MAP.put(SkillType.CORPSE_EXPLOSION, "CEx");
-        ABBREV_MAP.put(SkillType.SOUL_SIPHON, "Si");
-        ABBREV_MAP.put(SkillType.ARMY_OF_THE_DEAD, "AD");
-        ABBREV_MAP.put(SkillType.DEATH_MARK, "DkM");
-        ABBREV_MAP.put(SkillType.UNDYING_WILL, "UW");
-        // Legacy
-        ABBREV_MAP.put(SkillType.VITAL_SURGE, "VS");
-    }
-
     // Tier definitions
     private static final int[] TIER_NUMBERS = {0, 1, 2, 3};
     private static final String[] TAB_LABELS = {"NOVICE", "TIER 1", "TIER 2", "TIER 3"};
@@ -149,9 +78,9 @@ public class SkillTreeScreen extends Screen {
     private int pad, lineH;
 
     private final int[][] tabBounds = new int[4][4];
-    private final int[][] skillRowBounds = new int[3][4];
-    private final int[][] iconBounds = new int[3][4];
-    private final int[][] plusBtnBounds = new int[3][4];
+    private final int[][] skillRowBounds = new int[8][4];
+    private final int[][] iconBounds = new int[8][4];
+    private final int[][] plusBtnBounds = new int[8][4];
     private final int[][] equipSlotBounds = new int[SkillData.MAX_SLOTS][4];
     private final int[] closeBtnBounds = new int[4];
 
@@ -166,6 +95,10 @@ public class SkillTreeScreen extends Screen {
     private SkillType pendingEquipSkill = null;
     private SkillType hoveredSkill = null;
     private boolean showClassSelection = false;
+    private int scrollOffset = 0;
+    private int maxScrollOffset = 0;
+    private int skillListTop = 0;
+    private int skillListBottom = 0;
 
     public SkillTreeScreen() {
         super(Component.literal("Skills"));
@@ -385,34 +318,49 @@ public class SkillTreeScreen extends Screen {
         int infoX = left + ICON_SIZE + 6;
         int infoW = innerW - ICON_SIZE - 6;
 
-        for (int i = 0; i < skills.size() && i < 3; i++) {
+        // Calculate skill list area (between tabs and equip section)
+        skillListTop = rowY;
+        int equipReserved = lineH * 2 + 14 + lineH + 8 + pad;
+        skillListBottom = y + panelH - equipReserved;
+        int availableHeight = skillListBottom - skillListTop;
+        int totalContentHeight = skills.size() * (ICON_SIZE + rowGap) - (skills.isEmpty() ? 0 : rowGap);
+        maxScrollOffset = Math.max(0, totalContentHeight - availableHeight);
+        scrollOffset = Math.min(scrollOffset, maxScrollOffset);
+
+        // Enable scissor clipping for skill list area
+        g.enableScissor(left, skillListTop, left + innerW, skillListBottom);
+
+        int scrolledRowY = rowY - scrollOffset;
+
+        for (int i = 0; i < skills.size() && i < 8; i++) {
             SkillType skill = skills.get(i);
             int level = sd.getLevel(skill);
             boolean unlocked = level > 0;
             boolean canUnlock = sd.canUnlock(skill, playerLevel);
             boolean maxed = level >= skill.getMaxLevel();
 
-            skillRowBounds[i] = new int[]{left, rowY, innerW, ICON_SIZE};
-            int ix = left;
-            int iy = rowY;
-            iconBounds[i] = new int[]{ix, iy, ICON_SIZE, ICON_SIZE};
+            int iy = scrolledRowY;
+            skillRowBounds[i] = new int[]{left, iy, innerW, ICON_SIZE};
+            iconBounds[i] = new int[]{left, iy, ICON_SIZE, ICON_SIZE};
 
-            boolean rowHov = isInside(mouseX, mouseY, skillRowBounds[i]);
+            // Only check hover if within visible area
+            boolean rowHov = iy >= skillListTop - ICON_SIZE && iy < skillListBottom
+                    && isInside(mouseX, mouseY, skillRowBounds[i]);
             if (rowHov) hoveredSkill = skill;
 
             // Icon background + border
-            g.fill(ix, iy, ix + ICON_SIZE, iy + ICON_SIZE, rowHov ? ICON_BG_HOVER : ICON_BG);
+            g.fill(left, iy, left + ICON_SIZE, iy + ICON_SIZE, rowHov ? ICON_BG_HOVER : ICON_BG);
             int borderColor = maxed ? SKILL_MAX : (unlocked ? SKILL_UNLOCKED : (canUnlock ? FRAME : SKILL_LOCKED));
-            drawBox(g, ix, iy, ICON_SIZE, ICON_SIZE, borderColor);
+            drawBox(g, left, iy, ICON_SIZE, ICON_SIZE, borderColor);
 
             if (pendingEquipSkill == skill) {
-                drawBox(g, ix + 1, iy + 1, ICON_SIZE - 2, ICON_SIZE - 2, TEXT_ACCENT);
+                drawBox(g, left + 1, iy + 1, ICON_SIZE - 2, ICON_SIZE - 2, TEXT_ACCENT);
             }
 
             // Abbreviation
-            String abbr = ABBREV_MAP.getOrDefault(skill, "?");
+            String abbr = skill.getAbbreviation();
             int abbrColor = unlocked ? TEXT_BRIGHT : (canUnlock ? TEXT_VALUE : TEXT_DIM);
-            g.drawString(font, abbr, ix + (ICON_SIZE - font.width(abbr)) / 2,
+            g.drawString(font, abbr, left + (ICON_SIZE - font.width(abbr)) / 2,
                     iy + (ICON_SIZE - font.lineHeight) / 2, abbrColor, false);
 
             // Info panel
@@ -467,11 +415,13 @@ public class SkillTreeScreen extends Screen {
                 plusBtnBounds[i] = new int[]{0, 0, 0, 0};
             }
 
-            rowY += ICON_SIZE + rowGap;
+            scrolledRowY += ICON_SIZE + rowGap;
         }
 
+        g.disableScissor();
+
         // Clear unused bounds
-        for (int i = skills.size(); i < 3; i++) {
+        for (int i = skills.size(); i < 8; i++) {
             skillRowBounds[i] = new int[]{0, 0, 0, 0};
             iconBounds[i] = new int[]{0, 0, 0, 0};
             plusBtnBounds[i] = new int[]{0, 0, 0, 0};
@@ -481,7 +431,15 @@ public class SkillTreeScreen extends Screen {
         if (skills.isEmpty() && !activeTierLocked) {
             String msg = sd.getSelectedClass() == PlayerClass.NONE
                     ? "Choose a class at Lv 10" : "No skills in this tier";
-            g.drawString(font, msg, cx - font.width(msg) / 2, rowY, TEXT_DIM, false);
+            g.drawString(font, msg, cx - font.width(msg) / 2, skillListTop, TEXT_DIM, false);
+        }
+
+        // Scroll indicator
+        if (maxScrollOffset > 0) {
+            int barX = left + innerW - 3;
+            int barH = Math.max(10, availableHeight * availableHeight / totalContentHeight);
+            int barY = skillListTop + (int)((float) scrollOffset / maxScrollOffset * (availableHeight - barH));
+            g.fill(barX, barY, barX + 2, barY + barH, FRAME_DIM);
         }
 
         // Equip slots section at bottom
@@ -607,7 +565,7 @@ public class SkillTreeScreen extends Screen {
         if (shiftHeld) {
             texts.add("--- Details ---");
             lines.add(new int[]{FRAME});
-            addDetailLines(texts, lines, skill, displayLevel, stats);
+            SkillTooltips.addDetailLines(texts, lines, skill, displayLevel, stats);
         } else {
             texts.add("[Shift] More details");
             lines.add(new int[]{TEXT_DIM});
@@ -634,610 +592,6 @@ public class SkillTreeScreen extends Screen {
             g.drawString(font, texts.get(i), tx + tipPad, textY, lines.get(i)[0], false);
             textY += tipLineH;
         }
-    }
-
-    private void addDetailLines(java.util.List<String> texts, java.util.List<int[]> lines,
-                                 SkillType skill, int level, PlayerStats stats) {
-        switch (skill) {
-            // === T0 ===
-            case DASH -> {
-                int speedAmp = Math.min((level - 1) / 2, 1);
-                double force = 0.8 + level * 0.15 + stats.getAgility() * 0.01;
-                texts.add("Speed: " + toRoman(speedAmp + 1) + " (3s)");
-                lines.add(new int[]{TEXT_VALUE});
-                texts.add("Impulse: " + String.format("%.2f", force) + " (AGI scales)");
-                lines.add(new int[]{TEXT_VALUE});
-            }
-            case ENDURANCE -> {
-                texts.add("Max HP: +" + (level * 2) + "%");
-                lines.add(new int[]{TEXT_VALUE});
-                texts.add("HP regen: " + String.format("%.1f", level * 0.5) + "% max HP every 3s");
-                lines.add(new int[]{TEXT_VALUE});
-            }
-
-            // === Warrior T1 ===
-            case BLOODLUST -> {
-                double range = 4 + level * 0.8 + stats.getStrength() * 0.3;
-                int dur = (int) (3 + level * 0.5);
-                texts.add("Range: " + String.format("%.1f", range) + " blocks (STR scales)");
-                lines.add(new int[]{TEXT_VALUE});
-                texts.add("Duration: " + dur + "s");
-                lines.add(new int[]{TEXT_VALUE});
-                texts.add("Applies: Slowness II, Weakness I");
-                lines.add(new int[]{TEXT_DIM});
-            }
-            case WAR_CRY -> {
-                int strAmp = Math.min((level - 1) / 3, 2);
-                int dur = 10 + level;
-                texts.add("Strength: " + toRoman(strAmp + 1) + " for " + dur + "s");
-                lines.add(new int[]{TEXT_VALUE});
-                texts.add("Range: 6 blocks (self + allies)");
-                lines.add(new int[]{TEXT_VALUE});
-                texts.add("Applies Weakness I to enemies in range");
-                lines.add(new int[]{TEXT_DIM});
-            }
-            case WEAPON_MASTERY -> {
-                texts.add("Melee damage: +" + level + "%");
-                lines.add(new int[]{TEXT_VALUE});
-                texts.add("Knockback resist: +" + (level * 5) + "%");
-                lines.add(new int[]{TEXT_VALUE});
-            }
-
-            // === Assassin T1 ===
-            case SHADOW_STRIKE -> {
-                float dmg = 1 + level * 0.8f + stats.getLuck() * 0.15f;
-                texts.add("Bonus dmg: +" + String.format("%.1f", dmg) + " (LUK scales)");
-                lines.add(new int[]{TEXT_VALUE});
-                texts.add("Window: 5s to land a hit");
-                lines.add(new int[]{TEXT_VALUE});
-                texts.add("Consumes buff on hit");
-                lines.add(new int[]{TEXT_DIM});
-            }
-            case VENOM -> {
-                int venomDur = 10 + level;
-                int poisonDur = 3 + level / 3;
-                int poisonAmp = Math.min(level / 4, 2);
-                float directDmg = 0.5f + level * 0.15f;
-                texts.add("Active: " + venomDur + "s (all melee attacks poison)");
-                lines.add(new int[]{TEXT_VALUE});
-                texts.add("Poison " + toRoman(poisonAmp + 1) + ": " + poisonDur + "s per hit");
-                lines.add(new int[]{TEXT_VALUE});
-                texts.add("Magic dmg: " + String.format("%.1f", directDmg) + " per hit");
-                lines.add(new int[]{TEXT_VALUE});
-                texts.add("Wither on undead (immune to Poison)");
-                lines.add(new int[]{TEXT_DIM});
-            }
-            case CRITICAL_EDGE -> {
-                texts.add("Crit rate: +" + level + "%");
-                lines.add(new int[]{TEXT_VALUE});
-                texts.add("Crit damage: +" + (level * 2) + "%");
-                lines.add(new int[]{TEXT_VALUE});
-            }
-
-            // === Archer T1 ===
-            case ARROW_RAIN -> {
-                float dmg = 0.3f + level * 0.1f + stats.getDexterity() * 0.02f;
-                double dur = 20 + (level - 1) * (40.0 / 9.0);
-                texts.add("Dmg/arrow: " + String.format("%.1f", dmg) + " (DEX scales)");
-                lines.add(new int[]{TEXT_VALUE});
-                texts.add("Duration: " + String.format("%.1f", dur / 20.0) + "s");
-                lines.add(new int[]{TEXT_VALUE});
-                texts.add("Radius: 3 blocks, 2-3 arrows/tick");
-                lines.add(new int[]{TEXT_VALUE});
-                texts.add("Scout arrow marks target for rain");
-                lines.add(new int[]{TEXT_DIM});
-            }
-            case SOUL_ARROW -> {
-                texts.add("MP drain: " + skill.getToggleMpPerSecond(level) + "/sec");
-                lines.add(new int[]{TEXT_VALUE});
-                texts.add("Infinite arrows (no ammo consumed)");
-                lines.add(new int[]{TEXT_VALUE});
-                texts.add("Projectile damage: +" + (5 + level) + "%");
-                lines.add(new int[]{TEXT_VALUE});
-            }
-            case SHARP_EYES -> {
-                texts.add("Crit rate: +" + String.format("%.1f", level * 1.5) + "%");
-                lines.add(new int[]{TEXT_VALUE});
-                texts.add("Crit damage: +" + (level * 5) + "%");
-                lines.add(new int[]{TEXT_VALUE});
-                texts.add("Projectile range: +" + (level / 2));
-                lines.add(new int[]{TEXT_VALUE});
-            }
-
-            // === Healer T1 ===
-            case HOLY_LIGHT -> {
-                float heal = 2 + level * 0.8f + stats.getIntelligence() * 0.15f;
-                float undeadDmg = 1 + level * 0.5f + stats.getIntelligence() * 0.1f;
-                texts.add("Heal: " + String.format("%.1f", heal) + " HP (INT scales)");
-                lines.add(new int[]{TEXT_VALUE});
-                texts.add("Undead dmg: " + String.format("%.1f", undeadDmg) + " (INT scales)");
-                lines.add(new int[]{TEXT_VALUE});
-                texts.add("Range: 6 blocks (self + allies)");
-                lines.add(new int[]{TEXT_DIM});
-            }
-            case BLESS -> {
-                int strAmp = Math.min(level / 4, 1);
-                int dur = 30 + level * 3;
-                texts.add("Duration: " + dur + "s");
-                lines.add(new int[]{TEXT_VALUE});
-                texts.add("Buffs: Strength " + toRoman(strAmp + 1) + ", Resistance I, Regen I");
-                lines.add(new int[]{TEXT_VALUE});
-                texts.add("Range: 8 blocks (self + allies)");
-                lines.add(new int[]{TEXT_DIM});
-            }
-            case MP_RECOVERY -> {
-                int mpOnKill = 2 + level;
-                texts.add("MP regen: +" + String.format("%.1f", level * 0.2) + "%/sec");
-                lines.add(new int[]{TEXT_VALUE});
-                texts.add("MP on kill: +" + mpOnKill);
-                lines.add(new int[]{TEXT_VALUE});
-            }
-
-            // === Mage T1 ===
-            case FLAME_ORB -> {
-                float dmg = 2 + level * 0.6f + stats.getIntelligence() * 0.12f;
-                double radius = 3 + level * 0.1;
-                int fireDur = 3 + level / 3;
-                texts.add("Damage: " + String.format("%.1f", dmg) + " (INT scales)");
-                lines.add(new int[]{TEXT_VALUE});
-                texts.add("AoE radius: " + String.format("%.1f", radius) + " blocks");
-                lines.add(new int[]{TEXT_VALUE});
-                texts.add("Sets fire: " + fireDur + "s");
-                lines.add(new int[]{TEXT_VALUE});
-                texts.add("Projectile, explodes on impact");
-                lines.add(new int[]{TEXT_DIM});
-            }
-            case MAGIC_GUARD -> {
-                float redirect = 0.3f + level * 0.03f;
-                texts.add("Dmg to MP: " + String.format("%.0f", redirect * 100) + "%");
-                lines.add(new int[]{TEXT_VALUE});
-                texts.add("MP drain: " + skill.getToggleMpPerSecond(level) + "/sec");
-                lines.add(new int[]{TEXT_VALUE});
-                texts.add("Remaining damage still hurts HP");
-                lines.add(new int[]{TEXT_DIM});
-            }
-            case ELEMENTAL_DRAIN -> {
-                texts.add("Bonus per debuff: +" + (level * 5) + "% dmg");
-                lines.add(new int[]{TEXT_VALUE});
-                texts.add("Max bonus: +25%");
-                lines.add(new int[]{TEXT_VALUE});
-            }
-
-            // === Warrior T2 ===
-            case IRON_WILL -> {
-                int amp = Math.min((level - 1) / 5, 2);
-                texts.add("Resistance: " + toRoman(amp + 1));
-                lines.add(new int[]{TEXT_VALUE});
-                texts.add("MP drain: " + skill.getToggleMpPerSecond(level) + "/sec");
-                lines.add(new int[]{TEXT_VALUE});
-                texts.add("Damage reduction + knockback resist");
-                lines.add(new int[]{TEXT_DIM});
-            }
-            case GROUND_SLAM -> {
-                double range = 3 + level * 0.15 + stats.getStrength() * 0.05;
-                float dmg = 2 + level * 0.5f + stats.getStrength() * 0.1f;
-                int stunDur = 1 + level / 5;
-                texts.add("Damage: " + String.format("%.1f", dmg) + " (STR scales)");
-                lines.add(new int[]{TEXT_VALUE});
-                texts.add("Range: " + String.format("%.1f", range) + " blocks (STR scales)");
-                lines.add(new int[]{TEXT_VALUE});
-                texts.add("Stun: " + stunDur + "s (Slowness IV)");
-                lines.add(new int[]{TEXT_VALUE});
-            }
-            case RAGE -> {
-                texts.add("Below 50% HP: +" + (level * 2) + "% damage");
-                lines.add(new int[]{TEXT_VALUE});
-                texts.add("Lifesteal: " + String.format("%.1f", level * 0.5) + "%");
-                lines.add(new int[]{TEXT_VALUE});
-            }
-
-            // === Assassin T2 ===
-            case STEALTH -> {
-                double detect = Math.max(5.0 - level * 0.27, 1.0);
-                texts.add("Detection range: " + String.format("%.1f", detect) + " blocks");
-                lines.add(new int[]{TEXT_VALUE});
-                texts.add("MP drain: " + skill.getToggleMpPerSecond(level) + "/sec");
-                lines.add(new int[]{TEXT_VALUE});
-                texts.add("Grants: Invisibility, clears mob aggro");
-                lines.add(new int[]{TEXT_DIM});
-                texts.add("Breaks on attack or taking damage");
-                lines.add(new int[]{TEXT_DIM});
-            }
-            case BLADE_FURY -> {
-                double range = 3 + level * 0.1 + stats.getLuck() * 0.03;
-                float dmg = 2 + level * 0.6f + stats.getLuck() * 0.12f;
-                texts.add("Damage: " + String.format("%.1f", dmg) + " (LUK scales)");
-                lines.add(new int[]{TEXT_VALUE});
-                texts.add("Range: " + String.format("%.1f", range) + " blocks (LUK scales)");
-                lines.add(new int[]{TEXT_VALUE});
-                texts.add("Hits all enemies in radius");
-                lines.add(new int[]{TEXT_DIM});
-            }
-            case EVASION -> {
-                texts.add("Dodge chance: " + (level * 2) + "%");
-                lines.add(new int[]{TEXT_VALUE});
-                texts.add("Dodge guarantees next crit");
-                lines.add(new int[]{TEXT_DIM});
-            }
-
-            // === Archer T2 ===
-            case ARROW_BOMB -> {
-                float dmg = 2 + level * 0.6f + stats.getDexterity() * 0.1f;
-                double radius = 3 + level * 0.1;
-                int stunDur = 2 + level / 5;
-                texts.add("Damage: " + String.format("%.1f", dmg) + " (DEX scales)");
-                lines.add(new int[]{TEXT_VALUE});
-                texts.add("AoE radius: " + String.format("%.1f", radius) + " blocks");
-                lines.add(new int[]{TEXT_VALUE});
-                texts.add("Stun: " + stunDur + "s (Slowness IV)");
-                lines.add(new int[]{TEXT_VALUE});
-                texts.add("Explosive arrow projectile");
-                lines.add(new int[]{TEXT_DIM});
-            }
-            case COVERING_FIRE -> {
-                float dmg = 1 + level * 0.4f + stats.getDexterity() * 0.08f;
-                int arrowCount = 3 + level / 4;
-                texts.add("Dmg/arrow: " + String.format("%.1f", dmg) + " (DEX scales)");
-                lines.add(new int[]{TEXT_VALUE});
-                texts.add("Arrows: " + arrowCount);
-                lines.add(new int[]{TEXT_VALUE});
-                texts.add("Leaps backward while firing forward");
-                lines.add(new int[]{TEXT_DIM});
-            }
-            case EVASION_BOOST -> {
-                texts.add("Dodge chance: " + (level * 2) + "%");
-                lines.add(new int[]{TEXT_VALUE});
-                texts.add("Dodge guarantees next arrow crits");
-                lines.add(new int[]{TEXT_DIM});
-            }
-
-            // === Healer T2 ===
-            case HOLY_SHELL -> {
-                float absorb = 2 + level * 0.4f + stats.getIntelligence() * 0.05f;
-                texts.add("Absorption: " + String.format("%.1f", absorb) + " HP (INT scales)");
-                lines.add(new int[]{TEXT_VALUE});
-                texts.add("Range: 6 blocks (self + allies)");
-                lines.add(new int[]{TEXT_VALUE});
-                texts.add("Cleanses: Poison, Wither");
-                lines.add(new int[]{TEXT_DIM});
-            }
-            case DISPEL -> {
-                texts.add("Self: Remove Poison, Wither, Weakness,");
-                lines.add(new int[]{TEXT_VALUE});
-                texts.add("  Slowness, Mining Fatigue, Blindness");
-                lines.add(new int[]{TEXT_VALUE});
-                texts.add("Allies: Remove Poison, Wither, Weakness,");
-                lines.add(new int[]{TEXT_VALUE});
-                texts.add("  Slowness (8 block range)");
-                lines.add(new int[]{TEXT_VALUE});
-            }
-            case DIVINE_PROTECTION -> {
-                texts.add("Status resist: +" + (level * 3) + "%");
-                lines.add(new int[]{TEXT_VALUE});
-                texts.add("Auto-cleanse chance on debuff");
-                lines.add(new int[]{TEXT_DIM});
-            }
-
-            // === Mage T2 ===
-            case FROST_BIND -> {
-                double range = 5 + level * 0.15 + stats.getIntelligence() * 0.05;
-                float dmg = 1 + level * 0.3f + stats.getIntelligence() * 0.08f;
-                int freezeDur = 3 + level / 3;
-                texts.add("Damage: " + String.format("%.1f", dmg) + " (INT scales)");
-                lines.add(new int[]{TEXT_VALUE});
-                texts.add("Range: " + String.format("%.1f", range) + " blocks (INT scales)");
-                lines.add(new int[]{TEXT_VALUE});
-                texts.add("Freeze: " + freezeDur + "s (Slowness IV + Weakness I)");
-                lines.add(new int[]{TEXT_VALUE});
-                texts.add("Pulls enemies inward");
-                lines.add(new int[]{TEXT_DIM});
-            }
-            case POISON_MIST -> {
-                int mistDur = 8 + level / 3;
-                float tickDmg = 0.5f + level * 0.1f + stats.getIntelligence() * 0.03f;
-                double radius = 4 + level * 0.1;
-                texts.add("Duration: " + mistDur + "s");
-                lines.add(new int[]{TEXT_VALUE});
-                texts.add("DPS: " + String.format("%.1f", tickDmg) + "/sec (INT scales)");
-                lines.add(new int[]{TEXT_VALUE});
-                texts.add("Radius: " + String.format("%.1f", radius) + " blocks");
-                lines.add(new int[]{TEXT_VALUE});
-                texts.add("Applies: Poison I, stationary zone");
-                lines.add(new int[]{TEXT_DIM});
-            }
-            case ELEMENT_AMPLIFICATION -> {
-                texts.add("Skill damage: +" + (level * 3) + "%");
-                lines.add(new int[]{TEXT_VALUE});
-                texts.add("MP cost: +20% for all skills");
-                lines.add(new int[]{TEXT_DIM});
-            }
-
-            // === Warrior T3 ===
-            case DOMAIN_OF_MONARCH -> {
-                int dur = 4 + level / 2;
-                double radius = 2 + level * 0.3 + stats.getStrength() * 0.1;
-                float dps = 0.5f + level * 0.15f + stats.getStrength() * 0.05f;
-                texts.add("Duration: " + dur + "s");
-                lines.add(new int[]{TEXT_VALUE});
-                texts.add("Radius: " + String.format("%.1f", radius) + " blocks (STR scales)");
-                lines.add(new int[]{TEXT_VALUE});
-                texts.add("DPS: " + String.format("%.1f", dps) + "/sec (STR scales)");
-                lines.add(new int[]{TEXT_VALUE});
-                texts.add("Applies: Slowness I, Glowing on enemies");
-                lines.add(new int[]{TEXT_DIM});
-                texts.add("Grants: Strength I to self");
-                lines.add(new int[]{TEXT_DIM});
-            }
-            case UNBREAKABLE -> {
-                int dur = 3 + level / 4;
-                float healPct = 20 + level;
-                texts.add("Invulnerable: " + dur + "s (Resistance V)");
-                lines.add(new int[]{TEXT_VALUE});
-                texts.add("Burst heal: " + String.format("%.0f", healPct) + "% max HP");
-                lines.add(new int[]{TEXT_VALUE});
-                texts.add("Cleanses: Poison, Wither, Weakness, Slow");
-                lines.add(new int[]{TEXT_DIM});
-            }
-            case BERSERKER_SPIRIT -> {
-                texts.add("Crit rate: +" + level + "%");
-                lines.add(new int[]{TEXT_VALUE});
-                texts.add("Double strike: " + level + "% chance");
-                lines.add(new int[]{TEXT_VALUE});
-                texts.add("Lifesteal: " + String.format("%.1f", level * 0.3) + "%");
-                lines.add(new int[]{TEXT_VALUE});
-            }
-
-            // === Assassin T3 ===
-            case RULERS_AUTHORITY -> {
-                double range = 4 + level * 0.4 + stats.getLuck() * 0.15;
-                float dmg = level * 0.4f + stats.getLuck() * 0.08f;
-                double pullForce = 0.3 + level * 0.1;
-                texts.add("Damage: " + String.format("%.1f", dmg) + " (LUK scales)");
-                lines.add(new int[]{TEXT_VALUE});
-                texts.add("Range: " + String.format("%.1f", range) + " blocks (LUK scales)");
-                lines.add(new int[]{TEXT_VALUE});
-                texts.add("Pull force: " + String.format("%.1f", pullForce));
-                lines.add(new int[]{TEXT_VALUE});
-                texts.add("Cone: ~60 degrees in front");
-                lines.add(new int[]{TEXT_DIM});
-            }
-            case SHADOW_PARTNER -> {
-                float mult = 0.3f + (level - 1) * (0.1f / 19.0f);
-                texts.add("Mirror damage: " + String.format("%.0f", mult * 100) + "%");
-                lines.add(new int[]{TEXT_VALUE});
-                texts.add("MP drain: " + skill.getToggleMpPerSecond(level) + "/sec");
-                lines.add(new int[]{TEXT_VALUE});
-                texts.add("Max MP halved while active");
-                lines.add(new int[]{TEXT_DIM});
-                texts.add("Mirrors all skills + melee + ranged");
-                lines.add(new int[]{TEXT_DIM});
-            }
-            case FATAL_BLOW -> {
-                texts.add("Below 30% HP: +" + (level * 2) + "% damage");
-                lines.add(new int[]{TEXT_VALUE});
-                texts.add("Execute chance: " + String.format("%.1f", level * 0.5) + "%");
-                lines.add(new int[]{TEXT_VALUE});
-            }
-
-            // === Archer T3 ===
-            case PHOENIX -> {
-                float dmg = 1 + level * 0.3f + stats.getDexterity() * 0.06f;
-                double range = 6 + level * 0.2 + stats.getDexterity() * 0.05;
-                int dur = (int) Math.min(30 + level * 1.5, 60);
-                texts.add("Duration: " + dur + "s");
-                lines.add(new int[]{TEXT_VALUE});
-                texts.add("DPS: " + String.format("%.1f", dmg) + "/sec (DEX scales)");
-                lines.add(new int[]{TEXT_VALUE});
-                texts.add("Range: " + String.format("%.1f", range) + " blocks (DEX scales)");
-                lines.add(new int[]{TEXT_VALUE});
-                texts.add("Grants: Resistance I, sets target on fire");
-                lines.add(new int[]{TEXT_DIM});
-            }
-            case HURRICANE -> {
-                float dmg = 1.5f + level * 0.4f + stats.getDexterity() * 0.1f;
-                double range = 8 + stats.getDexterity() * 0.1;
-                texts.add("Dmg/arrow: " + String.format("%.1f", dmg) + " (DEX scales)");
-                lines.add(new int[]{TEXT_VALUE});
-                texts.add("Range: " + String.format("%.1f", range) + " blocks (DEX scales)");
-                lines.add(new int[]{TEXT_VALUE});
-                texts.add("MP drain: " + skill.getToggleMpPerSecond(level) + "/sec");
-                lines.add(new int[]{TEXT_VALUE});
-                texts.add("Auto-fires at nearest enemy, slows self");
-                lines.add(new int[]{TEXT_DIM});
-            }
-            case MORTAL_BLOW -> {
-                texts.add("Below 30% HP: +" + (level * 2) + "% projectile dmg");
-                lines.add(new int[]{TEXT_VALUE});
-                texts.add("Execute chance: " + String.format("%.1f", level * 0.5) + "%");
-                lines.add(new int[]{TEXT_VALUE});
-            }
-
-            // === Healer T3 ===
-            case BENEDICTION -> {
-                int dur = 15 + level;
-                double radius = 4 + level * 0.2 + stats.getIntelligence() * 0.05;
-                float tickDmg = 0.5f + level * 0.1f + stats.getIntelligence() * 0.03f;
-                texts.add("Duration: " + dur + "s");
-                lines.add(new int[]{TEXT_VALUE});
-                texts.add("Radius: " + String.format("%.1f", radius) + " blocks (INT scales)");
-                lines.add(new int[]{TEXT_VALUE});
-                texts.add("Allies: Regen II + Strength I each sec");
-                lines.add(new int[]{TEXT_VALUE});
-                texts.add("Enemies: " + String.format("%.1f", tickDmg) + " DPS + Slowness I");
-                lines.add(new int[]{TEXT_VALUE});
-                texts.add("Stationary zone");
-                lines.add(new int[]{TEXT_DIM});
-            }
-            case ANGEL_RAY -> {
-                float dmg = 1.5f + level * 0.4f + stats.getIntelligence() * 0.1f;
-                float heal = dmg * 0.3f;
-                texts.add("Damage: " + String.format("%.1f", dmg) + " (INT scales)");
-                lines.add(new int[]{TEXT_VALUE});
-                texts.add("AoE radius: 3 blocks on impact");
-                lines.add(new int[]{TEXT_VALUE});
-                texts.add("Heals allies: " + String.format("%.1f", heal) + " HP");
-                lines.add(new int[]{TEXT_VALUE});
-                texts.add("Holy projectile, damages + heals");
-                lines.add(new int[]{TEXT_DIM});
-            }
-            case BLESSED_ENSEMBLE -> {
-                texts.add("Damage: +" + (level * 3) + "% per nearby player");
-                lines.add(new int[]{TEXT_VALUE});
-                texts.add("XP bonus: +" + (level * 5) + "% per nearby player");
-                lines.add(new int[]{TEXT_VALUE});
-            }
-
-            // === Mage T3 ===
-            case MIST_ERUPTION -> {
-                float detDmg = 4 + level * 0.8f + stats.getIntelligence() * 0.2f;
-                double detRadius = 5 + level * 0.15;
-                float blastDmg = 2 + level * 0.4f + stats.getIntelligence() * 0.1f;
-                texts.add("With Mist: " + String.format("%.1f", detDmg) + " dmg (INT scales)");
-                lines.add(new int[]{TEXT_VALUE});
-                texts.add("  Radius: " + String.format("%.1f", detRadius) + " blocks + fire");
-                lines.add(new int[]{TEXT_VALUE});
-                texts.add("No Mist: " + String.format("%.1f", blastDmg) + " dmg, 4 block range");
-                lines.add(new int[]{TEXT_VALUE});
-                texts.add("Detonates Poison Mist for bonus damage");
-                lines.add(new int[]{TEXT_DIM});
-            }
-            case INFINITY -> {
-                int dur = 20 + level;
-                texts.add("Duration: " + dur + "s");
-                lines.add(new int[]{TEXT_VALUE});
-                texts.add("All skills cost 0 MP while active");
-                lines.add(new int[]{TEXT_VALUE});
-                texts.add("Every 4s: Strength I + 3% max HP heal");
-                lines.add(new int[]{TEXT_VALUE});
-            }
-            case ARCANE_OVERDRIVE -> {
-                texts.add("Crit rate: +" + String.format("%.1f", level * 1.5) + "%");
-                lines.add(new int[]{TEXT_VALUE});
-                texts.add("Crit damage: +" + level + "%");
-                lines.add(new int[]{TEXT_VALUE});
-                texts.add("Armor pen: +" + level + "%");
-                lines.add(new int[]{TEXT_VALUE});
-            }
-
-            // === Necromancer T1 ===
-            case LIFE_DRAIN -> {
-                float ldRange = 5 + level * 0.3f;
-                float ldDmg = 3 + level * 0.8f + stats.getIntelligence() * 0.15f;
-                float ldHeal = 30 + level * 2;
-                texts.add("Damage: " + String.format("%.1f", ldDmg) + " (INT scales)");
-                lines.add(new int[]{TEXT_VALUE});
-                texts.add("Range: " + String.format("%.1f", ldRange) + " blocks");
-                lines.add(new int[]{TEXT_VALUE});
-                texts.add("Heal: " + String.format("%.0f", ldHeal) + "% of damage (Mind scales)");
-                lines.add(new int[]{TEXT_VALUE});
-            }
-            case RAISE_SKELETON -> {
-                float mDmg = 3 + stats.getMind() * 0.15f;
-                float mHp = 20 + stats.getMind() * 0.5f;
-                String weapon = level >= 9 ? "Diamond" : level >= 7 ? "Iron" : level >= 5 ? "Iron" : level >= 3 ? "Stone" : "Wooden";
-                texts.add("Minion HP: " + String.format("%.0f", mHp) + " (Mind scales)");
-                lines.add(new int[]{TEXT_VALUE});
-                texts.add("Minion DMG: " + String.format("%.1f", mDmg) + " (Mind scales)");
-                lines.add(new int[]{TEXT_VALUE});
-                texts.add("Weapon: " + weapon + " Sword");
-                lines.add(new int[]{TEXT_VALUE});
-                texts.add("MP drain: " + SkillType.RAISE_SKELETON.getToggleMpPerSecond(level) + "/s");
-                lines.add(new int[]{TEXT_VALUE});
-            }
-            case DARK_PACT -> {
-                texts.add("Max MP: +" + (level * 3) + "%");
-                lines.add(new int[]{TEXT_VALUE});
-                texts.add("Summon damage: +" + (level * 2) + "%");
-                lines.add(new int[]{TEXT_VALUE});
-            }
-
-            // === Necromancer T2 ===
-            case BONE_SHIELD -> {
-                int reduction = Math.min(10 + level, 25);
-                texts.add("Damage reduction: " + reduction + "%");
-                lines.add(new int[]{TEXT_VALUE});
-                texts.add("MP drain: " + SkillType.BONE_SHIELD.getToggleMpPerSecond(level) + "/s");
-                lines.add(new int[]{TEXT_VALUE});
-            }
-            case CORPSE_EXPLOSION -> {
-                float ceDmg = 8 + level * 1.5f + stats.getIntelligence() * 0.3f;
-                texts.add("Dmg/skeleton: " + String.format("%.1f", ceDmg) + " (INT scales)");
-                lines.add(new int[]{TEXT_VALUE});
-                texts.add("Blast radius: 4 blocks per skeleton");
-                lines.add(new int[]{TEXT_VALUE});
-                texts.add("Detonates ALL skeletons (Raise + Army)");
-                lines.add(new int[]{TEXT_DIM});
-                texts.add("Skeletons rush to target, then explode");
-                lines.add(new int[]{TEXT_DIM});
-            }
-            case SOUL_SIPHON -> {
-                texts.add("HP restore: " + String.format("%.1f", 1 + level * 0.2f) + "% on kill");
-                lines.add(new int[]{TEXT_VALUE});
-                texts.add("MP restore: " + String.format("%.1f", 2 + level * 0.3f) + "% on kill");
-                lines.add(new int[]{TEXT_VALUE});
-            }
-
-            // === Necromancer T3 ===
-            case ARMY_OF_THE_DEAD -> {
-                float mDmg = (3 + stats.getMind() * 0.15f) * 0.7f;
-                float mHp = (20 + stats.getMind() * 0.5f) * 0.7f;
-                float adDur = 10 + level * 0.5f;
-                texts.add("Summons: 5 skeleton minions");
-                lines.add(new int[]{TEXT_VALUE});
-                texts.add("Minion HP: " + String.format("%.0f", mHp) + " (70% of Raise)");
-                lines.add(new int[]{TEXT_VALUE});
-                texts.add("Minion DMG: " + String.format("%.1f", mDmg) + " (70% of Raise)");
-                lines.add(new int[]{TEXT_VALUE});
-                texts.add("Duration: " + String.format("%.1f", adDur) + "s");
-                lines.add(new int[]{TEXT_VALUE});
-                texts.add("Corpse Explosion detonates these too");
-                lines.add(new int[]{TEXT_DIM});
-            }
-            case DEATH_MARK -> {
-                float dmDot = 2 + level * 0.5f + stats.getIntelligence() * 0.1f;
-                float dmDur = 10 + level * 0.5f;
-                texts.add("DoT: " + String.format("%.1f", dmDot) + "/s (INT scales)");
-                lines.add(new int[]{TEXT_VALUE});
-                texts.add("Duration: " + String.format("%.1f", dmDur) + "s");
-                lines.add(new int[]{TEXT_VALUE});
-                texts.add("On target death: AoE + restore " + String.format("%.1f", 5 + level * 0.5f) + "% HP/MP");
-                lines.add(new int[]{TEXT_DIM});
-            }
-            case UNDYING_WILL -> {
-                int revPct = 10 + level;
-                int cdSec = Math.max(3600 - level * 90, 1800) / 20;
-                texts.add("Revive at: " + revPct + "% HP on fatal damage");
-                lines.add(new int[]{TEXT_VALUE});
-                texts.add("Cooldown: " + cdSec + "s");
-                lines.add(new int[]{TEXT_VALUE});
-                texts.add("Minion max HP: +" + (level * 3) + "%");
-                lines.add(new int[]{TEXT_VALUE});
-            }
-
-            // === Legacy ===
-            case VITAL_SURGE -> {
-                float heal = 2 + level * 0.9f + stats.getVitality() * 0.1f;
-                int regenDur = 2 + level / 3;
-                texts.add("Heal: " + String.format("%.1f", heal) + " HP (VIT scales)");
-                lines.add(new int[]{TEXT_VALUE});
-                texts.add("Regen I: " + regenDur + "s");
-                lines.add(new int[]{TEXT_VALUE});
-                texts.add("Cleanses: Poison, Wither");
-                lines.add(new int[]{TEXT_DIM});
-            }
-            default -> {}
-        }
-    }
-
-    private static String toRoman(int n) {
-        return switch (n) {
-            case 1 -> "I";
-            case 2 -> "II";
-            case 3 -> "III";
-            case 4 -> "IV";
-            case 5 -> "V";
-            default -> String.valueOf(n);
-        };
     }
 
     private String getReqText(SkillType skill, SkillData sd) {
@@ -1286,6 +640,7 @@ public class SkillTreeScreen extends Screen {
                     if (playerLevel >= TIER_REQ_LEVELS[i]) {
                         activeTab = i;
                         pendingEquipSkill = null;
+                        scrollOffset = 0;
                     }
                     return true;
                 }
@@ -1306,7 +661,7 @@ public class SkillTreeScreen extends Screen {
             SkillData sd = stats != null ? stats.getSkillData() : null;
             if (sd != null) {
                 List<SkillType> skills = sd.getVisibleSkills(TIER_NUMBERS[activeTab]);
-                for (int i = 0; i < skills.size() && i < 3; i++) {
+                for (int i = 0; i < skills.size() && i < 8; i++) {
                     if (isInside((int) mx, (int) my, plusBtnBounds[i])) {
                         ModNetwork.sendToServer(new C2SUnlockSkillPacket(skills.get(i).getId()));
                         return true;
@@ -1340,6 +695,15 @@ public class SkillTreeScreen extends Screen {
         }
 
         return super.mouseClicked(mx, my, btn);
+    }
+
+    @Override
+    public boolean mouseScrolled(double mx, double my, double delta) {
+        if (maxScrollOffset > 0) {
+            scrollOffset = (int) Math.max(0, Math.min(maxScrollOffset, scrollOffset - delta * 20));
+            return true;
+        }
+        return super.mouseScrolled(mx, my, delta);
     }
 
     // === Drawing helpers ===

@@ -1,6 +1,5 @@
-package com.monody.projectleveling.entity.renderer;
+package com.monody.projectleveling.entity.necromancer;
 
-import com.monody.projectleveling.entity.SkeletonMinionEntity;
 import net.minecraft.client.model.SkeletonModel;
 import net.minecraft.client.model.geom.ModelLayers;
 import net.minecraft.client.renderer.entity.EntityRendererProvider;

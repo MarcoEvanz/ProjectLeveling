@@ -1,6 +1,5 @@
-package com.monody.projectleveling.entity.renderer;
+package com.monody.projectleveling.entity.archer;
 
-import com.monody.projectleveling.entity.SkillArrowEntity;
 import net.minecraft.client.renderer.entity.ArrowRenderer;
 import net.minecraft.client.renderer.entity.EntityRendererProvider;
 import net.minecraft.resources.ResourceLocation;

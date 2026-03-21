@@ -1,6 +1,10 @@
 package com.monody.projectleveling.entity;
 
 import com.monody.projectleveling.ProjectLeveling;
+import com.monody.projectleveling.entity.archer.SkillArrowEntity;
+import com.monody.projectleveling.entity.assassin.ShadowPartnerEntity;
+import com.monody.projectleveling.entity.mage.SkillFireballEntity;
+import com.monody.projectleveling.entity.necromancer.SkeletonMinionEntity;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.MobCategory;
 import net.minecraftforge.registries.DeferredRegister;

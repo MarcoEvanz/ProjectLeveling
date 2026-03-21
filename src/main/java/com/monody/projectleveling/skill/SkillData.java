@@ -54,6 +54,8 @@ public class SkillData {
     private int deathMarkTargetId = -1;
     // Undying Will internal cooldown
     private int undyingWillCooldown = 0;
+    // Unholy Fervor buff
+    private int fervorTicks = 0;
 
     // === Getters ===
 
@@ -181,6 +183,8 @@ public class SkillData {
     // Undying Will
     public int getUndyingWillCooldown() { return undyingWillCooldown; }
     public void setUndyingWillCooldown(int ticks) { this.undyingWillCooldown = ticks; }
+    public int getFervorTicks() { return fervorTicks; }
+    public void setFervorTicks(int ticks) { this.fervorTicks = ticks; }
 
     public Map<SkillType, Integer> getSkillLevels() { return skillLevels; }
     public Map<SkillType, Integer> getCooldowns() { return cooldowns; }
@@ -324,6 +328,7 @@ public class SkillData {
         deathMarkTicks = 0;
         deathMarkTargetId = -1;
         undyingWillCooldown = 0;
+        fervorTicks = 0;
     }
 
     // === NBT (only persistent data) ===

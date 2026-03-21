@@ -242,7 +242,7 @@ public class StatusScreen extends Screen {
         g.drawString(font, "MP REGEN:", left, rowY, TEXT_DIM, false);
         g.drawString(font, String.format(" %.1f%%/s", mpRegenPct) + mpSkill, left + font.width("MP REGEN:"), rowY, TEXT_ACCENT, false);
         int dpkLv = sd.getLevel(SkillType.DARK_PACT);
-        String dpkSkill = dpkLv > 0 ? " (+" + (dpkLv * 3) + "%)" : "";
+        String dpkSkill = dpkLv > 0 ? " (+" + (dpkLv * 2) + "%)" : "";
         String mpVal = String.valueOf(stats.getMaxMp()) + dpkSkill;
         String mpLabel = "MAX MP: ";
         drawRight(g, mpVal, right, rowY, TEXT_ACCENT);

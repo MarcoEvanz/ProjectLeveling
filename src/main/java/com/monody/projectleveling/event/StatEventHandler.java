@@ -7,13 +7,13 @@ import com.monody.projectleveling.network.ModNetwork;
 import com.monody.projectleveling.network.S2CSyncStatsPacket;
 import com.monody.projectleveling.skill.CombatLog;
 import com.monody.projectleveling.skill.SkillData;
-import com.monody.projectleveling.entity.SkeletonMinionEntity;
-import com.monody.projectleveling.entity.SkillArrowEntity;
-import com.monody.projectleveling.entity.SkillFireballEntity;
-import com.monody.projectleveling.entity.ShadowPartnerEntity;
+import com.monody.projectleveling.entity.archer.SkillArrowEntity;
+import com.monody.projectleveling.entity.assassin.ShadowPartnerEntity;
+import com.monody.projectleveling.entity.mage.SkillFireballEntity;
+import com.monody.projectleveling.entity.necromancer.SkeletonMinionEntity;
 import com.monody.projectleveling.skill.SkillDamageSource;
-import com.monody.projectleveling.skill.SkillExecutor;
 import com.monody.projectleveling.skill.SkillParticles;
+import com.monody.projectleveling.skill.classes.*;
 import com.monody.projectleveling.skill.SkillSounds;
 import com.monody.projectleveling.skill.SkillType;
 import net.minecraft.core.particles.ParticleTypes;
@@ -65,7 +65,7 @@ public class StatEventHandler {
         lastPositions.remove(event.getEntity().getUUID());
         // Despawn Shadow Partner on logout
         if (event.getEntity() instanceof ServerPlayer player && player.level() instanceof ServerLevel sl) {
-            SkillExecutor.despawnShadowPartner(player, sl);
+            AssassinSkills.despawnShadowPartner(player, sl);
         }
     }
 
@@ -127,8 +127,8 @@ public class StatEventHandler {
             // Passive: Soul Siphon — restore HP% and MP% on kill
             int ssLv = sd.getLevel(SkillType.SOUL_SIPHON);
             if (ssLv > 0) {
-                float hpRestore = player.getMaxHealth() * (1 + ssLv * 0.2f) / 100f;
-                int mpRestore = (int) (stats.getMaxMp() * (2 + ssLv * 0.3f) / 100f);
+                float hpRestore = player.getMaxHealth() * (0.5f + ssLv * 0.15f) / 100f;
+                int mpRestore = (int) (stats.getMaxMp() * (1 + ssLv * 0.2f) / 100f);
                 player.heal(hpRestore);
                 CombatLog.heal(player, "Soul Siphon", hpRestore);
                 stats.setCurrentMp(Math.min(stats.getCurrentMp() + mpRestore, stats.getMaxMp()));
@@ -137,7 +137,7 @@ public class StatEventHandler {
             // Death Mark: check if killed mob is the marked target
             if (sd.getDeathMarkTicks() > 0 && sd.getDeathMarkTargetId() >= 0) {
                 if (event.getEntity().getId() == sd.getDeathMarkTargetId()) {
-                    SkillExecutor.onDeathMarkTargetDeath(player, stats, sd, event.getEntity());
+                    NecromancerSkills.onDeathMarkTargetDeath(player, stats, sd, event.getEntity());
                 }
             }
 
@@ -197,7 +197,7 @@ public class StatEventHandler {
                     player.sendSystemMessage(Component.literal("\u00a7b[System]\u00a7r \u00a77Domain faded."));
                     syncToClient(player);
                 } else if (player.tickCount % 20 == 0) {
-                    SkillExecutor.tickDomain(player, stats, sd);
+                    WarriorSkills.tickDomain(player, stats, sd);
                 }
             }
 
@@ -218,7 +218,7 @@ public class StatEventHandler {
                     player.sendSystemMessage(Component.literal("\u00a7b[System]\u00a7r \u00a77Phoenix departed."));
                     syncToClient(player);
                 } else if (player.tickCount % 20 == 0) {
-                    SkillExecutor.tickPhoenix(player, stats, sd);
+                    ArcherSkills.tickPhoenix(player, stats, sd);
                 }
             }
 
@@ -229,7 +229,7 @@ public class StatEventHandler {
                     player.sendSystemMessage(Component.literal("\u00a7b[System]\u00a7r \u00a77Arrow Rain ended."));
                     syncToClient(player);
                 } else {
-                    SkillExecutor.tickArrowRain(player, sd);
+                    ArcherSkills.tickArrowRain(player, sd);
                 }
             }
 
@@ -240,7 +240,7 @@ public class StatEventHandler {
                     player.sendSystemMessage(Component.literal("\u00a7b[System]\u00a7r \u00a77Benediction faded."));
                     syncToClient(player);
                 } else if (player.tickCount % 20 == 0) {
-                    SkillExecutor.tickBenediction(player, stats, sd);
+                    HealerSkills.tickBenediction(player, stats, sd);
                 }
             }
 
@@ -252,7 +252,7 @@ public class StatEventHandler {
                     player.sendSystemMessage(Component.literal("\u00a7b[System]\u00a7r \u00a77Poison Mist dissipated."));
                     syncToClient(player);
                 } else if (player.tickCount % 20 == 0) {
-                    SkillExecutor.tickPoisonMist(player, stats, sd);
+                    MageSkills.tickPoisonMist(player, stats, sd);
                 }
             }
 
@@ -263,7 +263,7 @@ public class StatEventHandler {
                     player.sendSystemMessage(Component.literal("\u00a7b[System]\u00a7r \u00a77Infinity ended."));
                     syncToClient(player);
                 } else if (player.tickCount % 80 == 0) {
-                    SkillExecutor.tickInfinity(player, sd);
+                    MageSkills.tickInfinity(player, sd);
                 }
             }
 
@@ -272,7 +272,7 @@ public class StatEventHandler {
                 sd.setArmyTicks(sd.getArmyTicks() - 1);
                 if (sd.getArmyTicks() <= 0) {
                     if (player.level() instanceof ServerLevel sl) {
-                        SkillExecutor.despawnArmyMinions(player, sl);
+                        NecromancerSkills.despawnArmyMinions(player, sl);
                     }
                     player.sendSystemMessage(Component.literal("\u00a7b[System]\u00a7r \u00a77Army of the Dead faded."));
                     syncToClient(player);
@@ -287,13 +287,28 @@ public class StatEventHandler {
                     player.sendSystemMessage(Component.literal("\u00a7b[System]\u00a7r \u00a77Death Mark expired."));
                     syncToClient(player);
                 } else if (player.tickCount % 20 == 0) {
-                    SkillExecutor.tickDeathMark(player, stats, sd);
+                    NecromancerSkills.tickDeathMark(player, stats, sd);
                 }
             }
 
             // Undying Will cooldown tick
             if (sd.getUndyingWillCooldown() > 0) {
                 sd.setUndyingWillCooldown(sd.getUndyingWillCooldown() - 1);
+            }
+
+            // Unholy Fervor buff tick
+            if (sd.getFervorTicks() > 0) {
+                sd.setFervorTicks(sd.getFervorTicks() - 1);
+                if (sd.getFervorTicks() <= 0) {
+                    if (player.level() instanceof ServerLevel sl) {
+                        List<SkeletonMinionEntity> minions = NecromancerSkills.findAllSkeletonMinions(player, sl);
+                        for (SkeletonMinionEntity m : minions) {
+                            m.getAttribute(net.minecraft.world.entity.ai.attributes.Attributes.MOVEMENT_SPEED).setBaseValue(0.3);
+                        }
+                    }
+                    player.sendSystemMessage(Component.literal("\u00a7b[System]\u00a7r \u00a77Unholy Fervor expired."));
+                    syncToClient(player);
+                }
             }
         });
 
@@ -318,7 +333,7 @@ public class StatEventHandler {
                     int drain = SkillType.IRON_WILL.getToggleMpPerSecond(level);
                     if (stats.getCurrentMp() >= drain) {
                         stats.setCurrentMp(stats.getCurrentMp() - drain);
-                        SkillExecutor.applyIronWillEffects(player, stats, level);
+                        WarriorSkills.applyIronWillEffects(player, stats, level);
                         if (player.tickCount % 40 == 0) {
                             SkillParticles.playerAura(player, 8, 1.0, ParticleTypes.ENCHANTED_HIT);
                         }
@@ -337,10 +352,10 @@ public class StatEventHandler {
                     int drain = SkillType.STEALTH.getToggleMpPerSecond(level);
                     if (stats.getCurrentMp() >= drain) {
                         stats.setCurrentMp(stats.getCurrentMp() - drain);
-                        SkillExecutor.applyStealthEffects(player, level);
+                        AssassinSkills.applyStealthEffects(player, level);
                         changed = true;
                     } else {
-                        SkillExecutor.breakStealth(player, sd);
+                        AssassinSkills.breakStealth(player, sd);
                         changed = true;
                     }
                 }
@@ -383,7 +398,7 @@ public class StatEventHandler {
                     } else {
                         sd.setToggleActive(SkillType.SHADOW_PARTNER, false);
                         if (player.level() instanceof ServerLevel sl) {
-                            SkillExecutor.despawnShadowPartner(player, sl);
+                            AssassinSkills.despawnShadowPartner(player, sl);
                         }
                         player.sendSystemMessage(Component.literal("\u00a7b[System]\u00a7r \u00a77Shadow Partner deactivated (no MP)."));
                         changed = true;
@@ -413,7 +428,7 @@ public class StatEventHandler {
                     int drain = SkillType.HURRICANE.getToggleMpPerSecond(level);
                     if (stats.getCurrentMp() >= drain) {
                         stats.setCurrentMp(stats.getCurrentMp() - drain);
-                        SkillExecutor.tickHurricane(player, stats, sd);
+                        ArcherSkills.tickHurricane(player, stats, sd);
                         changed = true;
                     } else {
                         sd.setToggleActive(SkillType.HURRICANE, false);
@@ -433,7 +448,7 @@ public class StatEventHandler {
                     } else {
                         sd.setToggleActive(SkillType.RAISE_SKELETON, false);
                         if (player.level() instanceof ServerLevel sl) {
-                            SkillExecutor.despawnSkeletonMinion(player, sl);
+                            NecromancerSkills.despawnSkeletonMinion(player, sl);
                         }
                         player.sendSystemMessage(Component.literal("\u00a7b[System]\u00a7r \u00a77Raise Skeleton deactivated (no MP)."));
                         changed = true;
@@ -453,6 +468,23 @@ public class StatEventHandler {
                     } else {
                         sd.setToggleActive(SkillType.BONE_SHIELD, false);
                         player.sendSystemMessage(Component.literal("\u00a7b[System]\u00a7r \u00a77Bone Shield deactivated (no MP)."));
+                        changed = true;
+                    }
+                }
+
+                // Soul Link drain
+                if (sd.isToggleActive(SkillType.SOUL_LINK)) {
+                    int level = sd.getLevel(SkillType.SOUL_LINK);
+                    int drain = SkillType.SOUL_LINK.getToggleMpPerSecond(level);
+                    if (stats.getCurrentMp() >= drain) {
+                        stats.setCurrentMp(stats.getCurrentMp() - drain);
+                        if (player.tickCount % 40 == 0 && player.level() instanceof ServerLevel sl) {
+                            SkillParticles.playerAura(player, 5, 0.6, ParticleTypes.SOUL);
+                        }
+                        changed = true;
+                    } else {
+                        sd.setToggleActive(SkillType.SOUL_LINK, false);
+                        player.sendSystemMessage(Component.literal("\u00a7b[System]\u00a7r \u00a77Soul Link deactivated (no MP)."));
                         changed = true;
                     }
                 }
@@ -563,11 +595,11 @@ public class StatEventHandler {
             if (!sd.isToggleActive(SkillType.SHADOW_PARTNER)) return;
 
             if (!(player.level() instanceof ServerLevel sl)) return;
-            ShadowPartnerEntity partner = SkillExecutor.findShadowPartner(player, sl);
+            ShadowPartnerEntity partner = AssassinSkills.findShadowPartner(player, sl);
             if (partner == null) return;
 
             int spLv = sd.getLevel(SkillType.SHADOW_PARTNER);
-            float multiplier = SkillExecutor.getShadowPartnerDamageMultiplier(spLv);
+            float multiplier = AssassinSkills.getShadowPartnerDamageMultiplier(spLv);
 
             // Check trident first since ThrownTrident extends AbstractArrow
             if (entity instanceof net.minecraft.world.entity.projectile.ThrownTrident) {
@@ -610,7 +642,7 @@ public class StatEventHandler {
 
             // Shadow Strike bonus damage
             if (sd.isShadowStrikeActive()) {
-                float bonus = SkillExecutor.getShadowStrikeDamage(stats);
+                float bonus = AssassinSkills.getShadowStrikeDamage(stats);
                 amount += bonus;
                 sd.setShadowStrikeActive(false);
                 sd.setShadowStrikeTicks(0);
@@ -627,14 +659,14 @@ public class StatEventHandler {
 
             // Stealth breaks on attack
             if (sd.isToggleActive(SkillType.STEALTH)) {
-                SkillExecutor.breakStealth(player, sd);
+                AssassinSkills.breakStealth(player, sd);
                 syncToClient(player);
             }
 
             // Venom: apply poison on hit (Wither for undead since they're immune to Poison)
             if (sd.isVenomActive() && event.getEntity() instanceof Monster mob) {
                 int venomLv = sd.getLevel(SkillType.VENOM);
-                int poisonDur = SkillExecutor.getVenomPoisonDuration(venomLv);
+                int poisonDur = AssassinSkills.getVenomPoisonDuration(venomLv);
                 int poisonAmp = Math.min(venomLv / 4, 2);
                 if (mob.getMobType() == net.minecraft.world.entity.MobType.UNDEAD) {
                     mob.addEffect(new MobEffectInstance(MobEffects.WITHER, poisonDur, poisonAmp, false, true));
@@ -785,9 +817,9 @@ public class StatEventHandler {
             // Shadow Partner mirror attack — teleport to target, hit, teleport back
             if (sd.isToggleActive(SkillType.SHADOW_PARTNER) && event.getEntity() instanceof Monster mob) {
                 int spLv = sd.getLevel(SkillType.SHADOW_PARTNER);
-                float mirrorDmg = amount * SkillExecutor.getShadowPartnerDamageMultiplier(spLv);
+                float mirrorDmg = amount * AssassinSkills.getShadowPartnerDamageMultiplier(spLv);
                 if (player.level() instanceof ServerLevel sl) {
-                    ShadowPartnerEntity partner = SkillExecutor.findShadowPartner(player, sl);
+                    ShadowPartnerEntity partner = AssassinSkills.findShadowPartner(player, sl);
                     if (partner != null && !event.getSource().isIndirect()) {
                         // Melee: partner teleports to target, attacks, returns
                         partner.performMirrorAttack(mob, mirrorDmg);
@@ -803,6 +835,56 @@ public class StatEventHandler {
         });
     }
 
+    // === Skeleton minion attack buffs: Unholy Fervor + Soul Link ===
+
+    @SubscribeEvent
+    public static void onMinionAttack(LivingHurtEvent event) {
+        if (!(event.getSource().getEntity() instanceof SkeletonMinionEntity minion)) return;
+        ServerPlayer owner = minion.getOwnerPlayer();
+        if (owner == null) return;
+
+        owner.getCapability(PlayerStatsCapability.PLAYER_STATS).ifPresent(stats -> {
+            SkillData sd = stats.getSkillData();
+            float amount = event.getAmount();
+
+            // Unholy Fervor: damage boost while buff active
+            if (sd.getFervorTicks() > 0) {
+                int ufLv = sd.getLevel(SkillType.UNHOLY_FERVOR);
+                if (ufLv > 0) {
+                    amount *= 1.0f + NecromancerSkills.getUnholyFervorDamageBonus(ufLv);
+                }
+            }
+
+            // Soul Link: minions deal bonus damage while linked
+            if (sd.isToggleActive(SkillType.SOUL_LINK)) {
+                int slLv = sd.getLevel(SkillType.SOUL_LINK);
+                if (slLv > 0) {
+                    amount *= 1.0f + NecromancerSkills.getSoulLinkMinionDamageBonus(slLv);
+                }
+            }
+
+            event.setAmount(amount);
+        });
+    }
+
+    // === Skeletal Mastery: minion damage reduction ===
+
+    @SubscribeEvent
+    public static void onMinionHurt(LivingHurtEvent event) {
+        if (!(event.getEntity() instanceof SkeletonMinionEntity minion)) return;
+        ServerPlayer owner = minion.getOwnerPlayer();
+        if (owner == null) return;
+
+        owner.getCapability(PlayerStatsCapability.PLAYER_STATS).ifPresent(stats -> {
+            SkillData sd = stats.getSkillData();
+            int smLv = sd.getLevel(SkillType.SKELETAL_MASTERY);
+            if (smLv > 0) {
+                float reduction = NecromancerSkills.getSkeletalMasteryDamageReduction(smLv);
+                event.setAmount(event.getAmount() * (1 - reduction));
+            }
+        });
+    }
+
     // === Final damage log (fires after armor, toughness, enchant reduction) ===
 
     @SubscribeEvent
@@ -810,11 +892,21 @@ public class StatEventHandler {
         if (event.getAmount() <= 0) return;
         if (CombatLog.suppressDamageLog) return;
 
-        // Skeleton minion damage → log to owner
+        // Skeleton minion damage → log to owner + Skeletal Mastery lifesteal
         if (event.getSource().getEntity() instanceof SkeletonMinionEntity minion) {
             ServerPlayer owner = minion.getOwnerPlayer();
             if (owner != null) {
                 CombatLog.damage(owner, "Skeleton", event.getAmount(), event.getEntity());
+                // Skeletal Mastery: lifesteal for the minion
+                owner.getCapability(PlayerStatsCapability.PLAYER_STATS).ifPresent(stats -> {
+                    int smLv = stats.getSkillData().getLevel(SkillType.SKELETAL_MASTERY);
+                    if (smLv > 0) {
+                        float healAmount = event.getAmount() * NecromancerSkills.getSkeletalMasteryLifesteal(smLv);
+                        if (healAmount > 0 && minion.isAlive()) {
+                            minion.heal(healAmount);
+                        }
+                    }
+                });
             }
             return;
         }
@@ -834,7 +926,7 @@ public class StatEventHandler {
             if (!sd.isToggleActive(SkillType.STEALTH)) return;
 
             int level = sd.getLevel(SkillType.STEALTH);
-            double detectionRange = SkillExecutor.getStealthDetectionRange(level);
+            double detectionRange = AssassinSkills.getStealthDetectionRange(level);
             double dist = event.getEntity().distanceTo(player);
             if (dist > detectionRange) {
                 event.setCanceled(true);
@@ -887,7 +979,7 @@ public class StatEventHandler {
 
             // Stealth breaks on taking damage
             if (sd.isToggleActive(SkillType.STEALTH)) {
-                SkillExecutor.breakStealth(player, sd);
+                AssassinSkills.breakStealth(player, sd);
                 syncToClient(player);
             }
 
@@ -922,7 +1014,7 @@ public class StatEventHandler {
             // Magic Guard: redirect damage to MP
             if (sd.isToggleActive(SkillType.MAGIC_GUARD)) {
                 int mgLv = sd.getLevel(SkillType.MAGIC_GUARD);
-                float ratio = SkillExecutor.getMagicGuardRedirectRatio(mgLv);
+                float ratio = MageSkills.getMagicGuardRedirectRatio(mgLv);
                 float redirected = event.getAmount() * ratio;
                 int mpCost = (int) (redirected * 2); // 2 MP per 1 damage redirected
                 if (stats.getCurrentMp() >= mpCost) {
@@ -936,8 +1028,26 @@ public class StatEventHandler {
             // Bone Shield: reduce incoming damage
             if (sd.isToggleActive(SkillType.BONE_SHIELD)) {
                 int bsLv = sd.getLevel(SkillType.BONE_SHIELD);
-                float reduction = SkillExecutor.getBoneShieldReduction(bsLv) / 100.0f;
+                float reduction = NecromancerSkills.getBoneShieldReduction(bsLv) / 100.0f;
                 event.setAmount(event.getAmount() * (1 - reduction));
+            }
+
+            // Soul Link: redirect portion of damage to nearest minion
+            if (sd.isToggleActive(SkillType.SOUL_LINK)) {
+                int slLv = sd.getLevel(SkillType.SOUL_LINK);
+                if (slLv > 0 && player.level() instanceof ServerLevel sl) {
+                    SkeletonMinionEntity nearest = NecromancerSkills.findNearestMinion(player, sl);
+                    if (nearest != null && nearest.isAlive()) {
+                        float redirectRatio = NecromancerSkills.getSoulLinkRedirectRatio(slLv);
+                        float redirected = event.getAmount() * redirectRatio;
+                        nearest.hurt(player.damageSources().generic(), redirected);
+                        event.setAmount(event.getAmount() - redirected);
+                        if (player.tickCount % 20 == 0 && sl != null) {
+                            SkillParticles.burst(sl, nearest.getX(), nearest.getY() + 1, nearest.getZ(),
+                                    5, 0.3, ParticleTypes.SOUL);
+                        }
+                    }
+                }
             }
 
             // Passive: Divine Protection — auto-cleanse chance (3% per level per tick, checked on hit)

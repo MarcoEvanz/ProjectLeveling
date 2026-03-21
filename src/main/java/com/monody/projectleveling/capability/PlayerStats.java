@@ -1,14 +1,22 @@
 package com.monody.projectleveling.capability;
 
+import com.monody.projectleveling.skill.SkillData;
+import com.monody.projectleveling.skill.SkillType;
 import net.minecraft.nbt.CompoundTag;
 
 public class PlayerStats {
+    private final SkillData skillData = new SkillData();
+
+    public SkillData getSkillData() { return skillData; }
     private int level = 1;
     private int strength = 1;
     private int vitality = 1;
     private int agility = 1;
     private int intelligence = 1;
     private int sense = 1;
+    private int luck = 1;
+    private int dexterity = 1;
+    private int mind = 1;
     private int remainingPoints = 5;
     private int currentMp = 100;
     private int currentExp = 0;
@@ -33,6 +41,9 @@ public class PlayerStats {
     public int getAgility() { return agility; }
     public int getIntelligence() { return intelligence; }
     public int getSense() { return sense; }
+    public int getLuck() { return luck; }
+    public int getDexterity() { return dexterity; }
+    public int getMind() { return mind; }
     public int getRemainingPoints() { return remainingPoints; }
     public int getCurrentMp() { return currentMp; }
     public int getCurrentExp() { return currentExp; }
@@ -47,7 +58,15 @@ public class PlayerStats {
     public long getQuestDay() { return questDay; }
 
     public int getMaxMp() {
-        return 100 + (intelligence - 1) * 10;
+        int base = 100 + (intelligence - 1) * 10;
+        int dpLv = skillData.getLevel(SkillType.DARK_PACT);
+        if (dpLv > 0) {
+            base = (int) (base * (1 + dpLv * 0.03));
+        }
+        if (skillData.isToggleActive(SkillType.SHADOW_PARTNER)) {
+            base /= 2;
+        }
+        return base;
     }
 
     // Setters
@@ -57,6 +76,9 @@ public class PlayerStats {
     public void setAgility(int agility) { this.agility = agility; }
     public void setIntelligence(int intelligence) { this.intelligence = intelligence; }
     public void setSense(int sense) { this.sense = sense; }
+    public void setLuck(int luck) { this.luck = luck; }
+    public void setDexterity(int dexterity) { this.dexterity = dexterity; }
+    public void setMind(int mind) { this.mind = mind; }
     public void setRemainingPoints(int remainingPoints) { this.remainingPoints = remainingPoints; }
     public void setCurrentMp(int currentMp) { this.currentMp = Math.min(currentMp, getMaxMp()); }
     public void setCurrentExp(int currentExp) { this.currentExp = currentExp; }
@@ -69,11 +91,13 @@ public class PlayerStats {
     public void setQuestDay(long questDay) { this.questDay = questDay; }
     public void setTitle(String title) { this.title = title; }
 
-    /** Regenerate MP. Call once per second (every 20 ticks). Returns true if MP changed. */
+    /** Regenerate MP. Call once per second (every 20 ticks). Mind stat adds 0.01% per point. Returns true if MP changed. */
     public boolean regenMp() {
         int max = getMaxMp();
         if (currentMp >= max) return false;
-        int regen = Math.max(1, max / 100); // 1% of max per second, at least 1
+        // Base: 1% of max per second. Mind adds 0.01% per point (so Mind 100 = +1% = doubled regen)
+        double regenPct = 0.01 + (mind - 1) * 0.0001;
+        int regen = Math.max(1, (int) (max * regenPct));
         currentMp = Math.min(currentMp + regen, max);
         return true;
     }
@@ -141,18 +165,32 @@ public class PlayerStats {
             currentExp -= getMaxExp();
             level++;
             remainingPoints += POINTS_PER_LEVEL;
+            // Tier-separated SP: each tier earns SP in its own level range
+            if (level >= 2 && level <= 10) {
+                skillData.addTierSP(0, level == 10 ? 2 : 1);
+            } else if (level >= 11 && level <= 30) {
+                skillData.addTierSP(1, 1 + (level % 2 == 0 ? 1 : 0));
+            } else if (level >= 31 && level <= 60) {
+                skillData.addTierSP(2, 1 + (level % 2 == 0 ? 1 : 0));
+            } else if (level >= 61 && level <= 100) {
+                skillData.addTierSP(3, 1 + (level % 2 == 0 ? 1 : 0));
+            }
             levelsGained++;
         }
         return levelsGained;
     }
 
     public void resetStats() {
-        int spent = (strength - 1) + (vitality - 1) + (agility - 1) + (intelligence - 1) + (sense - 1);
+        int spent = (strength - 1) + (vitality - 1) + (agility - 1) + (intelligence - 1) + (sense - 1)
+                + (luck - 1) + (dexterity - 1) + (mind - 1);
         strength = 1;
         vitality = 1;
         agility = 1;
         intelligence = 1;
         sense = 1;
+        luck = 1;
+        dexterity = 1;
+        mind = 1;
         remainingPoints += spent;
         currentMp = getMaxMp();
     }
@@ -164,9 +202,13 @@ public class PlayerStats {
         agility = 1;
         intelligence = 1;
         sense = 1;
+        luck = 1;
+        dexterity = 1;
+        mind = 1;
         remainingPoints = 5;
         currentMp = getMaxMp();
         currentExp = 0;
+        skillData.reset();
     }
 
     public boolean allocateStat(String stat) {
@@ -177,6 +219,9 @@ public class PlayerStats {
             case "agility" -> agility++;
             case "intelligence" -> intelligence++;
             case "sense" -> sense++;
+            case "luck" -> luck++;
+            case "dexterity" -> dexterity++;
+            case "mind" -> mind++;
             default -> { return false; }
         }
         remainingPoints--;
@@ -190,6 +235,9 @@ public class PlayerStats {
         this.agility = other.agility;
         this.intelligence = other.intelligence;
         this.sense = other.sense;
+        this.luck = other.luck;
+        this.dexterity = other.dexterity;
+        this.mind = other.mind;
         this.remainingPoints = other.remainingPoints;
         this.currentMp = other.currentMp;
         this.currentExp = other.currentExp;
@@ -201,6 +249,7 @@ public class PlayerStats {
         this.questCompleted = other.questCompleted;
         this.questRewardClaimed = other.questRewardClaimed;
         this.questDay = other.questDay;
+        this.skillData.copyFrom(other.skillData);
     }
 
     public CompoundTag saveNBT() {
@@ -211,6 +260,9 @@ public class PlayerStats {
         tag.putInt("agility", agility);
         tag.putInt("intelligence", intelligence);
         tag.putInt("sense", sense);
+        tag.putInt("luck", luck);
+        tag.putInt("dexterity", dexterity);
+        tag.putInt("mind", mind);
         tag.putInt("remainingPoints", remainingPoints);
         tag.putInt("currentMp", currentMp);
         tag.putInt("currentExp", currentExp);
@@ -222,6 +274,7 @@ public class PlayerStats {
         tag.putBoolean("questCompleted", questCompleted);
         tag.putBoolean("questRewardClaimed", questRewardClaimed);
         tag.putLong("questDay", questDay);
+        tag.put("skills", skillData.saveNBT());
         return tag;
     }
 
@@ -232,6 +285,9 @@ public class PlayerStats {
         agility = tag.getInt("agility");
         intelligence = tag.getInt("intelligence");
         sense = tag.getInt("sense");
+        luck = tag.contains("luck") ? tag.getInt("luck") : 1;
+        dexterity = tag.contains("dexterity") ? tag.getInt("dexterity") : 1;
+        mind = tag.contains("mind") ? tag.getInt("mind") : 1;
         remainingPoints = tag.getInt("remainingPoints");
         currentMp = tag.getInt("currentMp");
         currentExp = tag.getInt("currentExp");
@@ -243,5 +299,8 @@ public class PlayerStats {
         questCompleted = tag.getBoolean("questCompleted");
         questRewardClaimed = tag.getBoolean("questRewardClaimed");
         questDay = tag.getLong("questDay");
+        if (tag.contains("skills")) {
+            skillData.loadNBT(tag.getCompound("skills"));
+        }
     }
 }

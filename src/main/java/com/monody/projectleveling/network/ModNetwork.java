@@ -38,6 +38,30 @@ public class ModNetwork {
                 .consumerMainThread(C2SClaimQuestRewardPacket::handle)
                 .add();
 
+        CHANNEL.messageBuilder(C2SActivateSkillPacket.class, packetId++, NetworkDirection.PLAY_TO_SERVER)
+                .encoder(C2SActivateSkillPacket::encode)
+                .decoder(C2SActivateSkillPacket::new)
+                .consumerMainThread(C2SActivateSkillPacket::handle)
+                .add();
+
+        CHANNEL.messageBuilder(C2SUnlockSkillPacket.class, packetId++, NetworkDirection.PLAY_TO_SERVER)
+                .encoder(C2SUnlockSkillPacket::encode)
+                .decoder(C2SUnlockSkillPacket::new)
+                .consumerMainThread(C2SUnlockSkillPacket::handle)
+                .add();
+
+        CHANNEL.messageBuilder(C2SEquipSkillPacket.class, packetId++, NetworkDirection.PLAY_TO_SERVER)
+                .encoder(C2SEquipSkillPacket::encode)
+                .decoder(C2SEquipSkillPacket::new)
+                .consumerMainThread(C2SEquipSkillPacket::handle)
+                .add();
+
+        CHANNEL.messageBuilder(C2SSelectClassPacket.class, packetId++, NetworkDirection.PLAY_TO_SERVER)
+                .encoder(C2SSelectClassPacket::encode)
+                .decoder(C2SSelectClassPacket::new)
+                .consumerMainThread(C2SSelectClassPacket::handle)
+                .add();
+
         CHANNEL.messageBuilder(S2CSyncStatsPacket.class, packetId++, NetworkDirection.PLAY_TO_CLIENT)
                 .encoder(S2CSyncStatsPacket::encode)
                 .decoder(S2CSyncStatsPacket::new)

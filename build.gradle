@@ -39,6 +39,7 @@ minecraft {
 
         server {
             property 'forge.enabledGameTestNamespaces', 'projectleveling'
+            jvmArgs '-Xmx2G', '-Xms512M'
             args '--nogui'
         }
     }

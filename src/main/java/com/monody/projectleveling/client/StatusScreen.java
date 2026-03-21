@@ -4,6 +4,8 @@ import com.monody.projectleveling.capability.PlayerStats;
 import com.monody.projectleveling.capability.PlayerStatsCapability;
 import com.monody.projectleveling.network.C2SAllocateStatPacket;
 import com.monody.projectleveling.network.ModNetwork;
+import com.monody.projectleveling.skill.SkillData;
+import com.monody.projectleveling.skill.SkillType;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.Screen;
@@ -46,7 +48,7 @@ public class StatusScreen extends Screen {
     private int panelW, panelH, panelX, panelY;
     private int pad, lineH, colMid;
 
-    private static final int NUM_STATS = 5;
+    private static final int NUM_STATS = 8;
     private final int[][] statBtnBounds = new int[NUM_STATS][4];
     private final int[] closeBtnBounds = new int[4];
     private boolean hasPoints;
@@ -157,7 +159,7 @@ public class StatusScreen extends Screen {
         rowY += lineH + 4;
         drawSep(g, left, rowY, innerW);
 
-        // Stats
+        // Stats (4 rows x 2 columns)
         rowY += 8;
         int btnS = 11;
 
@@ -173,27 +175,75 @@ public class StatusScreen extends Screen {
 
         rowY += lineH + 2;
         drawStatRow(g, 4, "SEN", stats.getSense(), left, rowY, btnS, colEnd1, mouseX, mouseY);
+        drawStatRow(g, 5, "LUK", stats.getLuck(), colMid, rowY, btnS, colEnd2, mouseX, mouseY);
+
+        rowY += lineH + 2;
+        drawStatRow(g, 6, "DEX", stats.getDexterity(), left, rowY, btnS, colEnd1, mouseX, mouseY);
+        drawStatRow(g, 7, "MND", stats.getMind(), colMid, rowY, btnS, colEnd2, mouseX, mouseY);
 
         rowY += lineH + 4;
         drawSep(g, left, rowY, innerW);
 
-        // Summary
+        // Summary with passive skill bonuses
         rowY += 7;
-        double dmg = (stats.getStrength() - 1) * 0.25;
-        double hp = (stats.getVitality() - 1) * 0.5;
-        double spd = (stats.getAgility() - 1) * 0.01;
+        SkillData sd = stats.getSkillData();
 
-        g.drawString(font, "ATK BONUS:", left, rowY, TEXT_DIM, false);
-        g.drawString(font, String.format(" +%.2f", dmg), left + font.width("ATK BONUS:"), rowY, TEXT_ACCENT, false);
-        String hpVal = String.format("+%.1f", hp);
-        String hpLabel = "HP BONUS: ";
-        drawRight(g, hpVal, right, rowY, TEXT_ACCENT);
-        g.drawString(font, hpLabel, right - font.width(hpVal) - font.width(hpLabel), rowY, TEXT_DIM, false);
+        // ATK bonus: STR 0.1 + LUK 0.05 + DEX 0.05
+        double dmg = (stats.getStrength() - 1) * 0.1 + (stats.getLuck() - 1) * 0.05 + (stats.getDexterity() - 1) * 0.05;
+        // Weapon Mastery: +1% melee dmg per level
+        int wmLv = sd.getLevel(SkillType.WEAPON_MASTERY);
+        String atkSkill = wmLv > 0 ? " (+" + wmLv + "%)" : "";
+
+        // Crit Damage: base 150% + Critical Edge + Sharp Eyes + Arcane Overdrive + Berserker Spirit + LUK
+        double critDmg = 150;
+        int ceLv = sd.getLevel(SkillType.CRITICAL_EDGE);
+        if (ceLv > 0) critDmg += ceLv * 2;
+        int seLv = sd.getLevel(SkillType.SHARP_EYES);
+        if (seLv > 0) critDmg += seLv * 5;
+        int aoLv = sd.getLevel(SkillType.ARCANE_OVERDRIVE);
+        if (aoLv > 0) critDmg += aoLv;
+        int lukStat = stats.getLuck();
+        if (lukStat > 1) critDmg += ((lukStat - 1) / 50.0) * 10;
+
+        g.drawString(font, "ATK:", left, rowY, TEXT_DIM, false);
+        g.drawString(font, String.format(" +%.2f", dmg) + atkSkill, left + font.width("ATK:"), rowY, TEXT_ACCENT, false);
+        String cdVal = String.format("%.0f%%", critDmg);
+        String cdLabel = "CDMG: ";
+        drawRight(g, cdVal, right, rowY, TEXT_ACCENT);
+        g.drawString(font, cdLabel, right - font.width(cdVal) - font.width(cdLabel), rowY, TEXT_DIM, false);
+
+        // PROJ + CRIT
+        int dex = stats.getDexterity();
+        double projPct = (dex - 1) * 0.1; // DEX: 0.1% per point
+        int saLv = sd.getLevel(SkillType.SOUL_ARROW);
+        if (saLv > 0 && sd.isToggleActive(SkillType.SOUL_ARROW)) projPct += 5 + saLv;
+
+        // Crit rate: LUK base + Critical Edge + Sharp Eyes + Arcane Overdrive + Berserker Spirit
+        double critRate = (lukStat - 1) * 0.1;
+        if (ceLv > 0) critRate += ceLv;
+        if (seLv > 0) critRate += seLv * 1.5;
+        if (aoLv > 0) critRate += aoLv * 1.5;
+        int bsLv = sd.getLevel(SkillType.BERSERKER_SPIRIT);
+        if (bsLv > 0) critRate += bsLv;
 
         rowY += lineH;
-        g.drawString(font, "SPD BONUS:", left, rowY, TEXT_DIM, false);
-        g.drawString(font, String.format(" +%.2f", spd), left + font.width("SPD BONUS:"), rowY, TEXT_ACCENT, false);
-        String mpVal = String.valueOf(stats.getMaxMp());
+        g.drawString(font, "PROJ:", left, rowY, TEXT_DIM, false);
+        g.drawString(font, String.format(" +%.1f%%", projPct), left + font.width("PROJ:"), rowY, TEXT_ACCENT, false);
+        String critVal = String.format("%.1f%%", critRate);
+        String critLabel = "CRIT: ";
+        drawRight(g, critVal, right, rowY, TEXT_ACCENT);
+        g.drawString(font, critLabel, right - font.width(critVal) - font.width(critLabel), rowY, TEXT_DIM, false);
+
+        // MP REGEN + MAX MP
+        double mpRegenPct = 1.0 + (stats.getMind() - 1) * 0.01;
+        int mpRecovLv = sd.getLevel(SkillType.MP_RECOVERY);
+        String mpSkill = mpRecovLv > 0 ? " (+" + String.format("%.1f", mpRecovLv * 0.2) + "%)" : "";
+        rowY += lineH;
+        g.drawString(font, "MP REGEN:", left, rowY, TEXT_DIM, false);
+        g.drawString(font, String.format(" %.1f%%/s", mpRegenPct) + mpSkill, left + font.width("MP REGEN:"), rowY, TEXT_ACCENT, false);
+        int dpkLv = sd.getLevel(SkillType.DARK_PACT);
+        String dpkSkill = dpkLv > 0 ? " (+" + (dpkLv * 3) + "%)" : "";
+        String mpVal = String.valueOf(stats.getMaxMp()) + dpkSkill;
         String mpLabel = "MAX MP: ";
         drawRight(g, mpVal, right, rowY, TEXT_ACCENT);
         g.drawString(font, mpLabel, right - font.width(mpVal) - font.width(mpLabel), rowY, TEXT_DIM, false);
@@ -253,7 +303,7 @@ public class StatusScreen extends Screen {
                 return true;
             }
             if (hasPoints) {
-                String[] names = {"strength", "vitality", "agility", "intelligence", "sense"};
+                String[] names = {"strength", "vitality", "agility", "intelligence", "sense", "luck", "dexterity", "mind"};
                 for (int i = 0; i < NUM_STATS; i++) {
                     if (statBtnBounds[i][2] > 0 && isInside((int) mx, (int) my, statBtnBounds[i])) {
                         ModNetwork.sendToServer(new C2SAllocateStatPacket(names[i]));

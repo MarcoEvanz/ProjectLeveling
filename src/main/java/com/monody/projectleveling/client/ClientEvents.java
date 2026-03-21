@@ -1,14 +1,32 @@
 package com.monody.projectleveling.client;
 
 import com.monody.projectleveling.ProjectLeveling;
+import com.monody.projectleveling.capability.PlayerStatsCapability;
+import com.monody.projectleveling.entity.ModEntities;
+import com.monody.projectleveling.entity.renderer.ShadowPartnerRenderer;
+import com.monody.projectleveling.entity.renderer.SkeletonMinionRenderer;
+import com.monody.projectleveling.entity.renderer.SkillArrowRenderer;
+import com.monody.projectleveling.entity.renderer.SkillFireballRenderer;
+import com.monody.projectleveling.network.C2SActivateSkillPacket;
 import com.monody.projectleveling.network.C2SRequestSyncPacket;
 import com.monody.projectleveling.network.ModNetwork;
+import com.monody.projectleveling.skill.SkillType;
 import net.minecraft.client.Minecraft;
+import net.minecraft.world.entity.EquipmentSlot;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.ItemStack;
 import net.minecraftforge.api.distmarker.Dist;
+import net.minecraftforge.client.event.EntityRenderersEvent;
+import net.minecraftforge.client.event.RegisterGuiOverlaysEvent;
 import net.minecraftforge.client.event.RegisterKeyMappingsEvent;
+import net.minecraftforge.client.event.RenderPlayerEvent;
 import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
+
+import java.util.HashMap;
+import java.util.Map;
+import java.util.UUID;
 
 public class ClientEvents {
     @Mod.EventBusSubscriber(modid = ProjectLeveling.MOD_ID, bus = Mod.EventBusSubscriber.Bus.MOD, value = Dist.CLIENT)
@@ -17,11 +35,63 @@ public class ClientEvents {
         public static void onRegisterKeyMappings(RegisterKeyMappingsEvent event) {
             event.register(KeyBindings.STATUS_SCREEN);
             event.register(KeyBindings.QUEST_SCREEN);
+            event.register(KeyBindings.SKILL_TREE_SCREEN);
+            event.register(KeyBindings.SKILL_SLOT_1);
+            event.register(KeyBindings.SKILL_SLOT_2);
+            event.register(KeyBindings.SKILL_SLOT_3);
+            event.register(KeyBindings.SKILL_SLOT_4);
+            event.register(KeyBindings.SKILL_SLOT_5);
+            event.register(KeyBindings.SKILL_SLOT_6);
+            event.register(KeyBindings.SKILL_SLOT_7);
+        }
+
+        @SubscribeEvent
+        public static void onRegisterGuiOverlays(RegisterGuiOverlaysEvent event) {
+            event.registerAboveAll("skill_hud", new SkillHud());
+        }
+
+        @SubscribeEvent
+        public static void onRegisterRenderers(EntityRenderersEvent.RegisterRenderers event) {
+            event.registerEntityRenderer(ModEntities.SKILL_FIREBALL.get(), SkillFireballRenderer::new);
+            event.registerEntityRenderer(ModEntities.SKILL_ARROW.get(), SkillArrowRenderer::new);
+            event.registerEntityRenderer(ModEntities.SHADOW_PARTNER.get(), ShadowPartnerRenderer::new);
+            event.registerEntityRenderer(ModEntities.SKELETON_MINION.get(), SkeletonMinionRenderer::new);
         }
     }
 
     @Mod.EventBusSubscriber(modid = ProjectLeveling.MOD_ID, bus = Mod.EventBusSubscriber.Bus.FORGE, value = Dist.CLIENT)
     public static class ForgeBusEvents {
+        private static final EquipmentSlot[] ARMOR_SLOTS = {
+                EquipmentSlot.HEAD, EquipmentSlot.CHEST, EquipmentSlot.LEGS, EquipmentSlot.FEET
+        };
+        private static final Map<UUID, ItemStack[]> stealthArmorCache = new HashMap<>();
+
+        @SubscribeEvent
+        public static void onRenderPlayerPre(RenderPlayerEvent.Pre event) {
+            Player player = event.getEntity();
+            player.getCapability(PlayerStatsCapability.PLAYER_STATS).ifPresent(stats -> {
+                if (stats.getSkillData().isToggleActive(SkillType.STEALTH)) {
+                    ItemStack[] saved = new ItemStack[4];
+                    for (int i = 0; i < ARMOR_SLOTS.length; i++) {
+                        saved[i] = player.getItemBySlot(ARMOR_SLOTS[i]).copy();
+                        player.setItemSlot(ARMOR_SLOTS[i], ItemStack.EMPTY);
+                    }
+                    stealthArmorCache.put(player.getUUID(), saved);
+                }
+            });
+        }
+
+        @SubscribeEvent
+        public static void onRenderPlayerPost(RenderPlayerEvent.Post event) {
+            Player player = event.getEntity();
+            ItemStack[] saved = stealthArmorCache.remove(player.getUUID());
+            if (saved != null) {
+                for (int i = 0; i < ARMOR_SLOTS.length; i++) {
+                    player.setItemSlot(ARMOR_SLOTS[i], saved[i]);
+                }
+            }
+        }
+
         @SubscribeEvent
         public static void onClientTick(TickEvent.ClientTickEvent event) {
             if (event.phase != TickEvent.Phase.END) return;
@@ -35,6 +105,35 @@ public class ClientEvents {
             if (KeyBindings.QUEST_SCREEN.consumeClick()) {
                 ModNetwork.sendToServer(new C2SRequestSyncPacket());
                 mc.setScreen(new QuestScreen());
+            }
+            if (KeyBindings.SKILL_TREE_SCREEN.consumeClick()) {
+                ModNetwork.sendToServer(new C2SRequestSyncPacket());
+                mc.setScreen(new SkillTreeScreen());
+            }
+
+            // Skill activation (only when no screen is open)
+            if (mc.screen == null) {
+                if (KeyBindings.SKILL_SLOT_1.consumeClick()) {
+                    ModNetwork.sendToServer(new C2SActivateSkillPacket(0));
+                }
+                if (KeyBindings.SKILL_SLOT_2.consumeClick()) {
+                    ModNetwork.sendToServer(new C2SActivateSkillPacket(1));
+                }
+                if (KeyBindings.SKILL_SLOT_3.consumeClick()) {
+                    ModNetwork.sendToServer(new C2SActivateSkillPacket(2));
+                }
+                if (KeyBindings.SKILL_SLOT_4.consumeClick()) {
+                    ModNetwork.sendToServer(new C2SActivateSkillPacket(3));
+                }
+                if (KeyBindings.SKILL_SLOT_5.consumeClick()) {
+                    ModNetwork.sendToServer(new C2SActivateSkillPacket(4));
+                }
+                if (KeyBindings.SKILL_SLOT_6.consumeClick()) {
+                    ModNetwork.sendToServer(new C2SActivateSkillPacket(5));
+                }
+                if (KeyBindings.SKILL_SLOT_7.consumeClick()) {
+                    ModNetwork.sendToServer(new C2SActivateSkillPacket(6));
+                }
             }
         }
     }

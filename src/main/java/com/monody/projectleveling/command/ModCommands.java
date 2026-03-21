@@ -4,6 +4,7 @@ import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
 import com.monody.projectleveling.capability.PlayerStatsCapability;
 import com.monody.projectleveling.event.StatEventHandler;
+import com.monody.projectleveling.skill.SkillData;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.minecraft.network.chat.Component;
@@ -54,6 +55,41 @@ public class ModCommands {
                                     });
                                     return 1;
                                 })
+                        )
+                )
+                .then(Commands.literal("skill")
+                        .requires(src -> src.hasPermission(2))
+                        .then(Commands.literal("reset")
+                                .executes(ctx -> {
+                                    ServerPlayer player = ctx.getSource().getPlayerOrException();
+                                    player.getCapability(PlayerStatsCapability.PLAYER_STATS).ifPresent(stats -> {
+                                        stats.getSkillData().reset();
+                                        StatEventHandler.syncToClient(player);
+                                        ctx.getSource().sendSuccess(() -> Component.literal("Skills reset."), false);
+                                    });
+                                    return 1;
+                                })
+                        )
+                        .then(Commands.literal("addpoints")
+                                .then(Commands.argument("tier", IntegerArgumentType.integer(0, 3))
+                                        .then(Commands.argument("amount", IntegerArgumentType.integer(1))
+                                                .executes(ctx -> {
+                                                    ServerPlayer player = ctx.getSource().getPlayerOrException();
+                                                    int tier = IntegerArgumentType.getInteger(ctx, "tier");
+                                                    int amount = IntegerArgumentType.getInteger(ctx, "amount");
+                                                    player.getCapability(PlayerStatsCapability.PLAYER_STATS).ifPresent(stats -> {
+                                                        SkillData sd = stats.getSkillData();
+                                                        sd.addTierSP(tier, amount);
+                                                        StatEventHandler.syncToClient(player);
+                                                        ctx.getSource().sendSuccess(() ->
+                                                                Component.literal("+" + amount + " T" + tier + " SP. [T0:" + sd.getTierSP(0)
+                                                                        + " T1:" + sd.getTierSP(1) + " T2:" + sd.getTierSP(2)
+                                                                        + " T3:" + sd.getTierSP(3) + "]"), false);
+                                                    });
+                                                    return 1;
+                                                })
+                                        )
+                                )
                         )
                 )
                 .then(Commands.literal("addexp")

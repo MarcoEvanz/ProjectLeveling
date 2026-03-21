@@ -1,5 +1,13 @@
 {
   "key.categories.projectleveling": "Project Leveling",
   "key.projectleveling.status_screen": "Open Status Screen",
-  "key.projectleveling.quest_screen": "Open Quest Screen"
+  "key.projectleveling.quest_screen": "Open Quest Screen",
+  "key.projectleveling.skill_tree_screen": "Open Skill Tree",
+  "key.projectleveling.skill_slot_1": "Skill Slot 1 (R)",
+  "key.projectleveling.skill_slot_2": "Skill Slot 2 (X)",
+  "key.projectleveling.skill_slot_3": "Skill Slot 3 (C)",
+  "key.projectleveling.skill_slot_4": "Skill Slot 4 (V)",
+  "key.projectleveling.skill_slot_5": "Skill Slot 5 (Y)",
+  "key.projectleveling.skill_slot_6": "Skill Slot 6 (H)",
+  "key.projectleveling.skill_slot_7": "Skill Slot 7 (~)"
 }

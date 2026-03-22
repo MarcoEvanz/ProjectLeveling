@@ -57,6 +57,16 @@ public class S2CSyncStatsPacket {
     private final int tigerClawTargetId;
     private final float tigerClawDmg;
     private final int tigerClawTimer;
+    // Warrior state
+    private final boolean slashBlastActive;
+    private final int slashBlastTicks;
+    private final float slashBlastPct;
+    private final int warCryTicks;
+    private final float warCryAtkBonus;
+    private final int spiritBladeTicks;
+    private final float spiritBladeAtk;
+    private final boolean spiritBladeDefActive;
+    private final int unbreakableCooldown;
 
     public S2CSyncStatsPacket(PlayerStats stats) {
         this.level = stats.getLevel();
@@ -116,6 +126,15 @@ public class S2CSyncStatsPacket {
         this.tigerClawTargetId = sd.getTigerClawTargetId();
         this.tigerClawDmg = sd.getTigerClawDmg();
         this.tigerClawTimer = sd.getTigerClawTimer();
+        this.slashBlastActive = sd.isSlashBlastActive();
+        this.slashBlastTicks = sd.getSlashBlastTicks();
+        this.slashBlastPct = sd.getSlashBlastPct();
+        this.warCryTicks = sd.getWarCryTicks();
+        this.warCryAtkBonus = sd.getWarCryAtkBonus();
+        this.spiritBladeTicks = sd.getSpiritBladeTicks();
+        this.spiritBladeAtk = sd.getSpiritBladeAtk();
+        this.spiritBladeDefActive = sd.isSpiritBladeDefActive();
+        this.unbreakableCooldown = sd.getUnbreakableCooldown();
     }
 
     public S2CSyncStatsPacket(FriendlyByteBuf buf) {
@@ -194,6 +213,15 @@ public class S2CSyncStatsPacket {
         this.tigerClawTargetId = buf.readInt();
         this.tigerClawDmg = buf.readFloat();
         this.tigerClawTimer = buf.readInt();
+        this.slashBlastActive = buf.readBoolean();
+        this.slashBlastTicks = buf.readInt();
+        this.slashBlastPct = buf.readFloat();
+        this.warCryTicks = buf.readInt();
+        this.warCryAtkBonus = buf.readFloat();
+        this.spiritBladeTicks = buf.readInt();
+        this.spiritBladeAtk = buf.readFloat();
+        this.spiritBladeDefActive = buf.readBoolean();
+        this.unbreakableCooldown = buf.readInt();
     }
 
     public void encode(FriendlyByteBuf buf) {
@@ -264,6 +292,15 @@ public class S2CSyncStatsPacket {
         buf.writeInt(tigerClawTargetId);
         buf.writeFloat(tigerClawDmg);
         buf.writeInt(tigerClawTimer);
+        buf.writeBoolean(slashBlastActive);
+        buf.writeInt(slashBlastTicks);
+        buf.writeFloat(slashBlastPct);
+        buf.writeInt(warCryTicks);
+        buf.writeFloat(warCryAtkBonus);
+        buf.writeInt(spiritBladeTicks);
+        buf.writeFloat(spiritBladeAtk);
+        buf.writeBoolean(spiritBladeDefActive);
+        buf.writeInt(unbreakableCooldown);
     }
 
     public void handle(Supplier<NetworkEvent.Context> ctx) {
@@ -330,6 +367,15 @@ public class S2CSyncStatsPacket {
             sd.setTigerClawTargetId(tigerClawTargetId);
             sd.setTigerClawDmg(tigerClawDmg);
             sd.setTigerClawTimer(tigerClawTimer);
+            sd.setSlashBlastActive(slashBlastActive);
+            sd.setSlashBlastTicks(slashBlastTicks);
+            sd.setSlashBlastPct(slashBlastPct);
+            sd.setWarCryTicks(warCryTicks);
+            sd.setWarCryAtkBonus(warCryAtkBonus);
+            sd.setSpiritBladeTicks(spiritBladeTicks);
+            sd.setSpiritBladeAtk(spiritBladeAtk);
+            sd.setSpiritBladeDefActive(spiritBladeDefActive);
+            sd.setUnbreakableCooldown(unbreakableCooldown);
         });
 
         ctx.get().setPacketHandled(true);

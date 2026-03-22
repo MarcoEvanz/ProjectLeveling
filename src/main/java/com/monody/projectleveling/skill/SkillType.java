@@ -19,15 +19,15 @@ public enum SkillType {
     // =====================================================
 
     // --- Warrior (STR) ---
-    BLOODLUST("bloodlust", "Bloodlust", 10, 1, PlayerClass.WARRIOR, 10, false, false,
-            35, 18, 500, 200,
-            "Unleash an aura that slows and weakens nearby enemies.", "BL"),
+    SLASH_BLAST("slash_blast", "Slash Blast", 10, 1, PlayerClass.WARRIOR, 10, false, false,
+            25, 12, 160, 80,
+            "Enhance next melee to deal bonus damage. Hits up to 3 nearby enemies.", "SB"),
     WAR_CRY("war_cry", "War Cry", 10, 1, PlayerClass.WARRIOR, 10, false, false,
-            30, 15, 300, 150,
-            "Shout that buffs ATK for self and nearby players. Weakens mobs.", "WC"),
-    WEAPON_MASTERY("weapon_mastery", "Weapon Mastery", 10, 1, PlayerClass.WARRIOR, 10, false, true,
+            30, 15, 400, 200,
+            "Buff ATK by %. Pull aggro from nearby mobs. Range scales with VIT.", "WC"),
+    WARRIOR_MASTERY("warrior_mastery", "Warrior Mastery", 10, 1, PlayerClass.WARRIOR, 10, false, true,
             0, 0, 0, 0,
-            "Passive. +1% melee damage and +5% knockback resistance per level.", "WM"),
+            "Passive. +Max HP, -Damage Taken, +Knockback Resist per level.", "WM"),
 
     // --- Assassin (LUK) ---
     SHADOW_STRIKE("shadow_strike", "Shadow Strike", 10, 1, PlayerClass.ASSASSIN, 10, false, false,
@@ -134,15 +134,15 @@ public enum SkillType {
     // =====================================================
 
     // --- Warrior ---
-    IRON_WILL("iron_will", "Iron Will", 15, 2, PlayerClass.WARRIOR, 30, true, false,
-            8, 3, 40, 20,
-            "Toggle. Grants damage resistance and knockback immunity.", "IW"),
+    SPIRIT_BLADE("spirit_blade", "Spirit Blade", 15, 2, PlayerClass.WARRIOR, 30, false, false,
+            40, 20, 900, 900,
+            "Party buff. Flat +ATK for 30s. Self: -Damage Taken.", "SpB"),
     GROUND_SLAM("ground_slam", "Ground Slam", 15, 2, PlayerClass.WARRIOR, 30, false, false,
             40, 20, 400, 200,
             "Slam the ground. AoE damage + stun in radius.", "GS"),
-    RAGE("rage", "Rage", 15, 2, PlayerClass.WARRIOR, 30, false, true,
+    FINAL_ATTACK("final_attack", "Final Attack", 15, 2, PlayerClass.WARRIOR, 30, false, true,
             0, 0, 0, 0,
-            "Passive. +2% damage per level when below 50% HP. +0.5% lifesteal.", "RG"),
+            "Passive. Chance to repeat hit at 50% damage.", "FA"),
 
     // --- Assassin ---
     STEALTH("stealth", "Stealth", 15, 2, PlayerClass.ASSASSIN, 30, true, false,
@@ -221,15 +221,15 @@ public enum SkillType {
     // =====================================================
 
     // --- Warrior ---
-    DOMAIN_OF_MONARCH("domain_of_monarch", "Domain of the Monarch", 20, 3, PlayerClass.WARRIOR, 60, false, false,
-            70, 35, 1400, 600,
-            "Create a zone of power that damages all enemies within.", "DM"),
-    UNBREAKABLE("unbreakable", "Unbreakable", 20, 3, PlayerClass.WARRIOR, 60, false, false,
-            80, 40, 2400, 1600,
-            "Brief invulnerability. Clears debuffs and burst heals.", "UB"),
+    BEAM_BLADE("beam_blade", "Beam Blade", 20, 3, PlayerClass.WARRIOR, 60, false, false,
+            35, 18, 140, 140,
+            "Launch a piercing blade. Hits all enemies in a line.", "BB"),
+    UNBREAKABLE("unbreakable", "Unbreakable", 20, 3, PlayerClass.WARRIOR, 60, false, true,
+            0, 0, 0, 0,
+            "Passive. Revive on fatal damage. 5 minute cooldown.", "UB"),
     BERSERKER_SPIRIT("berserker_spirit", "Berserker Spirit", 20, 3, PlayerClass.WARRIOR, 60, false, true,
             0, 0, 0, 0,
-            "Passive. +1% crit rate per level. Chance for double strike. Lifesteal.", "BS"),
+            "Passive. +Crit rate. +Lifesteal. +Final Attack trigger chance.", "BS"),
 
     // --- Assassin ---
     RULERS_AUTHORITY("rulers_authority", "Ruler's Authority", 20, 3, PlayerClass.ASSASSIN, 60, false, false,

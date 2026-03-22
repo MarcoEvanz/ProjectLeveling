@@ -3,6 +3,7 @@ package com.monody.projectleveling.entity.ninja;
 import com.monody.projectleveling.capability.PlayerStatsCapability;
 import com.monody.projectleveling.entity.ModEntities;
 import com.monody.projectleveling.event.StatEventHandler;
+import com.monody.projectleveling.skill.CombatLog;
 import com.monody.projectleveling.skill.SkillDamageSource;
 import com.monody.projectleveling.skill.SkillData;
 import com.monody.projectleveling.skill.SkillParticles;
@@ -75,6 +76,9 @@ public class FlyingRaijinKunaiEntity extends AbstractArrow {
         // Deal damage
         if (getOwner() instanceof ServerPlayer owner) {
             result.getEntity().hurt(SkillDamageSource.get(owner.level()), kunaiDamage);
+            if (result.getEntity() instanceof LivingEntity target) {
+                CombatLog.damageSkill(owner, "Flying Raijin", kunaiDamage, target);
+            }
 
             // Mark the target in owner's SkillData
             owner.getCapability(PlayerStatsCapability.PLAYER_STATS).ifPresent(stats -> {

@@ -204,15 +204,19 @@ public final class AssassinSkills {
         float damage = 2 + level * 0.6f + stats.getLuck() * 0.12f + SkillExecutor.getWeaponDamage(player);
         AABB area = player.getBoundingBox().inflate(range);
         List<Monster> mobs = player.level().getEntitiesOfClass(Monster.class, area);
+        CombatLog.suppressDamageLog = true;
+        CombatLog.pendingAoeSplashDmg = 0;
+        CombatLog.pendingAoeSplashCount = 0;
         for (Monster mob : mobs) {
             mob.hurt(player.damageSources().playerAttack(player), damage);
         }
+        CombatLog.suppressDamageLog = false;
+        CombatLog.flushAoe(player, "Blade Fury");
         if (player.level() instanceof ServerLevel sl) {
             SkillParticles.ring(sl, player.getX(), player.getY() + 0.8, player.getZ(), range * 0.6, 12, ParticleTypes.SWEEP_ATTACK);
             SkillParticles.burst(sl, player.getX(), player.getY() + 1, player.getZ(), 15, range * 0.4, ParticleTypes.CRIT);
             SkillSounds.playAt(player, SoundEvents.PLAYER_ATTACK_SWEEP, 1.0f, 0.8f);
         }
-        CombatLog.aoeSkill(player, "Blade Fury", damage, mobs);
         sd.startCooldown(SkillType.BLADE_FURY, level);
         player.sendSystemMessage(Component.literal(
                 "\u00a7b[System]\u00a7r \u00a7eBlade Fury! " + mobs.size() + " enemies hit."));

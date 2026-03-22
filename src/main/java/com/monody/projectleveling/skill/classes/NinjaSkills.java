@@ -202,12 +202,17 @@ public final class NinjaSkills {
         AABB area = player.getBoundingBox().inflate(range);
         List<Monster> mobs = player.level().getEntitiesOfClass(Monster.class, area);
         List<Monster> hitMobs = new java.util.ArrayList<>();
+        CombatLog.suppressDamageLog = true;
+        CombatLog.pendingAoeSplashDmg = 0;
+        CombatLog.pendingAoeSplashCount = 0;
         for (Monster mob : mobs) {
             Vec3 toMob = mob.position().add(0, mob.getBbHeight() / 2, 0).subtract(eye).normalize();
             if (look.dot(toMob) < 0.5) continue; // ~60 degree cone
             mob.hurt(player.damageSources().playerAttack(player), damage);
             hitMobs.add(mob);
         }
+        CombatLog.suppressDamageLog = false;
+        CombatLog.flushAoe(player, "Shuriken Jutsu");
         if (player.level() instanceof ServerLevel sl) {
             for (int i = 0; i < 12; i++) {
                 double spread = (player.getRandom().nextDouble() - 0.5) * 0.6;
@@ -218,7 +223,6 @@ public final class NinjaSkills {
             SkillSounds.playAt(player, SoundEvents.ARROW_SHOOT, 0.8f, 1.5f);
             SkillSounds.playAt(player, SoundEvents.PLAYER_ATTACK_SWEEP, 0.6f, 1.2f);
         }
-        CombatLog.aoeSkill(player, "Shuriken Jutsu", damage, hitMobs, player.damageSources().playerAttack(player));
         sd.startCooldown(SkillType.SHURIKEN_JUTSU, level);
         player.sendSystemMessage(Component.literal(
                 "\u00a7b[System]\u00a7r \u00a76Shuriken Jutsu! " + hitMobs.size() + " enemies hit."));
@@ -346,8 +350,8 @@ public final class NinjaSkills {
                 float rasenganBonus = getRasenganBonusDamage(stats, rsgLv);
                 // Deal Rasengan damage to the marked target
                 float rasenganDmg = 5 + rasenganBonus + SkillExecutor.getWeaponDamage(player);
+                CombatLog.nextSource = "Flying Raijin: Rasengan";
                 livingTarget.hurt(player.damageSources().playerAttack(player), rasenganDmg);
-                CombatLog.damageSkill(player, "Flying Raijin Lv2", rasenganDmg, livingTarget, player.damageSources().playerAttack(player));
 
                 // AoE splash around teleport destination (2-block radius)
                 float splashDmg = rasenganDmg * 0.3f;
@@ -361,7 +365,7 @@ public final class NinjaSkills {
                         e.hurt(SkillDamageSource.get(player.level()), splashDmg);
                     }
                     if (!nearby.isEmpty()) {
-                        CombatLog.aoeSkill(player, "FRLv2 Splash", splashDmg, nearby);
+                        CombatLog.aoeSkill(player, "Flying Raijin: Rasengan", splashDmg, nearby);
                     }
                 }
             }
@@ -576,7 +580,7 @@ public final class NinjaSkills {
                 e.hurt(SkillDamageSource.get(player.level()), rasenganDmg);
             }
             if (!nearby.isEmpty()) {
-                CombatLog.aoeSkill(player, "Clone FRLv2", rasenganDmg, nearby);
+                CombatLog.aoeSkill(player, "Clone Flying Raijin: Rasengan", rasenganDmg, nearby);
             }
 
             // Enhanced explosion particles for clone Lv2

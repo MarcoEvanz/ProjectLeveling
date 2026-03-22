@@ -87,6 +87,21 @@ public class SkillData {
     private int tigerClawTargetId = -1;          // Entity ID of target
     private float tigerClawDmg = 0;              // Damage per extra hit
     private int tigerClawTimer = 0;              // Ticks until next hit (4 ticks = 0.2s)
+    private boolean tigerClawEnhanced = false;   // Was Tiger Claw enhanced by Power of Nature?
+    private boolean phoenixLifestealEnhanced = false; // Was Phoenix Wings enhanced?
+    // Warrior: Slash Blast next-melee buff (4s duration)
+    private boolean slashBlastActive = false;
+    private float slashBlastPct = 0;             // Bonus damage %
+    private int slashBlastTicks = 0;             // Buff expiry countdown
+    // Warrior: War Cry attack buff
+    private int warCryTicks = 0;
+    private float warCryAtkBonus = 0;            // Flat attack bonus from % calc
+    // Warrior: Spirit Blade party buff
+    private int spiritBladeTicks = 0;
+    private float spiritBladeAtk = 0;            // Flat attack bonus (added after %)
+    private boolean spiritBladeDefActive = false; // -Damage Taken (caster only)
+    // Warrior: Unbreakable passive cooldown
+    private int unbreakableCooldown = 0;
 
     // === Getters ===
 
@@ -284,6 +299,33 @@ public class SkillData {
     public void setTigerClawDmg(float dmg) { this.tigerClawDmg = dmg; }
     public int getTigerClawTimer() { return tigerClawTimer; }
     public void setTigerClawTimer(int ticks) { this.tigerClawTimer = ticks; }
+    public boolean isTigerClawEnhanced() { return tigerClawEnhanced; }
+    public void setTigerClawEnhanced(boolean enhanced) { this.tigerClawEnhanced = enhanced; }
+    public boolean isPhoenixLifestealEnhanced() { return phoenixLifestealEnhanced; }
+    public void setPhoenixLifestealEnhanced(boolean enhanced) { this.phoenixLifestealEnhanced = enhanced; }
+
+    // Warrior: Slash Blast
+    public boolean isSlashBlastActive() { return slashBlastActive; }
+    public void setSlashBlastActive(boolean active) { this.slashBlastActive = active; }
+    public float getSlashBlastPct() { return slashBlastPct; }
+    public void setSlashBlastPct(float pct) { this.slashBlastPct = pct; }
+    public int getSlashBlastTicks() { return slashBlastTicks; }
+    public void setSlashBlastTicks(int ticks) { this.slashBlastTicks = ticks; }
+    // Warrior: War Cry
+    public int getWarCryTicks() { return warCryTicks; }
+    public void setWarCryTicks(int ticks) { this.warCryTicks = ticks; }
+    public float getWarCryAtkBonus() { return warCryAtkBonus; }
+    public void setWarCryAtkBonus(float bonus) { this.warCryAtkBonus = bonus; }
+    // Warrior: Spirit Blade
+    public int getSpiritBladeTicks() { return spiritBladeTicks; }
+    public void setSpiritBladeTicks(int ticks) { this.spiritBladeTicks = ticks; }
+    public float getSpiritBladeAtk() { return spiritBladeAtk; }
+    public void setSpiritBladeAtk(float atk) { this.spiritBladeAtk = atk; }
+    public boolean isSpiritBladeDefActive() { return spiritBladeDefActive; }
+    public void setSpiritBladeDefActive(boolean active) { this.spiritBladeDefActive = active; }
+    // Warrior: Unbreakable passive cooldown
+    public int getUnbreakableCooldown() { return unbreakableCooldown; }
+    public void setUnbreakableCooldown(int ticks) { this.unbreakableCooldown = ticks; }
 
     public Map<SkillType, Integer> getSkillLevels() { return skillLevels; }
     public Map<SkillType, Integer> getCooldowns() { return cooldowns; }
@@ -449,6 +491,17 @@ public class SkillData {
         tigerClawTargetId = -1;
         tigerClawDmg = 0;
         tigerClawTimer = 0;
+        tigerClawEnhanced = false;
+        phoenixLifestealEnhanced = false;
+        slashBlastActive = false;
+        slashBlastPct = 0;
+        slashBlastTicks = 0;
+        warCryTicks = 0;
+        warCryAtkBonus = 0;
+        spiritBladeTicks = 0;
+        spiritBladeAtk = 0;
+        spiritBladeDefActive = false;
+        unbreakableCooldown = 0;
     }
 
     // === NBT (only persistent data) ===

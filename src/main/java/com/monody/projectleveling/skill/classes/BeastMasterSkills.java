@@ -315,6 +315,7 @@ public final class BeastMasterSkills {
         if (pwm2Lv >= 20) lifestealHits++;
         sd.setPhoenixLifestealHits(lifestealHits);
         sd.setPhoenixLifestealPct(lifestealPct);
+        sd.setPhoenixLifestealEnhanced(enhanced);
 
         // Phoenix Wings is also a next-attack buff (lifesteal part)
         sd.setBmActiveBuff(SkillType.PHOENIX_WINGS);

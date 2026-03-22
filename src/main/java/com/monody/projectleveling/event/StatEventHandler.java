@@ -55,6 +55,8 @@ import java.util.UUID;
 public class StatEventHandler {
     // Track last position per player for walk distance calculation
     private static final Map<UUID, double[]> lastPositions = new HashMap<>();
+    // Recursion guard for Final Attack
+    private static boolean finalAttackInProgress = false;
 
     private static final UUID STRENGTH_UUID = UUID.fromString("a3d5b8c1-1234-4a5b-9c6d-7e8f9a0b1c2d");
     private static final UUID VITALITY_UUID = UUID.fromString("b4e6c9d2-2345-4b6c-ad7e-8f9a0b1c2d3e");
@@ -63,6 +65,8 @@ public class StatEventHandler {
     private static final UUID DEX_ATK_UUID = UUID.fromString("e7b9fc05-5678-4e9f-d0a1-bc2d3e4f5a6b");
     // Passive skill modifier UUIDs
     private static final UUID ENDURANCE_HP_UUID = UUID.fromString("f8ca0d16-6789-4fa0-e1b2-cd3e4f5a6b7c");
+    private static final UUID WARRIOR_MASTERY_HP_UUID = UUID.fromString("a1b2c3d4-5678-4e9f-a1b2-c3d4e5f6a7b8");
+    private static final UUID WARRIOR_MASTERY_KB_UUID = UUID.fromString("b2c3d4e5-6789-4fa0-b2c3-d4e5f6a7b8c9");
 
     @SubscribeEvent
     public static void onPlayerLoggedOut(PlayerEvent.PlayerLoggedOutEvent event) {
@@ -195,15 +199,41 @@ public class StatEventHandler {
                 }
             }
 
-            // Domain of Monarch tick
-            if (sd.getDomainTicks() > 0) {
-                sd.setDomainTicks(sd.getDomainTicks() - 1);
-                if (sd.getDomainTicks() <= 0) {
-                    player.sendSystemMessage(Component.literal("\u00a7b[System]\u00a7r \u00a77Domain faded."));
+            // Slash Blast buff expiry (4s)
+            if (sd.isSlashBlastActive() && sd.getSlashBlastTicks() > 0) {
+                sd.setSlashBlastTicks(sd.getSlashBlastTicks() - 1);
+                if (sd.getSlashBlastTicks() <= 0) {
+                    sd.setSlashBlastActive(false);
+                    sd.setSlashBlastPct(0);
+                    player.sendSystemMessage(Component.literal("\u00a7b[System]\u00a7r \u00a77Slash Blast expired."));
                     syncToClient(player);
-                } else if (player.tickCount % 20 == 0) {
-                    WarriorSkills.tickDomain(player, stats, sd);
                 }
+            }
+
+            // War Cry buff tick
+            if (sd.getWarCryTicks() > 0) {
+                sd.setWarCryTicks(sd.getWarCryTicks() - 1);
+                if (sd.getWarCryTicks() <= 0) {
+                    sd.setWarCryAtkBonus(0);
+                    player.sendSystemMessage(Component.literal("\u00a7b[System]\u00a7r \u00a77War Cry faded."));
+                    syncToClient(player);
+                }
+            }
+
+            // Spirit Blade buff tick
+            if (sd.getSpiritBladeTicks() > 0) {
+                sd.setSpiritBladeTicks(sd.getSpiritBladeTicks() - 1);
+                if (sd.getSpiritBladeTicks() <= 0) {
+                    sd.setSpiritBladeAtk(0);
+                    sd.setSpiritBladeDefActive(false);
+                    player.sendSystemMessage(Component.literal("\u00a7b[System]\u00a7r \u00a77Spirit Blade faded."));
+                    syncToClient(player);
+                }
+            }
+
+            // Unbreakable cooldown tick
+            if (sd.getUnbreakableCooldown() > 0) {
+                sd.setUnbreakableCooldown(sd.getUnbreakableCooldown() - 1);
             }
 
             // Venom expiry
@@ -396,6 +426,7 @@ public class StatEventHandler {
                             player.level().getEntity(sd.getTigerClawTargetId());
                     if (targetEnt instanceof LivingEntity target && target.isAlive()) {
                         target.invulnerableTime = 0;
+                        CombatLog.nextSource = sd.isTigerClawEnhanced() ? "Enhanced Tiger Claw" : "Tiger Claw";
                         target.hurt(player.damageSources().playerAttack(player), sd.getTigerClawDmg());
                         if (player.level() instanceof ServerLevel sl) {
                             SkillParticles.slash(sl,
@@ -443,25 +474,6 @@ public class StatEventHandler {
             player.getCapability(PlayerStatsCapability.PLAYER_STATS).ifPresent(stats -> {
                 SkillData sd = stats.getSkillData();
                 boolean changed = false;
-
-                // Iron Will drain
-                if (sd.isToggleActive(SkillType.IRON_WILL)) {
-                    int level = sd.getLevel(SkillType.IRON_WILL);
-                    int drain = SkillType.IRON_WILL.getToggleMpPerSecond(level);
-                    if (stats.getCurrentMp() >= drain) {
-                        stats.setCurrentMp(stats.getCurrentMp() - drain);
-                        WarriorSkills.applyIronWillEffects(player, stats, level);
-                        if (player.tickCount % 40 == 0) {
-                            SkillParticles.playerAura(player, 8, 1.0, ParticleTypes.ENCHANTED_HIT);
-                        }
-                        changed = true;
-                    } else {
-                        sd.setToggleActive(SkillType.IRON_WILL, false);
-                        player.removeEffect(net.minecraft.world.effect.MobEffects.DAMAGE_RESISTANCE);
-                        player.sendSystemMessage(Component.literal("\u00a7b[System]\u00a7r \u00a77Iron Will deactivated (no MP)."));
-                        changed = true;
-                    }
-                }
 
                 // Stealth drain
                 if (sd.isToggleActive(SkillType.STEALTH)) {
@@ -870,10 +882,48 @@ public class StatEventHandler {
                 }
             }
 
-            // Passive: Weapon Mastery — +1% melee damage per level
-            int wmLv = sd.getLevel(SkillType.WEAPON_MASTERY);
-            if (wmLv > 0 && !event.getSource().isIndirect()) {
-                amount *= 1.0f + wmLv * 0.01f;
+            // Slash Blast: consume on next melee, boost damage + hit 3 nearby
+            if (sd.isSlashBlastActive() && !event.getSource().isIndirect()
+                    && !SkillExecutor.executingSkill) {
+                float sbBonus = sd.getSlashBlastPct();
+                amount *= (1.0f + sbBonus);
+                sd.setSlashBlastActive(false);
+                sd.setSlashBlastPct(0);
+                LivingEntity mainTarget = event.getEntity();
+                AABB splashArea = mainTarget.getBoundingBox().inflate(3.0);
+                List<LivingEntity> nearby = player.level().getEntitiesOfClass(
+                        LivingEntity.class, splashArea,
+                        e -> e != mainTarget && e != player && e instanceof Monster);
+                // Suppress splash individual logs, accumulate true damage
+                CombatLog.suppressDamageLog = true;
+                CombatLog.pendingAoeSplashDmg = 0;
+                CombatLog.pendingAoeSplashCount = 0;
+                int splashHits = 0;
+                for (LivingEntity mob : nearby) {
+                    if (splashHits >= 3) break;
+                    mob.invulnerableTime = 0;
+                    mob.hurt(player.damageSources().playerAttack(player), amount);
+                    splashHits++;
+                }
+                CombatLog.suppressDamageLog = false;
+                // Tag main hit — onLivingDamage will log AoE summary with true damage
+                CombatLog.pendingAoe = "Slash Blast";
+                if (player.level() instanceof ServerLevel sl) {
+                    SkillParticles.burst(sl, mainTarget.getX(), mainTarget.getY() + 1, mainTarget.getZ(),
+                            12, 0.5, ParticleTypes.SWEEP_ATTACK);
+                    SkillSounds.playAt(player, SoundEvents.PLAYER_ATTACK_SWEEP, 1.0f, 0.9f);
+                }
+                syncToClient(player);
+            }
+
+            // War Cry: flat ATK bonus during buff
+            if (sd.getWarCryTicks() > 0 && !event.getSource().isIndirect()) {
+                amount += sd.getWarCryAtkBonus();
+            }
+
+            // Spirit Blade: flat ATK bonus (applied after % buffs)
+            if (sd.getSpiritBladeTicks() > 0 && !event.getSource().isIndirect()) {
+                amount += sd.getSpiritBladeAtk();
             }
 
             // Passive: Kunai Mastery — +AGI melee damage
@@ -904,16 +954,22 @@ public class StatEventHandler {
                 List<net.minecraft.world.entity.LivingEntity> nearby = player.level().getEntitiesOfClass(
                         net.minecraft.world.entity.LivingEntity.class, splashArea,
                         e -> e != mainTarget && e != player && e instanceof Monster);
+                // Suppress splash individual logs, accumulate true damage
+                CombatLog.suppressDamageLog = true;
+                CombatLog.pendingAoeSplashDmg = 0;
+                CombatLog.pendingAoeSplashCount = 0;
                 for (net.minecraft.world.entity.LivingEntity mob : nearby) {
                     mob.hurt(player.damageSources().playerAttack(player), splashDmg);
                 }
+                CombatLog.suppressDamageLog = false;
+                // Tag main hit — onLivingDamage will log combined AoE summary
+                CombatLog.pendingAoe = "Rasengan";
                 if (player.level() instanceof ServerLevel sl) {
                     SkillParticles.explosion(sl, mainTarget.getX(), mainTarget.getY() + 1, mainTarget.getZ(),
                             2.0f, ParticleTypes.END_ROD, ParticleTypes.ENCHANTED_HIT);
                     SkillSounds.playAt(sl, mainTarget.getX(), mainTarget.getY(), mainTarget.getZ(),
                             SoundEvents.GENERIC_EXPLODE, 0.6f, 1.3f);
                 }
-                CombatLog.aoeSkill(player, "Rasengan Explosion", splashDmg, nearby, player.damageSources().playerAttack(player));
                 player.sendSystemMessage(Component.literal(
                         "\u00a7b[System]\u00a7r \u00a76Rasengan! " + (nearby.size() + 1) + " enemies hit."));
                 syncToClient(player);
@@ -950,11 +1006,14 @@ public class StatEventHandler {
                 sd.setTigerClawTargetId(event.getEntity().getId());
                 sd.setTigerClawDmg(extraDmg);
                 sd.setTigerClawTimer(4); // first hit after 0.2s
+                sd.setTigerClawEnhanced(enhanced);
                 // Clear buff
                 sd.setBmActiveBuff(null);
                 sd.setBmBuffTicks(0);
                 sd.setBmEnhanced(false);
                 String name = enhanced ? "Enhanced Tiger Claw" : "Tiger Claw";
+                // Tag the initial melee hit so onLivingDamage shows the combination name
+                CombatLog.nextSource = name;
                 player.sendSystemMessage(Component.literal(
                         "\u00a7b[System]\u00a7r \u00a76" + name + "! " + extraHits + " extra hits!"));
                 syncToClient(player);
@@ -994,6 +1053,8 @@ public class StatEventHandler {
                             SoundEvents.RAVAGER_STUNNED, 0.7f, 1.0f);
                 }
                 String name = enhanced ? "Enhanced Bear Paw" : "Bear Paw";
+                // Tag the initial melee hit so onLivingDamage shows the combination name
+                CombatLog.nextSource = name;
                 sd.setBmActiveBuff(null);
                 sd.setBmBuffTicks(0);
                 sd.setBmEnhanced(false);
@@ -1009,7 +1070,7 @@ public class StatEventHandler {
                 float healAmount = amount * lifestealPct;
                 if (healAmount > 0) {
                     player.heal(healAmount);
-                    CombatLog.heal(player, "Phoenix Wings", healAmount);
+                    CombatLog.heal(player, sd.isPhoenixLifestealEnhanced() ? "Enhanced Phoenix Wings" : "Phoenix Wings", healAmount);
                     if (player.level() instanceof ServerLevel sl) {
                         SkillSounds.playAt(sl, player.getX(), player.getY(), player.getZ(),
                                 SoundEvents.CHICKEN_HURT, 0.7f, 1.2f + sl.random.nextFloat() * 0.3f);
@@ -1029,16 +1090,27 @@ public class StatEventHandler {
                 }
             }
 
-            // Passive: Rage — +2% damage per level when below 50% HP, +0.5% lifesteal
-            int rageLv = sd.getLevel(SkillType.RAGE);
-            if (rageLv > 0) {
-                if (player.getHealth() < player.getMaxHealth() * 0.5f) {
-                    amount *= 1.0f + rageLv * 0.02f;
-                }
-                float lifesteal = amount * rageLv * 0.005f;
-                if (lifesteal > 0) {
-                    player.heal(lifesteal);
-                    CombatLog.heal(player, "Rage", lifesteal);
+            // Passive: Final Attack — chance to repeat hit at 50% damage
+            int faLv = sd.getLevel(SkillType.FINAL_ATTACK);
+            if (faLv > 0 && !finalAttackInProgress) {
+                float faChance = WarriorSkills.getFinalAttackChance(faLv);
+                int bsLv2 = sd.getLevel(SkillType.BERSERKER_SPIRIT);
+                if (bsLv2 > 0) faChance += WarriorSkills.getBerserkerFinalAttackBonus(bsLv2);
+                if (player.getRandom().nextFloat() * 100 < faChance) {
+                    float repeatDmg = amount * 0.5f;
+                    LivingEntity faTarget = event.getEntity();
+                    finalAttackInProgress = true;
+                    faTarget.invulnerableTime = 0;
+                    CombatLog.nextSource = "Final Attack";
+                    faTarget.hurt(player.damageSources().playerAttack(player), repeatDmg);
+                    finalAttackInProgress = false;
+                    if (player.level() instanceof ServerLevel sl) {
+                        sl.sendParticles(ParticleTypes.SWEEP_ATTACK,
+                                faTarget.getX(), faTarget.getY() + faTarget.getBbHeight() * 0.5, faTarget.getZ(),
+                                1, 0, 0, 0, 0);
+                        SkillSounds.playAt(sl, faTarget.getX(), faTarget.getY(), faTarget.getZ(),
+                                SoundEvents.PLAYER_ATTACK_SWEEP, 0.6f, 1.3f);
+                    }
                 }
             }
 
@@ -1115,10 +1187,6 @@ public class StatEventHandler {
             int bsLv = sd.getLevel(SkillType.BERSERKER_SPIRIT);
             if (bsLv > 0) {
                 critRate += bsLv * 0.01;
-                // Double strike chance
-                if (player.getRandom().nextFloat() < bsLv * 0.01f) {
-                    amount *= 1.5f;
-                }
                 // Lifesteal
                 float bsHeal = amount * bsLv * 0.003f;
                 player.heal(bsHeal);
@@ -1240,7 +1308,22 @@ public class StatEventHandler {
     @SubscribeEvent
     public static void onLivingDamage(LivingDamageEvent event) {
         if (event.getAmount() <= 0) return;
-        if (CombatLog.suppressDamageLog) return;
+
+        // AoE suppression: accumulate true damage for later summary
+        if (CombatLog.suppressDamageLog) {
+            if (CombatLog.nextSource != null) {
+                // Named source during AoE (e.g. Final Attack proc on splash target) — log it
+                String src = CombatLog.nextSource;
+                CombatLog.nextSource = null;
+                if (event.getSource().getEntity() instanceof ServerPlayer p) {
+                    CombatLog.damage(p, src, event.getAmount(), event.getEntity());
+                }
+            } else {
+                CombatLog.pendingAoeSplashDmg += event.getAmount();
+                CombatLog.pendingAoeSplashCount++;
+            }
+            return;
+        }
 
         // Skeleton minion damage → log to owner + Skeletal Mastery lifesteal
         if (event.getSource().getEntity() instanceof SkeletonMinionEntity minion) {
@@ -1273,7 +1356,31 @@ public class StatEventHandler {
         if (!(event.getSource().getEntity() instanceof ServerPlayer player)) return;
         // Shadow Partner melee has its own logging
         if (event.getSource().getDirectEntity() instanceof ShadowPartnerEntity) return;
-        CombatLog.damage(player, event.getAmount(), event.getEntity());
+
+        // Named single-target source (e.g. Final Attack)
+        String source = CombatLog.nextSource;
+        if (source != null) {
+            CombatLog.nextSource = null;
+            CombatLog.damage(player, source, event.getAmount(), event.getEntity());
+            return;
+        }
+
+        // Pending AoE summary (e.g. Slash Blast main hit + accumulated splash)
+        if (CombatLog.pendingAoe != null) {
+            String aoeName = CombatLog.pendingAoe;
+            CombatLog.pendingAoe = null;
+            float totalDmg = CombatLog.pendingAoeSplashDmg + event.getAmount();
+            int totalHits = CombatLog.pendingAoeSplashCount + 1;
+            if (totalHits > 1) {
+                CombatLog.aoe(player, aoeName, totalDmg / totalHits, totalHits);
+            } else {
+                CombatLog.damage(player, aoeName, event.getAmount(), event.getEntity());
+            }
+            return;
+        }
+
+        String label = event.getSource().isIndirect() ? "Ranged Attack" : "Melee Attack";
+        CombatLog.damage(player, label, event.getAmount(), event.getEntity());
     }
 
     @SubscribeEvent
@@ -1421,6 +1528,19 @@ public class StatEventHandler {
                 event.setAmount(event.getAmount() * (1 - reduction));
             }
 
+            // Spirit Blade: self damage reduction
+            if (sd.isSpiritBladeDefActive() && sd.getSpiritBladeTicks() > 0) {
+                float sbDefPct = WarriorSkills.getSpiritBladeDefPct(sd.getLevel(SkillType.SPIRIT_BLADE));
+                event.setAmount(event.getAmount() * (1 - sbDefPct));
+            }
+
+            // Warrior Mastery: passive damage reduction
+            int wmLv = sd.getLevel(SkillType.WARRIOR_MASTERY);
+            if (wmLv > 0) {
+                float wmReduction = WarriorSkills.getWarriorMasteryDmgReduction(wmLv);
+                event.setAmount(event.getAmount() * (1 - wmReduction));
+            }
+
             // Soul Link: redirect portion of damage to nearest minion
             if (sd.isToggleActive(SkillType.SOUL_LINK)) {
                 int slLv = sd.getLevel(SkillType.SOUL_LINK);
@@ -1460,6 +1580,16 @@ public class StatEventHandler {
 
         player.getCapability(PlayerStatsCapability.PLAYER_STATS).ifPresent(stats -> {
             SkillData sd = stats.getSkillData();
+
+            // Unbreakable: revive on fatal damage (Warrior passive)
+            int ubLv = sd.getLevel(SkillType.UNBREAKABLE);
+            if (ubLv > 0 && sd.getUnbreakableCooldown() <= 0) {
+                event.setAmount(0);
+                WarriorSkills.triggerUnbreakable(player, stats, sd);
+                syncToClient(player);
+                return;
+            }
+
             int uwLv = sd.getLevel(SkillType.UNDYING_WILL);
             if (uwLv <= 0 || sd.getUndyingWillCooldown() > 0) return;
 
@@ -1559,6 +1689,17 @@ public class StatEventHandler {
         applyModifier(player, Attributes.MAX_HEALTH, ENDURANCE_HP_UUID, "Endurance HP",
                 enduranceHpBonus);
 
+        // Warrior Mastery: +2% max HP per level
+        int wmLv = sd.getLevel(SkillType.WARRIOR_MASTERY);
+        double wmHpBonus = wmLv > 0 ? wmLv * 0.02 * (20 + (stats.getVitality() - 1) * 0.5) : 0;
+        applyModifier(player, Attributes.MAX_HEALTH, WARRIOR_MASTERY_HP_UUID, "Warrior Mastery HP",
+                wmHpBonus);
+
+        // Warrior Mastery: +2% knockback resist per level
+        double wmKbBonus = wmLv > 0 ? wmLv * 0.02 : 0;
+        applyModifier(player, Attributes.KNOCKBACK_RESISTANCE, WARRIOR_MASTERY_KB_UUID, "Warrior Mastery KB",
+                wmKbBonus);
+
         float maxHealth = player.getMaxHealth();
         if (player.getHealth() > maxHealth) {
             player.setHealth(maxHealth);
@@ -1578,6 +1719,34 @@ public class StatEventHandler {
         if (amount > 0) {
             instance.addPermanentModifier(new AttributeModifier(uuid, name, amount, AttributeModifier.Operation.ADDITION));
         }
+    }
+
+    /** Called from skill execution to trigger Final Attack on skill damage. */
+    public static void tryFinalAttack(ServerPlayer player, LivingEntity target, float damage) {
+        if (finalAttackInProgress) return;
+        player.getCapability(PlayerStatsCapability.PLAYER_STATS).ifPresent(stats -> {
+            SkillData sd = stats.getSkillData();
+            int faLv = sd.getLevel(SkillType.FINAL_ATTACK);
+            if (faLv <= 0) return;
+            float faChance = WarriorSkills.getFinalAttackChance(faLv);
+            int bsLv = sd.getLevel(SkillType.BERSERKER_SPIRIT);
+            if (bsLv > 0) faChance += WarriorSkills.getBerserkerFinalAttackBonus(bsLv);
+            if (player.getRandom().nextFloat() * 100 < faChance) {
+                float repeatDmg = damage * 0.5f;
+                finalAttackInProgress = true;
+                target.invulnerableTime = 0;
+                CombatLog.nextSource = "Final Attack";
+                target.hurt(player.damageSources().playerAttack(player), repeatDmg);
+                finalAttackInProgress = false;
+                if (player.level() instanceof ServerLevel sl) {
+                    sl.sendParticles(ParticleTypes.SWEEP_ATTACK,
+                            target.getX(), target.getY() + target.getBbHeight() * 0.5, target.getZ(),
+                            1, 0, 0, 0, 0);
+                    SkillSounds.playAt(sl, target.getX(), target.getY(), target.getZ(),
+                            SoundEvents.PLAYER_ATTACK_SWEEP, 0.6f, 1.3f);
+                }
+            }
+        });
     }
 
     public static void syncToClient(ServerPlayer player) {

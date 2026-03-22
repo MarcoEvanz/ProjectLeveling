@@ -243,7 +243,6 @@ public class StatusScreen extends Screen {
         Player player = Minecraft.getInstance().player;
 
         int kmLv = sd.getLevel(SkillType.KUNAI_MASTERY);
-        int wmLv = sd.getLevel(SkillType.WEAPON_MASTERY);
         int ceLv = sd.getLevel(SkillType.CRITICAL_EDGE);
         int seLv = sd.getLevel(SkillType.SHARP_EYES);
         int aoLv = sd.getLevel(SkillType.ARCANE_OVERDRIVE);
@@ -258,10 +257,6 @@ public class StatusScreen extends Screen {
         if (kmLv > 0) dmg += stats.getAgility() * 0.08f * kmLv / 10.0f;
         StringBuilder atkTag = new StringBuilder();
         if (weaponDmg > 0) atkTag.append("WPN+").append(String.format("%.1f", weaponDmg));
-        if (wmLv > 0) {
-            if (atkTag.length() > 0) atkTag.append(" ");
-            atkTag.append("+").append(wmLv).append("%");
-        }
         if (kmLv > 0) {
             if (atkTag.length() > 0) atkTag.append(" ");
             atkTag.append("KM+").append(String.format("%.1f", stats.getAgility() * 0.08f * kmLv / 10.0f));
@@ -316,8 +311,6 @@ public class StatusScreen extends Screen {
 
         rowY += lineH;
         double meleePct = 0;
-        if (wmLv > 0) meleePct += wmLv;
-        if (bsLv > 0) meleePct += bsLv;
         drawStat(g, "MELEE:", String.format("+%.1f%%", meleePct), left, rowY);
 
         rowY += lineH;
@@ -347,11 +340,6 @@ public class StatusScreen extends Screen {
             double ufBonus = 15.0 + ufLv * 1.5;
             dmgBonus += ufBonus;
             dmgTag.append("UF+").append(String.format("%.1f", ufBonus)).append("%");
-        }
-        int rageLv = sd.getLevel(SkillType.RAGE);
-        if (rageLv > 0) {
-            if (dmgTag.length() > 0) dmgTag.append(" ");
-            dmgTag.append("Rage+").append(rageLv * 2).append("%<50%HP");
         }
         int fbLv = sd.getLevel(SkillType.FATAL_BLOW);
         if (fbLv > 0) {
@@ -425,7 +413,6 @@ public class StatusScreen extends Screen {
     private List<String> collectActiveBuffs(SkillData sd, Player player) {
         List<String> buffs = new ArrayList<>();
         // Toggles
-        if (sd.isToggleActive(SkillType.IRON_WILL)) buffs.add("Iron Will");
         if (sd.isToggleActive(SkillType.STEALTH)) buffs.add("Stealth");
         if (sd.isToggleActive(SkillType.SOUL_ARROW)) buffs.add("Soul Arrow");
         if (sd.isToggleActive(SkillType.MAGIC_GUARD)) buffs.add("Magic Guard");
@@ -448,7 +435,10 @@ public class StatusScreen extends Screen {
         if (sd.getSubstitutionTicks() > 0) buffs.add("Sub " + fmtSec(sd.getSubstitutionTicks()));
         if (sd.getFlyingRaijinPhase() == 1) buffs.add("FR Kunai");
         if (sd.getFrgPhase() == 1) buffs.add("FRG " + fmtSec(sd.getFrgTicks()));
-        if (sd.getDomainTicks() > 0) buffs.add("Domain " + fmtSec(sd.getDomainTicks()));
+        if (sd.isSlashBlastActive()) buffs.add("S.Blast " + fmtSec(sd.getSlashBlastTicks()));
+        if (sd.getWarCryTicks() > 0) buffs.add("War Cry " + fmtSec(sd.getWarCryTicks()));
+        if (sd.getSpiritBladeTicks() > 0) buffs.add("S.Blade " + fmtSec(sd.getSpiritBladeTicks()));
+        if (sd.getUnbreakableCooldown() > 0) buffs.add("Unbrk CD " + fmtSec(sd.getUnbreakableCooldown()));
         if (sd.getArmyTicks() > 0) buffs.add("Army " + fmtSec(sd.getArmyTicks()));
         if (sd.getDeathMarkTicks() > 0) buffs.add("D.Mark " + fmtSec(sd.getDeathMarkTicks()));
         if (sd.getUndyingWillCooldown() > 0) buffs.add("Undying CD " + fmtSec(sd.getUndyingWillCooldown()));

@@ -91,6 +91,7 @@ public class SkillArrowEntity extends AbstractArrow {
             if (result.getEntity() instanceof LivingEntity target) {
                 target.invulnerableTime = 0;
             }
+            CombatLog.nextSource = "Arrow Rain";
             super.onHitEntity(result);
             if (result.getEntity() instanceof LivingEntity target) {
                 target.invulnerableTime = 0; // Allow subsequent rain arrows to hit
@@ -99,6 +100,13 @@ public class SkillArrowEntity extends AbstractArrow {
             return;
         }
 
+        // Tag the damage source for combat log
+        switch (type) {
+            case BOMB -> CombatLog.nextSource = "Arrow Bomb";
+            case COVERING_FIRE -> CombatLog.nextSource = "Covering Fire";
+            case HURRICANE -> CombatLog.nextSource = "Hurricane";
+            default -> {}
+        }
         super.onHitEntity(result);
 
         if (!(level() instanceof ServerLevel serverLevel)) return;

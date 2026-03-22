@@ -19,6 +19,14 @@ public class CombatLog {
     // Flag to suppress LivingDamageEvent logging during AoE loops (entity code logs summary instead)
     public static boolean suppressDamageLog = false;
 
+    // Source tag: consumed by next onLivingDamage from player to label the damage
+    public static String nextSource = null;
+
+    // AoE pending: set after a suppress-loop so the next onLivingDamage logs a combined summary
+    public static String pendingAoe = null;
+    public static float pendingAoeSplashDmg = 0;
+    public static int pendingAoeSplashCount = 0;
+
     // --- Armor reduction utility ---
 
     public static float afterArmor(LivingEntity target, DamageSource src, float rawDamage) {
@@ -95,5 +103,15 @@ public class CombatLog {
     public static void petRanged(ServerPlayer player, String type, float amount) {
         player.sendSystemMessage(Component.literal(
                 "\u00a78\u2694 Shadow " + type + " \u00a77" + String.format("%.1f", amount)));
+    }
+
+    /** Flush accumulated AoE true damage as a summary log. Call after suppress loop ends. */
+    public static void flushAoe(ServerPlayer player, String name) {
+        if (pendingAoeSplashCount > 0) {
+            float avg = pendingAoeSplashDmg / pendingAoeSplashCount;
+            aoe(player, name, avg, pendingAoeSplashCount);
+        }
+        pendingAoeSplashDmg = 0;
+        pendingAoeSplashCount = 0;
     }
 }

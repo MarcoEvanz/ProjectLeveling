@@ -65,7 +65,9 @@ public class SkillTreeScreen extends Screen {
     private static final int CLASS_ARCHER = 0xFF40C040;
     private static final int CLASS_HEALER = 0xFFF0D040;
     private static final int CLASS_MAGE = 0xFF4080F0;
+    private static final int CLASS_NINJA = 0xFFFF8040;
     private static final int CLASS_NECROMANCER = 0xFF40E0A0;
+    private static final int CLASS_BEAST_MASTER = 0xFFE08040;
     private static final int PASSIVE_COLOR = 0xFF60A0C0;
 
     // Tier definitions
@@ -90,7 +92,9 @@ public class SkillTreeScreen extends Screen {
     private final int[] archerBtnBounds = new int[4];
     private final int[] healerBtnBounds = new int[4];
     private final int[] mageBtnBounds = new int[4];
+    private final int[] ninjaBtnBounds = new int[4];
     private final int[] necromancerBtnBounds = new int[4];
+    private final int[] beastMasterBtnBounds = new int[4];
 
     private SkillType pendingEquipSkill = null;
     private SkillType hoveredSkill = null;
@@ -180,27 +184,31 @@ public class SkillTreeScreen extends Screen {
         drawSep(g, left, rowY, innerW);
         rowY += 6;
 
-        // Row 1: Warrior, Assassin, Necromancer (3-column)
+        // Row 1: Warrior, Assassin, Ninja, Necromancer (4-column)
         int colGap = 4;
-        int colW = (innerW - colGap * 2) / 3;
+        int colW4 = (innerW - colGap * 3) / 4;
         int boxH = lineH * 4 + 6;
 
-        renderClassBox(g, warriorBtnBounds, left, rowY, colW, boxH,
+        renderClassBox(g, warriorBtnBounds, left, rowY, colW4, boxH,
                 "WARRIOR", "STR", CLASS_WARRIOR, new String[]{"Bloodlust", "Iron Will", "Domain"}, mx, my);
-        renderClassBox(g, assassinBtnBounds, left + colW + colGap, rowY, colW, boxH,
+        renderClassBox(g, assassinBtnBounds, left + (colW4 + colGap), rowY, colW4, boxH,
                 "ASSASSIN", "LUK", CLASS_ASSASSIN, new String[]{"Shadow Strike", "Stealth", "Ruler's Auth."}, mx, my);
-        renderClassBox(g, necromancerBtnBounds, left + (colW + colGap) * 2, rowY, colW, boxH,
+        renderClassBox(g, ninjaBtnBounds, left + (colW4 + colGap) * 2, rowY, colW4, boxH,
+                "NINJA", "AGI/LUK", CLASS_NINJA, new String[]{"Shadow Clone", "Rasengan", "Sage Mode"}, mx, my);
+        renderClassBox(g, necromancerBtnBounds, left + (colW4 + colGap) * 3, rowY, colW4, boxH,
                 "NECRO", "INT/MND", CLASS_NECROMANCER, new String[]{"Life Drain", "Raise Skeleton", "Army of Dead"}, mx, my);
 
         rowY += boxH + 6;
 
-        // Row 2: Archer, Healer, Mage (3-column)
-        renderClassBox(g, archerBtnBounds, left, rowY, colW, boxH,
+        // Row 2: Archer, Healer, Mage, Beast Master (4-column)
+        renderClassBox(g, archerBtnBounds, left, rowY, colW4, boxH,
                 "ARCHER", "DEX", CLASS_ARCHER, new String[]{"Arrow Rain", "Phoenix", "Hurricane"}, mx, my);
-        renderClassBox(g, healerBtnBounds, left + colW + colGap, rowY, colW, boxH,
-                "HEALER", "INT", CLASS_HEALER, new String[]{"Holy Light", "Benediction", "Angel Ray"}, mx, my);
-        renderClassBox(g, mageBtnBounds, left + (colW + colGap) * 2, rowY, colW, boxH,
+        renderClassBox(g, healerBtnBounds, left + (colW4 + colGap), rowY, colW4, boxH,
+                "HEALER", "FAI", CLASS_HEALER, new String[]{"Holy Light", "Benediction", "Angel Ray"}, mx, my);
+        renderClassBox(g, mageBtnBounds, left + (colW4 + colGap) * 2, rowY, colW4, boxH,
                 "MAGE", "INT", CLASS_MAGE, new String[]{"Flame Orb", "Frost Bind", "Infinity"}, mx, my);
+        renderClassBox(g, beastMasterBtnBounds, left + (colW4 + colGap) * 3, rowY, colW4, boxH,
+                "BEASTM", "STR/VIT", CLASS_BEAST_MASTER, new String[]{"Tiger Claw", "Bear Paw", "Power of Nat."}, mx, my);
     }
 
     private void renderClassBox(GuiGraphics g, int[] bounds, int bx, int by, int bw, int bh,
@@ -616,8 +624,8 @@ public class SkillTreeScreen extends Screen {
 
             // Class selection
             if (showClassSelection) {
-                int[][] classBounds = {warriorBtnBounds, assassinBtnBounds, necromancerBtnBounds, archerBtnBounds, healerBtnBounds, mageBtnBounds};
-                PlayerClass[] classes = {PlayerClass.WARRIOR, PlayerClass.ASSASSIN, PlayerClass.NECROMANCER, PlayerClass.ARCHER, PlayerClass.HEALER, PlayerClass.MAGE};
+                int[][] classBounds = {warriorBtnBounds, assassinBtnBounds, ninjaBtnBounds, necromancerBtnBounds, archerBtnBounds, healerBtnBounds, mageBtnBounds, beastMasterBtnBounds};
+                PlayerClass[] classes = {PlayerClass.WARRIOR, PlayerClass.ASSASSIN, PlayerClass.NINJA, PlayerClass.NECROMANCER, PlayerClass.ARCHER, PlayerClass.HEALER, PlayerClass.MAGE, PlayerClass.BEAST_MASTER};
                 for (int i = 0; i < classBounds.length; i++) {
                     if (isInside((int) mx, (int) my, classBounds[i])) {
                         ModNetwork.sendToServer(new C2SSelectClassPacket(classes[i].getId()));

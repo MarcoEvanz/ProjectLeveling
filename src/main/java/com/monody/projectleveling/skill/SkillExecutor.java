@@ -7,8 +7,28 @@ import com.monody.projectleveling.skill.classes.*;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.entity.EquipmentSlot;
+import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.ai.attributes.AttributeModifier;
+import net.minecraft.world.entity.ai.attributes.Attributes;
+import net.minecraft.world.item.ItemStack;
 
 public class SkillExecutor {
+
+    /** True while a skill is being executed. Prevents Rasengan buff from triggering on skill damage. */
+    public static boolean executingSkill = false;
+
+    /** Get weapon's flat attack damage bonus from the entity's main hand item. */
+    public static float getWeaponDamage(LivingEntity entity) {
+        ItemStack weapon = entity.getMainHandItem();
+        if (weapon.isEmpty()) return 0;
+        for (AttributeModifier mod : weapon.getAttributeModifiers(EquipmentSlot.MAINHAND).get(Attributes.ATTACK_DAMAGE)) {
+            if (mod.getOperation() == AttributeModifier.Operation.ADDITION) {
+                return (float) mod.getAmount();
+            }
+        }
+        return 0;
+    }
 
     public static void activateSlot(ServerPlayer player, PlayerStats stats, int slotIndex) {
         if (slotIndex < 0 || slotIndex >= SkillData.MAX_SLOTS) return;
@@ -43,30 +63,55 @@ public class SkillExecutor {
         if (eaLv > 0 && mpCost > 0) {
             mpCost = (int) (mpCost * 1.2);
         }
+        // Chakra Control: reduce MP cost
+        float ccMult = NinjaSkills.getChakraControlCostMultiplier(stats);
+        if (ccMult < 1.0f && mpCost > 0) {
+            mpCost = Math.max(1, (int) (mpCost * ccMult));
+        }
+        // Flying Raijin phase 2 (teleport): no MP cost
+        if (skill == SkillType.FLYING_RAIJIN && sd.getFlyingRaijinPhase() == 1) {
+            mpCost = 0;
+        }
+        // Flying Raijin: Ground phase 2 (return teleport): no MP cost
+        if (skill == SkillType.FLYING_RAIJIN_GROUND && sd.getFrgPhase() == 1) {
+            mpCost = 0;
+        }
         if (!skill.isToggle() && stats.getCurrentMp() < mpCost) {
             player.sendSystemMessage(Component.literal("\u00a7cNot enough MP!"));
             return;
         }
 
         // Dispatch execution to per-class file
-        PlayerClass cls = skill.getRequiredClass();
-        if (cls == null) {
-            NoviceSkills.execute(player, stats, sd, skill, level);
-        } else {
-            switch (cls) {
-                case WARRIOR -> WarriorSkills.execute(player, stats, sd, skill, level);
-                case ASSASSIN -> AssassinSkills.execute(player, stats, sd, skill, level);
-                case ARCHER -> ArcherSkills.execute(player, stats, sd, skill, level);
-                case HEALER -> HealerSkills.execute(player, stats, sd, skill, level);
-                case MAGE -> MageSkills.execute(player, stats, sd, skill, level);
-                case NECROMANCER -> NecromancerSkills.execute(player, stats, sd, skill, level);
-                default -> { /* passives handled elsewhere */ }
+        executingSkill = true;
+        try {
+            PlayerClass cls = skill.getRequiredClass();
+            if (cls == null) {
+                NoviceSkills.execute(player, stats, sd, skill, level);
+            } else {
+                switch (cls) {
+                    case WARRIOR -> WarriorSkills.execute(player, stats, sd, skill, level);
+                    case ASSASSIN -> AssassinSkills.execute(player, stats, sd, skill, level);
+                    case ARCHER -> ArcherSkills.execute(player, stats, sd, skill, level);
+                    case HEALER -> HealerSkills.execute(player, stats, sd, skill, level);
+                    case MAGE -> MageSkills.execute(player, stats, sd, skill, level);
+                    case NINJA -> NinjaSkills.execute(player, stats, sd, skill, level);
+                    case NECROMANCER -> NecromancerSkills.execute(player, stats, sd, skill, level);
+                    case BEAST_MASTER -> BeastMasterSkills.execute(player, stats, sd, skill, level);
+                    default -> { /* passives handled elsewhere */ }
+                }
             }
-        }
 
-        // Shadow Partner mirrors the skill
-        if (sd.isToggleActive(SkillType.SHADOW_PARTNER) && skill != SkillType.SHADOW_PARTNER) {
-            mirrorSkillFromPartner(player, stats, skill);
+            // Shadow Partner mirrors the skill
+            if (sd.isToggleActive(SkillType.SHADOW_PARTNER) && skill != SkillType.SHADOW_PARTNER) {
+                mirrorSkillFromPartner(player, stats, skill);
+            }
+
+            // Shadow Clones sync the skill
+            if (sd.isToggleActive(SkillType.SHADOW_CLONE) && skill != SkillType.SHADOW_CLONE) {
+                NinjaSkills.syncSkillToClones(player, stats, skill, level);
+            }
+        } finally {
+            executingSkill = false;
         }
 
         StatEventHandler.syncToClient(player);
@@ -89,7 +134,9 @@ public class SkillExecutor {
                 case ASSASSIN -> AssassinSkills.deactivateToggle(player, sd, skill);
                 case ARCHER -> ArcherSkills.deactivateToggle(player, sd, skill);
                 case MAGE -> MageSkills.deactivateToggle(player, sd, skill);
+                case NINJA -> NinjaSkills.deactivateToggle(player, sd, skill);
                 case NECROMANCER -> NecromancerSkills.deactivateToggle(player, sd, skill);
+                case BEAST_MASTER -> BeastMasterSkills.deactivateToggle(player, sd, skill);
                 default -> player.sendSystemMessage(Component.literal(
                         "\u00a7b[System]\u00a7r \u00a77" + skill.getDisplayName() + " deactivated."));
             }
@@ -121,7 +168,9 @@ public class SkillExecutor {
                 case ARCHER -> ArcherSkills.mirrorSkill(sl, partner, player, stats, skill, level, multiplier);
                 case HEALER -> HealerSkills.mirrorSkill(sl, partner, player, stats, skill, level, multiplier);
                 case MAGE -> MageSkills.mirrorSkill(sl, partner, player, stats, skill, level, multiplier);
+                case NINJA -> NinjaSkills.mirrorSkill(sl, partner, player, stats, skill, level, multiplier);
                 case NECROMANCER -> NecromancerSkills.mirrorSkill(sl, partner, player, stats, skill, level, multiplier);
+                case BEAST_MASTER -> BeastMasterSkills.mirrorSkill(sl, partner, player, stats, skill, level, multiplier);
                 default -> { /* no mirror */ }
             }
         }

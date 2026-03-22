@@ -201,7 +201,7 @@ public final class AssassinSkills {
     private static void executeBladeFury(ServerPlayer player, PlayerStats stats, SkillData sd, int level) {
         stats.setCurrentMp(stats.getCurrentMp() - SkillType.BLADE_FURY.getMpCost(level));
         double range = 3 + level * 0.1 + stats.getLuck() * 0.03;
-        float damage = 2 + level * 0.6f + stats.getLuck() * 0.12f;
+        float damage = 2 + level * 0.6f + stats.getLuck() * 0.12f + SkillExecutor.getWeaponDamage(player);
         AABB area = player.getBoundingBox().inflate(range);
         List<Monster> mobs = player.level().getEntitiesOfClass(Monster.class, area);
         for (Monster mob : mobs) {
@@ -221,7 +221,7 @@ public final class AssassinSkills {
     private static void executeRulersAuthority(ServerPlayer player, PlayerStats stats, SkillData sd, int level) {
         stats.setCurrentMp(stats.getCurrentMp() - SkillType.RULERS_AUTHORITY.getMpCost(level));
         double range = 4 + level * 0.4 + stats.getLuck() * 0.15;
-        float damage = level * 0.4f + stats.getLuck() * 0.08f;
+        float damage = level * 0.4f + stats.getLuck() * 0.08f + SkillExecutor.getWeaponDamage(player);
         Vec3 look = player.getLookAngle();
         Vec3 eye = player.getEyePosition();
         AABB area = player.getBoundingBox().inflate(range);
@@ -375,7 +375,7 @@ public final class AssassinSkills {
             }
             case BLADE_FURY -> {
                 float radius = 3 + level * 0.2f;
-                float dmg = (3 + level * 0.6f + stats.getLuck() * 0.1f) * multiplier;
+                float dmg = (3 + level * 0.6f + stats.getLuck() * 0.1f + SkillExecutor.getWeaponDamage(player)) * multiplier;
                 List<Monster> mobs = sl.getEntitiesOfClass(Monster.class,
                         partner.getBoundingBox().inflate(radius));
                 for (Monster mob : mobs) {
@@ -386,7 +386,7 @@ public final class AssassinSkills {
             }
             case RULERS_AUTHORITY -> {
                 float radius = 4 + level * 0.3f;
-                float dmg = (level * 0.3f + stats.getLuck() * 0.06f) * multiplier;
+                float dmg = (level * 0.3f + stats.getLuck() * 0.06f + SkillExecutor.getWeaponDamage(player)) * multiplier;
                 List<net.minecraft.world.entity.LivingEntity> entities = sl.getEntitiesOfClass(
                         net.minecraft.world.entity.LivingEntity.class,
                         partner.getBoundingBox().inflate(radius), e -> e != partner && e != player);

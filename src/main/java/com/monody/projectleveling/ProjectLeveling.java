@@ -5,6 +5,7 @@ import com.monody.projectleveling.command.ModCommands;
 import com.monody.projectleveling.entity.ModEntities;
 import com.monody.projectleveling.entity.assassin.ShadowPartnerEntity;
 import com.monody.projectleveling.entity.necromancer.SkeletonMinionEntity;
+import com.monody.projectleveling.entity.ninja.ShadowCloneEntity;
 import com.monody.projectleveling.network.ModNetwork;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.event.RegisterCommandsEvent;
@@ -44,6 +45,7 @@ public class ProjectLeveling {
     private void onEntityAttributeCreation(EntityAttributeCreationEvent event) {
         event.put(ModEntities.SHADOW_PARTNER.get(), ShadowPartnerEntity.createAttributes().build());
         event.put(ModEntities.SKELETON_MINION.get(), SkeletonMinionEntity.createAttributes().build());
+        event.put(ModEntities.SHADOW_CLONE.get(), ShadowCloneEntity.createAttributes().build());
     }
 
     @SubscribeEvent

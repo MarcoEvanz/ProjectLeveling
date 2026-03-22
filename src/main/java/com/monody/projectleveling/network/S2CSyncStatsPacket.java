@@ -16,7 +16,7 @@ import java.util.function.Supplier;
 
 public class S2CSyncStatsPacket {
     // Core stats
-    private final int level, strength, vitality, agility, intelligence, sense, luck, dexterity, mind;
+    private final int level, strength, vitality, agility, intelligence, sight, luck, dexterity, mind, faith;
     private final int remainingPoints, currentMp, currentExp;
     private final String job, title;
     // Quest
@@ -38,6 +38,25 @@ public class S2CSyncStatsPacket {
     private final int deathMarkTargetId;
     private final int undyingWillCooldown;
     private final int fervorTicks;
+    // Ninja state
+    private final int substitutionTicks;
+    private final boolean rasenganBuffActive;
+    private final int rasenganBuffTicks;
+    private final int flyingRaijinPhase;
+    private final int frgPhase;
+    private final int frgTicks;
+    // Beast Master state
+    private final String bmActiveBuffId;
+    private final int bmBuffTicks;
+    private final boolean bmEnhanced;
+    private final boolean powerOfNatureActive;
+    private final int turtleShellTicks;
+    private final int phoenixLifestealHits;
+    private final float phoenixLifestealPct;
+    private final int tigerClawHitsLeft;
+    private final int tigerClawTargetId;
+    private final float tigerClawDmg;
+    private final int tigerClawTimer;
 
     public S2CSyncStatsPacket(PlayerStats stats) {
         this.level = stats.getLevel();
@@ -45,10 +64,11 @@ public class S2CSyncStatsPacket {
         this.vitality = stats.getVitality();
         this.agility = stats.getAgility();
         this.intelligence = stats.getIntelligence();
-        this.sense = stats.getSense();
+        this.sight = stats.getSight();
         this.luck = stats.getLuck();
         this.dexterity = stats.getDexterity();
         this.mind = stats.getMind();
+        this.faith = stats.getFaith();
         this.remainingPoints = stats.getRemainingPoints();
         this.currentMp = stats.getCurrentMp();
         this.currentExp = stats.getCurrentExp();
@@ -79,6 +99,23 @@ public class S2CSyncStatsPacket {
         this.deathMarkTargetId = sd.getDeathMarkTargetId();
         this.undyingWillCooldown = sd.getUndyingWillCooldown();
         this.fervorTicks = sd.getFervorTicks();
+        this.substitutionTicks = sd.getSubstitutionTicks();
+        this.rasenganBuffActive = sd.isRasenganBuffActive();
+        this.rasenganBuffTicks = sd.getRasenganBuffTicks();
+        this.flyingRaijinPhase = sd.getFlyingRaijinPhase();
+        this.frgPhase = sd.getFrgPhase();
+        this.frgTicks = sd.getFrgTicks();
+        this.bmActiveBuffId = sd.getBmActiveBuff() != null ? sd.getBmActiveBuff().getId() : "";
+        this.bmBuffTicks = sd.getBmBuffTicks();
+        this.bmEnhanced = sd.isBmEnhanced();
+        this.powerOfNatureActive = sd.isPowerOfNatureActive();
+        this.turtleShellTicks = sd.getTurtleShellTicks();
+        this.phoenixLifestealHits = sd.getPhoenixLifestealHits();
+        this.phoenixLifestealPct = sd.getPhoenixLifestealPct();
+        this.tigerClawHitsLeft = sd.getTigerClawHitsLeft();
+        this.tigerClawTargetId = sd.getTigerClawTargetId();
+        this.tigerClawDmg = sd.getTigerClawDmg();
+        this.tigerClawTimer = sd.getTigerClawTimer();
     }
 
     public S2CSyncStatsPacket(FriendlyByteBuf buf) {
@@ -87,10 +124,11 @@ public class S2CSyncStatsPacket {
         this.vitality = buf.readInt();
         this.agility = buf.readInt();
         this.intelligence = buf.readInt();
-        this.sense = buf.readInt();
+        this.sight = buf.readInt();
         this.luck = buf.readInt();
         this.dexterity = buf.readInt();
         this.mind = buf.readInt();
+        this.faith = buf.readInt();
         this.remainingPoints = buf.readInt();
         this.currentMp = buf.readInt();
         this.currentExp = buf.readInt();
@@ -139,6 +177,23 @@ public class S2CSyncStatsPacket {
         this.deathMarkTargetId = buf.readInt();
         this.undyingWillCooldown = buf.readInt();
         this.fervorTicks = buf.readInt();
+        this.substitutionTicks = buf.readInt();
+        this.rasenganBuffActive = buf.readBoolean();
+        this.rasenganBuffTicks = buf.readInt();
+        this.flyingRaijinPhase = buf.readInt();
+        this.frgPhase = buf.readInt();
+        this.frgTicks = buf.readInt();
+        this.bmActiveBuffId = buf.readUtf(32);
+        this.bmBuffTicks = buf.readInt();
+        this.bmEnhanced = buf.readBoolean();
+        this.powerOfNatureActive = buf.readBoolean();
+        this.turtleShellTicks = buf.readInt();
+        this.phoenixLifestealHits = buf.readInt();
+        this.phoenixLifestealPct = buf.readFloat();
+        this.tigerClawHitsLeft = buf.readInt();
+        this.tigerClawTargetId = buf.readInt();
+        this.tigerClawDmg = buf.readFloat();
+        this.tigerClawTimer = buf.readInt();
     }
 
     public void encode(FriendlyByteBuf buf) {
@@ -147,10 +202,11 @@ public class S2CSyncStatsPacket {
         buf.writeInt(vitality);
         buf.writeInt(agility);
         buf.writeInt(intelligence);
-        buf.writeInt(sense);
+        buf.writeInt(sight);
         buf.writeInt(luck);
         buf.writeInt(dexterity);
         buf.writeInt(mind);
+        buf.writeInt(faith);
         buf.writeInt(remainingPoints);
         buf.writeInt(currentMp);
         buf.writeInt(currentExp);
@@ -191,6 +247,23 @@ public class S2CSyncStatsPacket {
         buf.writeInt(deathMarkTargetId);
         buf.writeInt(undyingWillCooldown);
         buf.writeInt(fervorTicks);
+        buf.writeInt(substitutionTicks);
+        buf.writeBoolean(rasenganBuffActive);
+        buf.writeInt(rasenganBuffTicks);
+        buf.writeInt(flyingRaijinPhase);
+        buf.writeInt(frgPhase);
+        buf.writeInt(frgTicks);
+        buf.writeUtf(bmActiveBuffId, 32);
+        buf.writeInt(bmBuffTicks);
+        buf.writeBoolean(bmEnhanced);
+        buf.writeBoolean(powerOfNatureActive);
+        buf.writeInt(turtleShellTicks);
+        buf.writeInt(phoenixLifestealHits);
+        buf.writeFloat(phoenixLifestealPct);
+        buf.writeInt(tigerClawHitsLeft);
+        buf.writeInt(tigerClawTargetId);
+        buf.writeFloat(tigerClawDmg);
+        buf.writeInt(tigerClawTimer);
     }
 
     public void handle(Supplier<NetworkEvent.Context> ctx) {
@@ -203,10 +276,11 @@ public class S2CSyncStatsPacket {
             stats.setVitality(vitality);
             stats.setAgility(agility);
             stats.setIntelligence(intelligence);
-            stats.setSense(sense);
+            stats.setSight(sight);
             stats.setLuck(luck);
             stats.setDexterity(dexterity);
             stats.setMind(mind);
+            stats.setFaith(faith);
             stats.setRemainingPoints(remainingPoints);
             stats.setCurrentMp(currentMp);
             stats.setCurrentExp(currentExp);
@@ -239,6 +313,23 @@ public class S2CSyncStatsPacket {
             sd.setDeathMarkTargetId(deathMarkTargetId);
             sd.setUndyingWillCooldown(undyingWillCooldown);
             sd.setFervorTicks(fervorTicks);
+            sd.setSubstitutionTicks(substitutionTicks);
+            sd.setRasenganBuffActive(rasenganBuffActive);
+            sd.setRasenganBuffTicks(rasenganBuffTicks);
+            sd.setFlyingRaijinPhase(flyingRaijinPhase);
+            sd.setFrgPhase(frgPhase);
+            sd.setFrgTicks(frgTicks);
+            sd.setBmActiveBuff(bmActiveBuffId.isEmpty() ? null : SkillType.fromId(bmActiveBuffId));
+            sd.setBmBuffTicks(bmBuffTicks);
+            sd.setBmEnhanced(bmEnhanced);
+            sd.setPowerOfNatureActive(powerOfNatureActive);
+            sd.setTurtleShellTicks(turtleShellTicks);
+            sd.setPhoenixLifestealHits(phoenixLifestealHits);
+            sd.setPhoenixLifestealPct(phoenixLifestealPct);
+            sd.setTigerClawHitsLeft(tigerClawHitsLeft);
+            sd.setTigerClawTargetId(tigerClawTargetId);
+            sd.setTigerClawDmg(tigerClawDmg);
+            sd.setTigerClawTimer(tigerClawTimer);
         });
 
         ctx.get().setPacketHandled(true);

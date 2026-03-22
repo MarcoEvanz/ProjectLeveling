@@ -56,6 +56,37 @@ public class SkillData {
     private int undyingWillCooldown = 0;
     // Unholy Fervor buff
     private int fervorTicks = 0;
+    // Ninja: Substitution Jutsu
+    private int substitutionTicks = 0;
+    // Ninja: Sage Mode MP drain tick counter
+    private int sageModeDrainTimer = 0;
+    // Ninja: Eight Inner Gates invuln cooldown
+    private int gatesInvulnCooldown = 0;
+    // Ninja: Flying Raijin state
+    private int flyingRaijinPhase = 0; // 0 = ready to throw, 1 = kunai out
+    private double flyingRaijinX, flyingRaijinY, flyingRaijinZ;
+    private int flyingRaijinTargetId = -1; // marked entity ID (-1 = none)
+    private int flyingRaijinKunaiId = -1;  // kunai entity ID (-1 = none)
+    // Ninja: Flying Raijin Ground state
+    private int frgPhase = 0; // 0 = ready to place, 1 = kunai placed
+    private double frgX, frgY, frgZ;
+    private int frgTicks = 0; // remaining lifetime ticks
+    // Ninja: Rasengan buff
+    private boolean rasenganBuffActive = false;
+    private int rasenganBuffTicks = 0;
+    // Beast Master state
+    private SkillType bmActiveBuff = null;       // Which next-attack buff is loaded
+    private int bmBuffTicks = 0;                 // 80 tick (4s) countdown
+    private boolean bmEnhanced = false;          // Power of Nature doubled this buff
+    private boolean powerOfNatureActive = false;  // Doubles next skill
+    private int turtleShellTicks = 0;            // 100 tick (5s) shield timer
+    private int phoenixLifestealHits = 0;        // Remaining lifesteal hits (max 2)
+    private float phoenixLifestealPct = 0;       // Lifesteal % per hit
+    // Tiger Claw delayed hits
+    private int tigerClawHitsLeft = 0;           // Remaining extra hits to deal
+    private int tigerClawTargetId = -1;          // Entity ID of target
+    private float tigerClawDmg = 0;              // Damage per extra hit
+    private int tigerClawTimer = 0;              // Ticks until next hit (4 ticks = 0.2s)
 
     // === Getters ===
 
@@ -185,6 +216,74 @@ public class SkillData {
     public void setUndyingWillCooldown(int ticks) { this.undyingWillCooldown = ticks; }
     public int getFervorTicks() { return fervorTicks; }
     public void setFervorTicks(int ticks) { this.fervorTicks = ticks; }
+
+    // Ninja: Substitution Jutsu
+    public int getSubstitutionTicks() { return substitutionTicks; }
+    public void setSubstitutionTicks(int ticks) { this.substitutionTicks = ticks; }
+
+    // Ninja: Sage Mode drain timer
+    public int getSageModeDrainTimer() { return sageModeDrainTimer; }
+    public void setSageModeDrainTimer(int ticks) { this.sageModeDrainTimer = ticks; }
+
+    // Ninja: Eight Inner Gates invuln cooldown
+    public int getGatesInvulnCooldown() { return gatesInvulnCooldown; }
+    public void setGatesInvulnCooldown(int ticks) { this.gatesInvulnCooldown = ticks; }
+
+    // Ninja: Flying Raijin
+    public int getFlyingRaijinPhase() { return flyingRaijinPhase; }
+    public void setFlyingRaijinPhase(int phase) { this.flyingRaijinPhase = phase; }
+    public double getFlyingRaijinX() { return flyingRaijinX; }
+    public double getFlyingRaijinY() { return flyingRaijinY; }
+    public double getFlyingRaijinZ() { return flyingRaijinZ; }
+    public void setFlyingRaijinPos(double x, double y, double z) {
+        this.flyingRaijinX = x; this.flyingRaijinY = y; this.flyingRaijinZ = z;
+    }
+    public int getFlyingRaijinTargetId() { return flyingRaijinTargetId; }
+    public void setFlyingRaijinTargetId(int id) { this.flyingRaijinTargetId = id; }
+    public int getFlyingRaijinKunaiId() { return flyingRaijinKunaiId; }
+    public void setFlyingRaijinKunaiId(int id) { this.flyingRaijinKunaiId = id; }
+
+    // Ninja: Flying Raijin Ground
+    public int getFrgPhase() { return frgPhase; }
+    public void setFrgPhase(int phase) { this.frgPhase = phase; }
+    public double getFrgX() { return frgX; }
+    public double getFrgY() { return frgY; }
+    public double getFrgZ() { return frgZ; }
+    public void setFrgPos(double x, double y, double z) { this.frgX = x; this.frgY = y; this.frgZ = z; }
+    public int getFrgTicks() { return frgTicks; }
+    public void setFrgTicks(int ticks) { this.frgTicks = ticks; }
+
+    // Ninja: Rasengan buff
+    public boolean isRasenganBuffActive() { return rasenganBuffActive; }
+    public void setRasenganBuffActive(boolean active) { this.rasenganBuffActive = active; }
+    public int getRasenganBuffTicks() { return rasenganBuffTicks; }
+    public void setRasenganBuffTicks(int ticks) { this.rasenganBuffTicks = ticks; }
+
+    // Beast Master
+    public SkillType getBmActiveBuff() { return bmActiveBuff; }
+    public void setBmActiveBuff(SkillType buff) { this.bmActiveBuff = buff; }
+    public int getBmBuffTicks() { return bmBuffTicks; }
+    public void setBmBuffTicks(int ticks) { this.bmBuffTicks = ticks; }
+    public boolean isBmEnhanced() { return bmEnhanced; }
+    public void setBmEnhanced(boolean enhanced) { this.bmEnhanced = enhanced; }
+    public boolean isPowerOfNatureActive() { return powerOfNatureActive; }
+    public void setPowerOfNatureActive(boolean active) { this.powerOfNatureActive = active; }
+    public int getTurtleShellTicks() { return turtleShellTicks; }
+    public void setTurtleShellTicks(int ticks) { this.turtleShellTicks = ticks; }
+    public int getPhoenixLifestealHits() { return phoenixLifestealHits; }
+    public void setPhoenixLifestealHits(int hits) { this.phoenixLifestealHits = hits; }
+    public float getPhoenixLifestealPct() { return phoenixLifestealPct; }
+    public void setPhoenixLifestealPct(float pct) { this.phoenixLifestealPct = pct; }
+
+    // Tiger Claw delayed hits
+    public int getTigerClawHitsLeft() { return tigerClawHitsLeft; }
+    public void setTigerClawHitsLeft(int hits) { this.tigerClawHitsLeft = hits; }
+    public int getTigerClawTargetId() { return tigerClawTargetId; }
+    public void setTigerClawTargetId(int id) { this.tigerClawTargetId = id; }
+    public float getTigerClawDmg() { return tigerClawDmg; }
+    public void setTigerClawDmg(float dmg) { this.tigerClawDmg = dmg; }
+    public int getTigerClawTimer() { return tigerClawTimer; }
+    public void setTigerClawTimer(int ticks) { this.tigerClawTimer = ticks; }
 
     public Map<SkillType, Integer> getSkillLevels() { return skillLevels; }
     public Map<SkillType, Integer> getCooldowns() { return cooldowns; }
@@ -329,6 +428,27 @@ public class SkillData {
         deathMarkTargetId = -1;
         undyingWillCooldown = 0;
         fervorTicks = 0;
+        substitutionTicks = 0;
+        sageModeDrainTimer = 0;
+        gatesInvulnCooldown = 0;
+        flyingRaijinPhase = 0;
+        flyingRaijinTargetId = -1;
+        flyingRaijinKunaiId = -1;
+        frgPhase = 0;
+        frgTicks = 0;
+        rasenganBuffActive = false;
+        rasenganBuffTicks = 0;
+        bmActiveBuff = null;
+        bmBuffTicks = 0;
+        bmEnhanced = false;
+        powerOfNatureActive = false;
+        turtleShellTicks = 0;
+        phoenixLifestealHits = 0;
+        phoenixLifestealPct = 0;
+        tigerClawHitsLeft = 0;
+        tigerClawTargetId = -1;
+        tigerClawDmg = 0;
+        tigerClawTimer = 0;
     }
 
     // === NBT (only persistent data) ===

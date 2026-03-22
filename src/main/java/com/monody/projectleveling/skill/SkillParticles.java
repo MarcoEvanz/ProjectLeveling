@@ -160,4 +160,30 @@ public class SkillParticles {
         ring(level, x, y, z, radius, 20, secondary);
         level.sendParticles(ParticleTypes.EXPLOSION, x, y, z, 1, 0, 0, 0, 0);
     }
+
+    /** Claw slash arc from attacker toward target at target position */
+    public static void slash(ServerLevel level, Vec3 attackerPos, Vec3 targetPos,
+                             ParticleOptions particle) {
+        Vec3 dir = targetPos.subtract(attackerPos).normalize();
+        double perpX = -dir.z;
+        double perpZ = dir.x;
+        double cy = targetPos.y;
+
+        // Sweep attack particle at target
+        level.sendParticles(ParticleTypes.SWEEP_ATTACK,
+                targetPos.x, cy + 0.5, targetPos.z, 1, 0, 0, 0, 0);
+
+        // 3-claw arc of particles
+        for (int claw = -1; claw <= 1; claw++) {
+            double offsetX = perpX * claw * 0.35;
+            double offsetZ = perpZ * claw * 0.35;
+            for (int i = 0; i < 5; i++) {
+                double t = (i - 2) * 0.25;
+                double px = targetPos.x + perpX * t + offsetX;
+                double py = cy + 0.3 + (1.0 - t * t) * 0.4 + claw * 0.15;
+                double pz = targetPos.z + perpZ * t + offsetZ;
+                level.sendParticles(particle, px, py, pz, 1, 0.02, 0.02, 0.02, 0);
+            }
+        }
+    }
 }

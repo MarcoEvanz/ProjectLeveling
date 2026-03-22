@@ -24,7 +24,9 @@ public final class SkillTooltips {
                 case ARCHER -> ArcherSkills.addDetailLines(texts, lines, skill, level, stats);
                 case HEALER -> HealerSkills.addDetailLines(texts, lines, skill, level, stats);
                 case MAGE -> MageSkills.addDetailLines(texts, lines, skill, level, stats);
+                case NINJA -> NinjaSkills.addDetailLines(texts, lines, skill, level, stats);
                 case NECROMANCER -> NecromancerSkills.addDetailLines(texts, lines, skill, level, stats);
+                case BEAST_MASTER -> BeastMasterSkills.addDetailLines(texts, lines, skill, level, stats);
                 default -> {}
             }
         }

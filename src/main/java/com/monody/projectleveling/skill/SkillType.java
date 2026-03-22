@@ -73,6 +73,17 @@ public enum SkillType {
             0, 0, 0, 0,
             "Passive. +5% damage per active debuff on target (max +25%).", "ED"),
 
+    // --- Ninja (AGI + LUK) ---
+    SHURIKEN_JUTSU("shuriken_jutsu", "Shuriken Jutsu", 10, 1, PlayerClass.NINJA, 10, false, false,
+            20, 10, 200, 100,
+            "Throw shurikens in a cone, hitting all enemies in front.", "SJu"),
+    SUBSTITUTION_JUTSU("substitution_jutsu", "Substitution Jutsu", 10, 1, PlayerClass.NINJA, 10, false, false,
+            25, 12, 300, 160,
+            "Dodge buffer. First damage is negated; teleport behind attacker.", "SUB"),
+    KUNAI_MASTERY("kunai_mastery", "Kunai Mastery", 10, 1, PlayerClass.NINJA, 10, false, true,
+            0, 0, 0, 0,
+            "Passive. +AGI melee damage, +LUK crit rate, +projectile damage per level.", "KM"),
+
     // --- Necromancer (INT + Mind) ---
     LIFE_DRAIN("life_drain", "Life Drain", 10, 1, PlayerClass.NECROMANCER, 10, false, false,
             25, 15, 300, 160,
@@ -86,6 +97,37 @@ public enum SkillType {
     UNHOLY_FERVOR("unholy_fervor", "Unholy Fervor", 10, 1, PlayerClass.NECROMANCER, 10, false, false,
             30, 15, 400, 200,
             "Buff all skeleton minions with speed and damage boost.", "UF"),
+
+    // --- Beast Master (STR/VIT) ---
+    TIGER_CLAW("tiger_claw", "Tiger Claw", 10, 1, PlayerClass.BEAST_MASTER, 10, false, false,
+            25, 12, 80, 80,
+            "Next melee hits extra times at reduced damage. Bypasses iframe.", "TC"),
+    TURTLE_SHELL("turtle_shell", "Turtle Shell", 10, 1, PlayerClass.BEAST_MASTER, 10, false, false,
+            20, 10, 80, 80,
+            "Gain max HP % as absorption shield for 5s.", "TS"),
+    BEAR_PAW("bear_paw", "Bear Paw", 10, 1, PlayerClass.BEAST_MASTER, 10, false, false,
+            25, 12, 80, 80,
+            "Next melee stuns. Applies Weakness, Darkness, Slowness.", "BP"),
+    PHOENIX_WINGS("phoenix_wings", "Phoenix Wings", 10, 1, PlayerClass.BEAST_MASTER, 10, false, false,
+            30, 15, 80, 80,
+            "Burst heal + Regen + lifesteal for next 2 melee hits.", "PW"),
+    POWER_OF_NATURE("power_of_nature", "Power of Nature", 10, 1, PlayerClass.BEAST_MASTER, 10, false, false,
+            40, 20, 1200, 1200,
+            "Doubles next skill effect. CD reduced 2s per basic skill use.", "PoN"),
+
+    // --- Beast Master T2 (passives) ---
+    TIGER_CLAW_MASTERY("tiger_claw_mastery", "Tiger Claw Mastery", 10, 2, PlayerClass.BEAST_MASTER, 30, false, true,
+            0, 0, 0, 0,
+            "Passive. +1 Tiger Claw max hit. +Tiger Claw final damage.", "TCM"),
+    TURTLE_SHELL_MASTERY("turtle_shell_mastery", "Turtle Shell Mastery", 10, 2, PlayerClass.BEAST_MASTER, 30, false, true,
+            0, 0, 0, 0,
+            "Passive. +0.5% shield per level.", "TSM"),
+    BEAR_PAW_MASTERY("bear_paw_mastery", "Bear Paw Mastery", 10, 2, PlayerClass.BEAST_MASTER, 30, false, true,
+            0, 0, 0, 0,
+            "Passive. +0.1s stun per level. +Bear Paw final damage.", "BPM"),
+    PHOENIX_WINGS_MASTERY("phoenix_wings_mastery", "Phoenix Wings Mastery", 10, 2, PlayerClass.BEAST_MASTER, 30, false, true,
+            0, 0, 0, 0,
+            "Passive. +0.5% healing per level. Max level: +1 lifesteal hit.", "PWM"),
 
     // =====================================================
     // Tier 2 — Class skills, requires player level 30
@@ -145,6 +187,20 @@ public enum SkillType {
     ELEMENT_AMPLIFICATION("element_amplification", "Element Amplification", 15, 2, PlayerClass.MAGE, 30, false, true,
             0, 0, 0, 0,
             "Passive. +3% skill damage per level. +20% MP cost for all skills.", "EA"),
+
+    // --- Ninja T2 ---
+    SHADOW_CLONE("shadow_clone", "Shadow Clone", 15, 2, PlayerClass.NINJA, 30, true, false,
+            10, 5, 0, 0,
+            "Toggle. Summon shadow clones that fight and copy your skills.", "SC"),
+    FLYING_RAIJIN("flying_raijin", "Flying Raijin", 15, 2, PlayerClass.NINJA, 30, false, false,
+            30, 15, 300, 160,
+            "Throw a kunai and teleport to it. Marks hit targets.", "FRJ"),
+    FLYING_RAIJIN_GROUND("flying_raijin_ground", "Flying Raijin: Ground", 15, 2, PlayerClass.NINJA, 30, false, false,
+            20, 10, 400, 200,
+            "Place a kunai at your feet. Reuse to teleport back.", "FRG"),
+    CHAKRA_CONTROL("chakra_control", "Chakra Control", 15, 2, PlayerClass.NINJA, 30, false, true,
+            0, 0, 0, 0,
+            "Passive. -1% MP cost per level. +0.15% MP regen per level.", "ChC"),
 
     // --- Necromancer T2 ---
     BONE_SHIELD("bone_shield", "Bone Shield", 15, 2, PlayerClass.NECROMANCER, 30, true, false,
@@ -219,6 +275,20 @@ public enum SkillType {
             0, 0, 0, 0,
             "Passive. +1.5% crit rate, +1% crit damage, +1% armor pen per level.", "AO"),
 
+    // --- Ninja T3 ---
+    RASENGAN("rasengan", "Rasengan", 20, 3, PlayerClass.NINJA, 60, false, false,
+            60, 30, 600, 300,
+            "Empower next attack with a spiraling explosion in 2-block radius.", "RSG"),
+    SAGE_MODE("sage_mode", "Sage Mode", 20, 3, PlayerClass.NINJA, 60, true, false,
+            15, 8, 0, 0,
+            "Toggle. +dmg%, +speed, knockback resist. Drains 3% max MP/s.", "SgM"),
+    EIGHT_INNER_GATES("eight_inner_gates", "Eight Inner Gates", 20, 3, PlayerClass.NINJA, 60, false, true,
+            0, 0, 0, 0,
+            "Passive. Below 30% HP: massive damage and speed boost.", "8G"),
+    MULTI_SHADOW_CLONE("multi_shadow_clone", "Multi Shadow Clone", 10, 3, PlayerClass.NINJA, 60, false, true,
+            0, 0, 0, 0,
+            "Passive. +1-3 max clones. -4% max MP per level when clones active.", "MSC"),
+
     // --- Necromancer T3 ---
     ARMY_OF_THE_DEAD("army_of_the_dead", "Army of the Dead", 20, 3, PlayerClass.NECROMANCER, 60, false, false,
             80, 40, 1200, 600,
@@ -232,6 +302,26 @@ public enum SkillType {
     SOUL_LINK("soul_link", "Soul Link", 20, 3, PlayerClass.NECROMANCER, 60, true, false,
             12, 6, 0, 0,
             "Toggle. Redirect damage to nearest minion. Minions deal bonus damage.", "SL"),
+    ENHANCE_UNDEAD("enhance_undead", "Enhance Undead", 20, 3, PlayerClass.NECROMANCER, 60, false, true,
+            0, 0, 0, 0,
+            "Passive. +1% summon damage per level. Max level: summon Wither Skeletons.", "EU"),
+
+    // --- Beast Master T3 (passives) ---
+    TIGER_CLAW_MASTERY_2("tiger_claw_mastery_2", "Tiger Claw Mastery (+1)", 20, 3, PlayerClass.BEAST_MASTER, 60, false, true,
+            0, 0, 0, 0,
+            "Passive. +1 Tiger Claw max hit. +Tiger Claw final damage.", "TC+"),
+    TURTLE_SHELL_MASTERY_2("turtle_shell_mastery_2", "Turtle Shell Mastery (+1)", 20, 3, PlayerClass.BEAST_MASTER, 60, false, true,
+            0, 0, 0, 0,
+            "Passive. +0.5% shield per level.", "TS+"),
+    BEAR_PAW_MASTERY_2("bear_paw_mastery_2", "Bear Paw Mastery (+1)", 20, 3, PlayerClass.BEAST_MASTER, 60, false, true,
+            0, 0, 0, 0,
+            "Passive. +0.1s stun per level. +Bear Paw final damage.", "BP+"),
+    PHOENIX_WINGS_MASTERY_2("phoenix_wings_mastery_2", "Phoenix Wings Mastery (+1)", 20, 3, PlayerClass.BEAST_MASTER, 60, false, true,
+            0, 0, 0, 0,
+            "Passive. +0.5% healing per level. Max level: +1 lifesteal hit.", "PW+"),
+    MASTER_OF_NATURE("master_of_nature", "Master of Nature", 20, 3, PlayerClass.BEAST_MASTER, 60, false, true,
+            0, 0, 0, 0,
+            "Passive. +1% enhanced skill damage per level.", "MoN"),
 
     // =====================================================
     // Hidden — Reserved / Legacy

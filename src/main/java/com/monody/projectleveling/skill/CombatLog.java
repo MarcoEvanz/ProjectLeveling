@@ -33,8 +33,12 @@ public class CombatLog {
 
     public static void aoeSkill(ServerPlayer player, String source, float rawDamage,
                                 List<? extends LivingEntity> targets) {
+        aoeSkill(player, source, rawDamage, targets, SkillDamageSource.get(player.level()));
+    }
+
+    public static void aoeSkill(ServerPlayer player, String source, float rawDamage,
+                                List<? extends LivingEntity> targets, DamageSource src) {
         if (targets.isEmpty()) return;
-        DamageSource src = SkillDamageSource.get(player.level());
         float totalFinal = 0;
         for (LivingEntity t : targets) {
             totalFinal += afterArmor(t, src, rawDamage);
@@ -43,7 +47,11 @@ public class CombatLog {
     }
 
     public static void damageSkill(ServerPlayer player, String source, float rawDamage, LivingEntity target) {
-        DamageSource src = SkillDamageSource.get(player.level());
+        damageSkill(player, source, rawDamage, target, SkillDamageSource.get(player.level()));
+    }
+
+    public static void damageSkill(ServerPlayer player, String source, float rawDamage,
+                                   LivingEntity target, DamageSource src) {
         float finalDmg = afterArmor(target, src, rawDamage);
         damage(player, source, finalDmg, target);
     }

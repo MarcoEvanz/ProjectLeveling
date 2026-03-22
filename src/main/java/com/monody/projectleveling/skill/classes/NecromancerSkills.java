@@ -26,6 +26,7 @@ public final class NecromancerSkills {
             SkillType.LIFE_DRAIN, SkillType.RAISE_SKELETON, SkillType.DARK_PACT, SkillType.UNHOLY_FERVOR,
             SkillType.BONE_SHIELD, SkillType.CORPSE_EXPLOSION, SkillType.SOUL_SIPHON, SkillType.SKELETAL_MASTERY,
             SkillType.ARMY_OF_THE_DEAD, SkillType.DEATH_MARK, SkillType.UNDYING_WILL, SkillType.SOUL_LINK,
+            SkillType.ENHANCE_UNDEAD,
     };
 
     private NecromancerSkills() {}
@@ -159,6 +160,17 @@ public final class NecromancerSkills {
                 texts.add("MP drain: " + SkillType.SOUL_LINK.getToggleMpPerSecond(level) + "/s");
                 lines.add(new int[]{TEXT_VALUE});
             }
+            case ENHANCE_UNDEAD -> {
+                texts.add("Summon damage: +" + level + "%");
+                lines.add(new int[]{TEXT_VALUE});
+                if (level >= 20) {
+                    texts.add("Summons Wither Skeletons (Wither on hit)");
+                    lines.add(new int[]{TEXT_VALUE});
+                } else {
+                    texts.add("At max level: summon Wither Skeletons");
+                    lines.add(new int[]{TEXT_DIM});
+                }
+            }
             default -> {}
         }
     }
@@ -183,7 +195,7 @@ public final class NecromancerSkills {
     private static void executeLifeDrain(ServerPlayer player, PlayerStats stats, SkillData sd, int level) {
         stats.setCurrentMp(stats.getCurrentMp() - SkillType.LIFE_DRAIN.getMpCost(level));
         float range = 5 + level * 0.3f;
-        float damage = 2 + level * 0.5f + stats.getIntelligence() * 0.1f;
+        float damage = 2 + level * 0.5f + stats.getIntelligence() * 0.1f + stats.getMagicAttack();
         float healPct = 0.2f + level * 0.016f; // 20-36%
         AABB area = player.getBoundingBox().inflate(range);
         List<Monster> mobs = player.level().getEntitiesOfClass(Monster.class, area);
@@ -216,8 +228,10 @@ public final class NecromancerSkills {
         int mindStat = stats.getMind();
         int dpLv = sd.getLevel(SkillType.DARK_PACT);
         int uwLv = sd.getLevel(SkillType.UNDYING_WILL);
+        int euLv = sd.getLevel(SkillType.ENHANCE_UNDEAD);
         float minionDmg = 2 + mindStat * 0.1f;
         minionDmg *= (1 + dpLv * 0.015f);
+        if (euLv > 0) minionDmg *= (1 + euLv * 0.01f);
         float minionHp = 15 + mindStat * 0.3f;
         minionHp *= (1 + uwLv * 0.02f);
 
@@ -225,6 +239,7 @@ public final class NecromancerSkills {
             // Despawn only non-army minions (the raised one)
             despawnRaisedSkeleton(player, sl);
             SkeletonMinionEntity minion = new SkeletonMinionEntity(sl, player, minionHp, minionDmg, level);
+            if (euLv >= 20) minion.setWitherVariant(true);
             Vec3 behind = player.position().subtract(player.getLookAngle().scale(2.0));
             minion.setPos(behind.x, behind.y, behind.z);
             sl.addFreshEntity(minion);
@@ -265,7 +280,7 @@ public final class NecromancerSkills {
         }
 
         stats.setCurrentMp(stats.getCurrentMp() - SkillType.CORPSE_EXPLOSION.getMpCost(level));
-        float damage = 5 + level * 1.0f + stats.getIntelligence() * 0.2f;
+        float damage = 5 + level * 1.0f + stats.getIntelligence() * 0.2f + stats.getMagicAttack();
 
         int detonated = 0;
         for (SkeletonMinionEntity skeleton : skeletons) {
@@ -311,10 +326,13 @@ public final class NecromancerSkills {
         int mindStat = stats.getMind();
         int dpLv = sd.getLevel(SkillType.DARK_PACT);
         int uwLv = sd.getLevel(SkillType.UNDYING_WILL);
+        int euLv = sd.getLevel(SkillType.ENHANCE_UNDEAD);
         float minionDmg = (2 + mindStat * 0.1f) * 0.5f; // 50% of raise skeleton
         minionDmg *= (1 + dpLv * 0.015f);
+        if (euLv > 0) minionDmg *= (1 + euLv * 0.01f);
         float minionHp = (15 + mindStat * 0.3f) * 0.5f;
         minionHp *= (1 + uwLv * 0.02f);
+        boolean wither = euLv >= 20;
 
         // Spawn 5 skeletons in a circle around the player
         for (int i = 0; i < 5; i++) {
@@ -324,6 +342,7 @@ public final class NecromancerSkills {
 
             SkeletonMinionEntity minion = new SkeletonMinionEntity(sl, player, minionHp, minionDmg, level);
             minion.setArmyMinion(true);
+            if (wither) minion.setWitherVariant(true);
             minion.setPos(player.getX() + ox, player.getY(), player.getZ() + oz);
             sl.addFreshEntity(minion);
 
@@ -379,9 +398,9 @@ public final class NecromancerSkills {
             sd.setDeathMarkTargetId(-1);
             return;
         }
-        float dotDmg = 1 + level * 0.3f + stats.getIntelligence() * 0.08f;
+        float dotDmg = 1 + level * 0.3f + stats.getIntelligence() * 0.08f + stats.getMagicAttack() * 0.2f;
         living.hurt(SkillDamageSource.get(player.level()), dotDmg);
-        CombatLog.damage(player, "Death Mark", dotDmg, living);
+        CombatLog.damageSkill(player, "Death Mark", dotDmg, living);
         if (player.level() instanceof ServerLevel sl) {
             SkillParticles.burst(sl, living.getX(), living.getY() + 1.5, living.getZ(), 5, 0.3, ParticleTypes.WITCH);
         }
@@ -393,7 +412,7 @@ public final class NecromancerSkills {
         int level = sd.getLevel(SkillType.DEATH_MARK);
         if (level <= 0) return;
         float aoeRange = 6;
-        float aoeDmg = 3 + level * 0.7f + stats.getIntelligence() * 0.15f;
+        float aoeDmg = 3 + level * 0.7f + stats.getIntelligence() * 0.15f + stats.getMagicAttack();
         if (player.level() instanceof ServerLevel sl) {
             double dx = deadEntity.getX(), dy = deadEntity.getY(), dz = deadEntity.getZ();
             AABB area = deadEntity.getBoundingBox().inflate(aoeRange);

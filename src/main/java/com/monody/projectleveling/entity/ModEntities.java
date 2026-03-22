@@ -5,6 +5,8 @@ import com.monody.projectleveling.entity.archer.SkillArrowEntity;
 import com.monody.projectleveling.entity.assassin.ShadowPartnerEntity;
 import com.monody.projectleveling.entity.mage.SkillFireballEntity;
 import com.monody.projectleveling.entity.necromancer.SkeletonMinionEntity;
+import com.monody.projectleveling.entity.ninja.FlyingRaijinKunaiEntity;
+import com.monody.projectleveling.entity.ninja.ShadowCloneEntity;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.MobCategory;
 import net.minecraftforge.registries.DeferredRegister;
@@ -46,4 +48,20 @@ public class ModEntities {
                             .clientTrackingRange(10)
                             .updateInterval(2)
                             .build("skeleton_minion"));
+
+    public static final RegistryObject<EntityType<ShadowCloneEntity>> SHADOW_CLONE =
+            ENTITIES.register("shadow_clone", () ->
+                    EntityType.Builder.<ShadowCloneEntity>of(ShadowCloneEntity::new, MobCategory.MISC)
+                            .sized(0.6f, 1.8f)
+                            .clientTrackingRange(10)
+                            .updateInterval(2)
+                            .build("shadow_clone"));
+
+    public static final RegistryObject<EntityType<FlyingRaijinKunaiEntity>> FLYING_RAIJIN_KUNAI =
+            ENTITIES.register("flying_raijin_kunai", () ->
+                    EntityType.Builder.<FlyingRaijinKunaiEntity>of(FlyingRaijinKunaiEntity::new, MobCategory.MISC)
+                            .sized(0.5f, 0.5f)
+                            .clientTrackingRange(8)
+                            .updateInterval(20)
+                            .build("flying_raijin_kunai"));
 }

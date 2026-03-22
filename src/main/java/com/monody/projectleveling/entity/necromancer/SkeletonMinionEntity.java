@@ -32,6 +32,8 @@ import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.ai.goal.FloatGoal;
 import net.minecraft.world.entity.ai.goal.MeleeAttackGoal;
 import net.minecraft.world.entity.ai.goal.target.NearestAttackableTargetGoal;
+import net.minecraft.world.effect.MobEffectInstance;
+import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.entity.monster.Monster;
 import net.minecraft.world.entity.monster.RangedAttackMob;
 import net.minecraft.world.entity.player.Player;
@@ -50,6 +52,8 @@ public class SkeletonMinionEntity extends PathfinderMob implements RangedAttackM
 
     private static final EntityDataAccessor<Optional<UUID>> DATA_OWNER_UUID =
             SynchedEntityData.defineId(SkeletonMinionEntity.class, EntityDataSerializers.OPTIONAL_UUID);
+    private static final EntityDataAccessor<Boolean> DATA_WITHER_VARIANT =
+            SynchedEntityData.defineId(SkeletonMinionEntity.class, EntityDataSerializers.BOOLEAN);
 
     private boolean armyMinion = false;
     private boolean exploding = false;
@@ -99,6 +103,7 @@ public class SkeletonMinionEntity extends PathfinderMob implements RangedAttackM
     protected void defineSynchedData() {
         super.defineSynchedData();
         this.entityData.define(DATA_OWNER_UUID, Optional.empty());
+        this.entityData.define(DATA_WITHER_VARIANT, false);
     }
 
     @Override
@@ -134,6 +139,17 @@ public class SkeletonMinionEntity extends PathfinderMob implements RangedAttackM
     public boolean isArmyMinion() { return armyMinion; }
     public void setArmyMinion(boolean army) { this.armyMinion = army; }
     public boolean isExploding() { return exploding; }
+    public boolean isWitherVariant() { return this.entityData.get(DATA_WITHER_VARIANT); }
+    public void setWitherVariant(boolean wither) { this.entityData.set(DATA_WITHER_VARIANT, wither); }
+
+    @Override
+    public boolean doHurtTarget(Entity target) {
+        boolean result = super.doHurtTarget(target);
+        if (result && isWitherVariant() && target instanceof LivingEntity living) {
+            living.addEffect(new MobEffectInstance(MobEffects.WITHER, 200, 0));
+        }
+        return result;
+    }
 
     // === Corpse Explosion: rush-then-explode ===
 
@@ -347,6 +363,7 @@ public class SkeletonMinionEntity extends PathfinderMob implements RangedAttackM
             tag.putUUID("OwnerUUID", ownerUUID);
         }
         tag.putBoolean("ArmyMinion", armyMinion);
+        tag.putBoolean("WitherVariant", isWitherVariant());
     }
 
     @Override
@@ -356,5 +373,6 @@ public class SkeletonMinionEntity extends PathfinderMob implements RangedAttackM
             this.entityData.set(DATA_OWNER_UUID, Optional.of(tag.getUUID("OwnerUUID")));
         }
         this.armyMinion = tag.getBoolean("ArmyMinion");
+        this.setWitherVariant(tag.getBoolean("WitherVariant"));
     }
 }

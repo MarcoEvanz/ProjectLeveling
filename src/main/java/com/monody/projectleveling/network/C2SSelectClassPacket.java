@@ -37,6 +37,8 @@ public class C2SSelectClassPacket {
             if (cls == PlayerClass.NONE) return;
 
             stats.getSkillData().setSelectedClass(cls);
+            stats.grantRetroactiveBonusSP(cls);
+            stats.setJob(cls.getDisplayName());
             StatEventHandler.syncToClient(player);
         });
 

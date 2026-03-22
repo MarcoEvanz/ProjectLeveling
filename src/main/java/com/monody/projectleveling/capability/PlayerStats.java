@@ -14,10 +14,11 @@ public class PlayerStats {
     private int vitality = 1;
     private int agility = 1;
     private int intelligence = 1;
-    private int sense = 1;
+    private int sight = 1;
     private int luck = 1;
     private int dexterity = 1;
     private int mind = 1;
+    private int faith = 1;
     private int remainingPoints = 5;
     private int currentMp = 100;
     private int currentExp = 0;
@@ -41,10 +42,11 @@ public class PlayerStats {
     public int getVitality() { return vitality; }
     public int getAgility() { return agility; }
     public int getIntelligence() { return intelligence; }
-    public int getSense() { return sense; }
+    public int getSight() { return sight; }
     public int getLuck() { return luck; }
     public int getDexterity() { return dexterity; }
     public int getMind() { return mind; }
+    public int getFaith() { return faith; }
     public int getRemainingPoints() { return remainingPoints; }
     public int getCurrentMp() { return currentMp; }
     public int getCurrentExp() { return currentExp; }
@@ -58,8 +60,14 @@ public class PlayerStats {
     public boolean isQuestRewardClaimed() { return questRewardClaimed; }
     public long getQuestDay() { return questDay; }
 
+    /** Magic Attack: derived from INT. 0.1 MATK per INT point. */
+    public float getMagicAttack() { return intelligence * 0.1f; }
+
+    /** Healing Power: derived from Faith. 0.1 per Faith point. */
+    public float getHealingPower() { return faith * 0.1f; }
+
     public int getMaxMp() {
-        int base = 100 + (intelligence - 1) * 10;
+        int base = 100 + (mind - 1) * 10;
         int dpLv = skillData.getLevel(SkillType.DARK_PACT);
         if (dpLv > 0) {
             base = (int) (base * (1 + dpLv * 0.02));
@@ -67,7 +75,14 @@ public class PlayerStats {
         if (skillData.isToggleActive(SkillType.SHADOW_PARTNER)) {
             base /= 2;
         }
-        return base;
+        // Multi Shadow Clone: -4% max MP per level when Shadow Clone is active
+        if (skillData.isToggleActive(SkillType.SHADOW_CLONE)) {
+            int mscLv = skillData.getLevel(SkillType.MULTI_SHADOW_CLONE);
+            if (mscLv > 0) {
+                base = (int) (base * (1.0 - mscLv * 0.04));
+            }
+        }
+        return Math.max(1, base);
     }
 
     // Setters
@@ -76,10 +91,11 @@ public class PlayerStats {
     public void setVitality(int vitality) { this.vitality = vitality; }
     public void setAgility(int agility) { this.agility = agility; }
     public void setIntelligence(int intelligence) { this.intelligence = intelligence; }
-    public void setSense(int sense) { this.sense = sense; }
+    public void setSight(int sight) { this.sight = sight; }
     public void setLuck(int luck) { this.luck = luck; }
     public void setDexterity(int dexterity) { this.dexterity = dexterity; }
     public void setMind(int mind) { this.mind = mind; }
+    public void setFaith(int faith) { this.faith = faith; }
     public void setRemainingPoints(int remainingPoints) { this.remainingPoints = remainingPoints; }
     public void setCurrentMp(int currentMp) { this.currentMp = Math.min(currentMp, getMaxMp()); }
     public void setCurrentExp(int currentExp) { this.currentExp = currentExp; }
@@ -191,17 +207,38 @@ public class PlayerStats {
         return levelsGained;
     }
 
+    /**
+     * Retroactively grant class-specific bonus SP for all even levels
+     * already reached. Called once when a class is first selected.
+     */
+    public void grantRetroactiveBonusSP(PlayerClass cls) {
+        int[][] tierRanges = {{2, 10}, {11, 30}, {31, 60}, {61, 100}};
+        for (int tier = 0; tier < 4; tier++) {
+            int bonusPerEven = cls.getBonusSPPerEvenLevel(tier);
+            if (bonusPerEven <= 0) continue;
+            int start = tierRanges[tier][0];
+            int end = Math.min(tierRanges[tier][1], level);
+            if (level < start) continue;
+            int evenCount = 0;
+            for (int lv = start; lv <= end; lv++) {
+                if (lv % 2 == 0) evenCount++;
+            }
+            skillData.addTierSP(tier, evenCount * bonusPerEven);
+        }
+    }
+
     public void resetStats() {
-        int spent = (strength - 1) + (vitality - 1) + (agility - 1) + (intelligence - 1) + (sense - 1)
-                + (luck - 1) + (dexterity - 1) + (mind - 1);
+        int spent = (strength - 1) + (vitality - 1) + (agility - 1) + (intelligence - 1) + (sight - 1)
+                + (luck - 1) + (dexterity - 1) + (mind - 1) + (faith - 1);
         strength = 1;
         vitality = 1;
         agility = 1;
         intelligence = 1;
-        sense = 1;
+        sight = 1;
         luck = 1;
         dexterity = 1;
         mind = 1;
+        faith = 1;
         remainingPoints += spent;
         currentMp = getMaxMp();
     }
@@ -212,10 +249,11 @@ public class PlayerStats {
         vitality = 1;
         agility = 1;
         intelligence = 1;
-        sense = 1;
+        sight = 1;
         luck = 1;
         dexterity = 1;
         mind = 1;
+        faith = 1;
         remainingPoints = 5;
         currentMp = getMaxMp();
         currentExp = 0;
@@ -229,10 +267,11 @@ public class PlayerStats {
             case "vitality" -> vitality++;
             case "agility" -> agility++;
             case "intelligence" -> intelligence++;
-            case "sense" -> sense++;
+            case "sight" -> sight++;
             case "luck" -> luck++;
             case "dexterity" -> dexterity++;
             case "mind" -> mind++;
+            case "faith" -> faith++;
             default -> { return false; }
         }
         remainingPoints--;
@@ -245,10 +284,11 @@ public class PlayerStats {
         this.vitality = other.vitality;
         this.agility = other.agility;
         this.intelligence = other.intelligence;
-        this.sense = other.sense;
+        this.sight = other.sight;
         this.luck = other.luck;
         this.dexterity = other.dexterity;
         this.mind = other.mind;
+        this.faith = other.faith;
         this.remainingPoints = other.remainingPoints;
         this.currentMp = other.currentMp;
         this.currentExp = other.currentExp;
@@ -270,10 +310,11 @@ public class PlayerStats {
         tag.putInt("vitality", vitality);
         tag.putInt("agility", agility);
         tag.putInt("intelligence", intelligence);
-        tag.putInt("sense", sense);
+        tag.putInt("sight", sight);
         tag.putInt("luck", luck);
         tag.putInt("dexterity", dexterity);
         tag.putInt("mind", mind);
+        tag.putInt("faith", faith);
         tag.putInt("remainingPoints", remainingPoints);
         tag.putInt("currentMp", currentMp);
         tag.putInt("currentExp", currentExp);
@@ -295,10 +336,11 @@ public class PlayerStats {
         vitality = tag.getInt("vitality");
         agility = tag.getInt("agility");
         intelligence = tag.getInt("intelligence");
-        sense = tag.getInt("sense");
+        sight = tag.contains("sight") ? tag.getInt("sight") : (tag.contains("sense") ? tag.getInt("sense") : 1);
         luck = tag.contains("luck") ? tag.getInt("luck") : 1;
         dexterity = tag.contains("dexterity") ? tag.getInt("dexterity") : 1;
         mind = tag.contains("mind") ? tag.getInt("mind") : 1;
+        faith = tag.contains("faith") ? tag.getInt("faith") : 1;
         remainingPoints = tag.getInt("remainingPoints");
         currentMp = tag.getInt("currentMp");
         currentExp = tag.getInt("currentExp");

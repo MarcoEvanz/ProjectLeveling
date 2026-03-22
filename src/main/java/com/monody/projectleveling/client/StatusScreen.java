@@ -5,12 +5,17 @@ import com.monody.projectleveling.capability.PlayerStatsCapability;
 import com.monody.projectleveling.network.C2SAllocateStatPacket;
 import com.monody.projectleveling.network.ModNetwork;
 import com.monody.projectleveling.skill.SkillData;
+import com.monody.projectleveling.skill.SkillExecutor;
 import com.monody.projectleveling.skill.SkillType;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
+import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.player.Player;
+
+import java.util.ArrayList;
+import java.util.List;
 
 public class StatusScreen extends Screen {
     private static final float PANEL_WIDTH_RATIO = 0.35f;
@@ -48,10 +53,16 @@ public class StatusScreen extends Screen {
     private int panelW, panelH, panelX, panelY;
     private int pad, lineH, colMid;
 
-    private static final int NUM_STATS = 8;
+    private static final int NUM_STATS = 9;
     private final int[][] statBtnBounds = new int[NUM_STATS][4];
     private final int[] closeBtnBounds = new int[4];
     private boolean hasPoints;
+
+    // Scrolling
+    private int scrollOffset = 0;
+    private int maxScroll = 0;
+    private int scrollAreaTop;
+    private int scrollAreaBottom;
 
     public StatusScreen() {
         super(Component.literal("Status"));
@@ -67,6 +78,7 @@ public class StatusScreen extends Screen {
         pad = Math.max(10, panelW / 18);
         lineH = Math.max(13, panelH / 20);
         colMid = panelX + panelW / 2 + 2;
+        scrollOffset = 0;
     }
 
     @Override
@@ -90,18 +102,18 @@ public class StatusScreen extends Screen {
         g.fill(0, 0, this.width, this.height, 0x60000000);
         g.fill(x, y, x + panelW, y + panelH, BG);
 
-        // Frame: single bright border + inner dim border
+        // Frame
         drawBox(g, x, y, panelW, panelH, FRAME);
         drawBox(g, x + 2, y + 2, panelW - 4, panelH - 4, FRAME_DIM);
 
-        // Corner accents (small L-shapes)
+        // Corner accents
         int cs = 10;
         drawCorner(g, x, y, cs, 1, 1);
         drawCorner(g, x + panelW, y, cs, -1, 1);
         drawCorner(g, x, y + panelH, cs, 1, -1);
         drawCorner(g, x + panelW, y + panelH, cs, -1, -1);
 
-        // Close button
+        // Close button (fixed)
         int closeX = right - 6;
         int closeY = y + 6;
         closeBtnBounds[0] = closeX - 2;
@@ -111,20 +123,26 @@ public class StatusScreen extends Screen {
         boolean closeHov = isInside(mouseX, mouseY, closeBtnBounds);
         g.drawString(font, "x", closeX, closeY, closeHov ? CLOSE_HOVER : CLOSE_NORMAL, false);
 
-        // Header
-        int rowY = y + pad + 2;
+        // Header (fixed)
+        int headerY = y + pad + 2;
         int hw = font.width("STATUS");
-        g.drawString(font, "STATUS", cx - hw / 2, rowY, TEXT_BRIGHT, false);
+        g.drawString(font, "STATUS", cx - hw / 2, headerY, TEXT_BRIGHT, false);
+        int sepY = headerY + lineH + 2;
+        drawSep(g, left, sepY, innerW);
 
-        // Separator
-        rowY += lineH + 2;
-        drawSep(g, left, rowY, innerW);
+        // Scrollable area bounds
+        scrollAreaTop = sepY + 1;
+        scrollAreaBottom = y + panelH - pad;
+
+        // Enable scissor for scrollable content
+        g.enableScissor(x + 3, scrollAreaTop, x + panelW - 3, scrollAreaBottom);
+
+        int rowY = scrollAreaTop + 6 - scrollOffset;
 
         // Info section
-        rowY += 7;
         drawLabel(g, "NAME:", left, rowY);
         g.drawString(font, player.getName().getString(), left + font.width("NAME: "), rowY, TEXT_VALUE, false);
-        drawRight(g, "LEVEL: " + stats.getLevel(), right, rowY, TEXT_VALUE);
+        drawRight(g, "LV: " + stats.getLevel(), right, rowY, TEXT_VALUE);
 
         rowY += lineH;
         drawLabel(g, "JOB:", left, rowY);
@@ -162,9 +180,8 @@ public class StatusScreen extends Screen {
         // Stats (4 rows x 2 columns)
         rowY += 8;
         int btnS = 11;
-
-        int colEnd1 = colMid - 6;   // right edge of left column
-        int colEnd2 = right;         // right edge of right column
+        int colEnd1 = colMid - 6;
+        int colEnd2 = right;
 
         drawStatRow(g, 0, "STR", stats.getStrength(), left, rowY, btnS, colEnd1, mouseX, mouseY);
         drawStatRow(g, 1, "VIT", stats.getVitality(), colMid, rowY, btnS, colEnd2, mouseX, mouseY);
@@ -174,79 +191,22 @@ public class StatusScreen extends Screen {
         drawStatRow(g, 3, "INT", stats.getIntelligence(), colMid, rowY, btnS, colEnd2, mouseX, mouseY);
 
         rowY += lineH + 2;
-        drawStatRow(g, 4, "SEN", stats.getSense(), left, rowY, btnS, colEnd1, mouseX, mouseY);
+        drawStatRow(g, 4, "SIG", stats.getSight(), left, rowY, btnS, colEnd1, mouseX, mouseY);
         drawStatRow(g, 5, "LUK", stats.getLuck(), colMid, rowY, btnS, colEnd2, mouseX, mouseY);
 
         rowY += lineH + 2;
         drawStatRow(g, 6, "DEX", stats.getDexterity(), left, rowY, btnS, colEnd1, mouseX, mouseY);
         drawStatRow(g, 7, "MND", stats.getMind(), colMid, rowY, btnS, colEnd2, mouseX, mouseY);
 
+        rowY += lineH + 2;
+        drawStatRow(g, 8, "FAI", stats.getFaith(), left, rowY, btnS, colEnd1, mouseX, mouseY);
+
         rowY += lineH + 4;
         drawSep(g, left, rowY, innerW);
 
         // Summary with passive skill bonuses
         rowY += 7;
-        SkillData sd = stats.getSkillData();
-
-        // ATK bonus: STR 0.1 + LUK 0.05 + DEX 0.05
-        double dmg = (stats.getStrength() - 1) * 0.1 + (stats.getLuck() - 1) * 0.05 + (stats.getDexterity() - 1) * 0.05;
-        // Weapon Mastery: +1% melee dmg per level
-        int wmLv = sd.getLevel(SkillType.WEAPON_MASTERY);
-        String atkSkill = wmLv > 0 ? " (+" + wmLv + "%)" : "";
-
-        // Crit Damage: base 150% + Critical Edge + Sharp Eyes + Arcane Overdrive + Berserker Spirit + LUK
-        double critDmg = 150;
-        int ceLv = sd.getLevel(SkillType.CRITICAL_EDGE);
-        if (ceLv > 0) critDmg += ceLv * 2;
-        int seLv = sd.getLevel(SkillType.SHARP_EYES);
-        if (seLv > 0) critDmg += seLv * 5;
-        int aoLv = sd.getLevel(SkillType.ARCANE_OVERDRIVE);
-        if (aoLv > 0) critDmg += aoLv;
-        int lukStat = stats.getLuck();
-        if (lukStat > 1) critDmg += ((lukStat - 1) / 50.0) * 10;
-
-        g.drawString(font, "ATK:", left, rowY, TEXT_DIM, false);
-        g.drawString(font, String.format(" +%.2f", dmg) + atkSkill, left + font.width("ATK:"), rowY, TEXT_ACCENT, false);
-        String cdVal = String.format("%.0f%%", critDmg);
-        String cdLabel = "CDMG: ";
-        drawRight(g, cdVal, right, rowY, TEXT_ACCENT);
-        g.drawString(font, cdLabel, right - font.width(cdVal) - font.width(cdLabel), rowY, TEXT_DIM, false);
-
-        // PROJ + CRIT
-        int dex = stats.getDexterity();
-        double projPct = (dex - 1) * 0.1; // DEX: 0.1% per point
-        int saLv = sd.getLevel(SkillType.SOUL_ARROW);
-        if (saLv > 0 && sd.isToggleActive(SkillType.SOUL_ARROW)) projPct += 5 + saLv;
-
-        // Crit rate: LUK base + Critical Edge + Sharp Eyes + Arcane Overdrive + Berserker Spirit
-        double critRate = (lukStat - 1) * 0.1;
-        if (ceLv > 0) critRate += ceLv;
-        if (seLv > 0) critRate += seLv * 1.5;
-        if (aoLv > 0) critRate += aoLv * 1.5;
-        int bsLv = sd.getLevel(SkillType.BERSERKER_SPIRIT);
-        if (bsLv > 0) critRate += bsLv;
-
-        rowY += lineH;
-        g.drawString(font, "PROJ:", left, rowY, TEXT_DIM, false);
-        g.drawString(font, String.format(" +%.1f%%", projPct), left + font.width("PROJ:"), rowY, TEXT_ACCENT, false);
-        String critVal = String.format("%.1f%%", critRate);
-        String critLabel = "CRIT: ";
-        drawRight(g, critVal, right, rowY, TEXT_ACCENT);
-        g.drawString(font, critLabel, right - font.width(critVal) - font.width(critLabel), rowY, TEXT_DIM, false);
-
-        // MP REGEN + MAX MP
-        double mpRegenPct = 1.0 + (stats.getMind() - 1) * 0.01;
-        int mpRecovLv = sd.getLevel(SkillType.MP_RECOVERY);
-        String mpSkill = mpRecovLv > 0 ? " (+" + String.format("%.1f", mpRecovLv * 0.2) + "%)" : "";
-        rowY += lineH;
-        g.drawString(font, "MP REGEN:", left, rowY, TEXT_DIM, false);
-        g.drawString(font, String.format(" %.1f%%/s", mpRegenPct) + mpSkill, left + font.width("MP REGEN:"), rowY, TEXT_ACCENT, false);
-        int dpkLv = sd.getLevel(SkillType.DARK_PACT);
-        String dpkSkill = dpkLv > 0 ? " (+" + (dpkLv * 2) + "%)" : "";
-        String mpVal = String.valueOf(stats.getMaxMp()) + dpkSkill;
-        String mpLabel = "MAX MP: ";
-        drawRight(g, mpVal, right, rowY, TEXT_ACCENT);
-        g.drawString(font, mpLabel, right - font.width(mpVal) - font.width(mpLabel), rowY, TEXT_DIM, false);
+        rowY = renderSummary(g, stats, left, right, innerW, rowY);
 
         // Remaining points
         rowY += lineH + 3;
@@ -255,16 +215,268 @@ public class StatusScreen extends Screen {
         String rpText = "REMAINING POINTS: " + stats.getRemainingPoints();
         int rpColor = stats.getRemainingPoints() > 0 ? TEXT_ACCENT : TEXT_DIM;
         g.drawString(font, rpText, cx - font.width(rpText) / 2, rowY, rpColor, false);
+
+        // Calculate content height and max scroll
+        int contentBottom = rowY + lineH;
+        int contentHeight = (contentBottom + scrollOffset) - (scrollAreaTop + 6);
+        int visibleHeight = scrollAreaBottom - scrollAreaTop;
+        maxScroll = Math.max(0, contentHeight - visibleHeight);
+        if (scrollOffset > maxScroll) scrollOffset = maxScroll;
+
+        g.disableScissor();
+
+        // Scroll indicator
+        if (maxScroll > 0) {
+            int trackH = scrollAreaBottom - scrollAreaTop - 4;
+            int thumbH = Math.max(10, trackH * visibleHeight / contentHeight);
+            int thumbY = scrollAreaTop + 2 + (int) ((trackH - thumbH) * ((float) scrollOffset / maxScroll));
+            int scrollBarX = x + panelW - 5;
+            g.fill(scrollBarX, scrollAreaTop + 2, scrollBarX + 2, scrollAreaTop + 2 + trackH, 0x20FFFFFF);
+            g.fill(scrollBarX, thumbY, scrollBarX + 2, thumbY + thumbH, 0x60FFFFFF);
+        }
     }
 
-    // === Stat row with inline ▲ button ===
+    // === Summary + Buffs rendering ===
+
+    private int renderSummary(GuiGraphics g, PlayerStats stats, int left, int right, int innerW, int rowY) {
+        SkillData sd = stats.getSkillData();
+        Player player = Minecraft.getInstance().player;
+
+        int kmLv = sd.getLevel(SkillType.KUNAI_MASTERY);
+        int wmLv = sd.getLevel(SkillType.WEAPON_MASTERY);
+        int ceLv = sd.getLevel(SkillType.CRITICAL_EDGE);
+        int seLv = sd.getLevel(SkillType.SHARP_EYES);
+        int aoLv = sd.getLevel(SkillType.ARCANE_OVERDRIVE);
+        int bsLv = sd.getLevel(SkillType.BERSERKER_SPIRIT);
+        int ccLv = sd.getLevel(SkillType.CHAKRA_CONTROL);
+        int lukStat = stats.getLuck();
+
+        // --- Damage ---
+        // ATK
+        double dmg = (stats.getStrength() - 1) * 0.1 + (lukStat - 1) * 0.05 + (stats.getDexterity() - 1) * 0.05;
+        float weaponDmg = SkillExecutor.getWeaponDamage(player);
+        if (kmLv > 0) dmg += stats.getAgility() * 0.08f * kmLv / 10.0f;
+        StringBuilder atkTag = new StringBuilder();
+        if (weaponDmg > 0) atkTag.append("WPN+").append(String.format("%.1f", weaponDmg));
+        if (wmLv > 0) {
+            if (atkTag.length() > 0) atkTag.append(" ");
+            atkTag.append("+").append(wmLv).append("%");
+        }
+        if (kmLv > 0) {
+            if (atkTag.length() > 0) atkTag.append(" ");
+            atkTag.append("KM+").append(String.format("%.1f", stats.getAgility() * 0.08f * kmLv / 10.0f));
+        }
+        String atkSkill = atkTag.length() > 0 ? " (" + atkTag + ")" : "";
+        drawStat(g, "ATK:", String.format("+%.2f", dmg + weaponDmg) + atkSkill, left, rowY);
+
+        // MATK
+        rowY += lineH;
+        float matk = stats.getIntelligence() * 0.1f;
+        drawStat(g, "MATK:", String.format("+%.2f", matk), left, rowY);
+
+        // HEAL
+        rowY += lineH;
+        float healPow = stats.getFaith() * 0.1f;
+        drawStat(g, "HEAL:", String.format("+%.2f", healPow), left, rowY);
+
+        // PROJ
+        rowY += lineH;
+        double projPct = (stats.getDexterity() - 1) * 0.1;
+        int saLv = sd.getLevel(SkillType.SOUL_ARROW);
+        if (saLv > 0 && sd.isToggleActive(SkillType.SOUL_ARROW)) projPct += 5 + saLv;
+        if (kmLv > 0) projPct += kmLv * 1.5;
+        drawStat(g, "PROJ:", String.format("+%.1f%%", projPct), left, rowY);
+
+        // --- Critical (Sight-based) ---
+        rowY += lineH;
+        int sightStat = stats.getSight();
+        double critRate = (sightStat - 1) * 0.1;
+        if (ceLv > 0) critRate += ceLv;
+        if (seLv > 0) critRate += seLv * 1.5;
+        if (aoLv > 0) critRate += aoLv * 1.5;
+        if (bsLv > 0) critRate += bsLv;
+        if (kmLv > 0) critRate += sightStat * 0.05f * kmLv / 10.0f;
+        drawStat(g, "CRIT:", String.format("%.1f%%", critRate), left, rowY);
+
+        rowY += lineH;
+        double critDmg = 150 + (sightStat - 1) * 0.2;
+        if (ceLv > 0) critDmg += ceLv * 2;
+        if (seLv > 0) critDmg += seLv * 5;
+        if (aoLv > 0) critDmg += aoLv;
+        drawStat(g, "CDMG:", String.format("%.0f%%", critDmg), left, rowY);
+
+        // --- Combat ---
+        rowY += lineH;
+        double atkSpd = (stats.getAgility() - 1) * 0.01;
+        drawStat(g, "ATK SPD:", String.format("+%.2f", atkSpd), left, rowY);
+
+        rowY += lineH;
+        int armor = player != null ? player.getArmorValue() : 0;
+        drawStat(g, "DEF:", String.valueOf(armor), left, rowY);
+
+        rowY += lineH;
+        double meleePct = 0;
+        if (wmLv > 0) meleePct += wmLv;
+        if (bsLv > 0) meleePct += bsLv;
+        drawStat(g, "MELEE:", String.format("+%.1f%%", meleePct), left, rowY);
+
+        rowY += lineH;
+        double moveSpd = player != null ? player.getAttributeValue(Attributes.MOVEMENT_SPEED) : 0;
+        drawStat(g, "SPD:", String.format("%.3f", moveSpd), left, rowY);
+
+        // --- Damage Bonus (multipliers) ---
+        rowY += lineH;
+        double dmgBonus = 0;
+        StringBuilder dmgTag = new StringBuilder();
+        int sageLv = sd.getLevel(SkillType.SAGE_MODE);
+        if (sageLv > 0 && sd.isToggleActive(SkillType.SAGE_MODE)) {
+            double sageBonus = 20 + sageLv;
+            dmgBonus += sageBonus;
+            dmgTag.append("Sage+").append(String.format("%.0f", sageBonus)).append("%");
+        }
+        int eaLv = sd.getLevel(SkillType.ELEMENT_AMPLIFICATION);
+        if (eaLv > 0) {
+            if (dmgTag.length() > 0) dmgTag.append(" ");
+            double eaBonus = eaLv * 3.0;
+            dmgBonus += eaBonus;
+            dmgTag.append("EA+").append(String.format("%.0f", eaBonus)).append("%");
+        }
+        int ufLv = sd.getLevel(SkillType.UNHOLY_FERVOR);
+        if (ufLv > 0) {
+            if (dmgTag.length() > 0) dmgTag.append(" ");
+            double ufBonus = 15.0 + ufLv * 1.5;
+            dmgBonus += ufBonus;
+            dmgTag.append("UF+").append(String.format("%.1f", ufBonus)).append("%");
+        }
+        int rageLv = sd.getLevel(SkillType.RAGE);
+        if (rageLv > 0) {
+            if (dmgTag.length() > 0) dmgTag.append(" ");
+            dmgTag.append("Rage+").append(rageLv * 2).append("%<50%HP");
+        }
+        int fbLv = sd.getLevel(SkillType.FATAL_BLOW);
+        if (fbLv > 0) {
+            if (dmgTag.length() > 0) dmgTag.append(" ");
+            dmgTag.append("FB+").append(fbLv * 2).append("%");
+        }
+        int mbLv = sd.getLevel(SkillType.MORTAL_BLOW);
+        if (mbLv > 0) {
+            if (dmgTag.length() > 0) dmgTag.append(" ");
+            dmgTag.append("MB+").append(mbLv * 2).append("%");
+        }
+        String dmgExtra = dmgTag.length() > 0 ? " (" + dmgTag + ")" : "";
+        drawStat(g, "DMG:", String.format("+%.1f%%", dmgBonus) + dmgExtra, left, rowY);
+
+        // --- MP ---
+        rowY += lineH;
+        int dpkLv = sd.getLevel(SkillType.DARK_PACT);
+        StringBuilder mpTag = new StringBuilder();
+        if (dpkLv > 0) mpTag.append("+").append(dpkLv * 2).append("%");
+        if (ccLv > 0) {
+            if (mpTag.length() > 0) mpTag.append(" ");
+            mpTag.append("-").append(ccLv).append("% cost");
+        }
+        String mpExtra = mpTag.length() > 0 ? " (" + mpTag + ")" : "";
+        drawStat(g, "MAX MP:", stats.getMaxMp() + mpExtra, left, rowY);
+
+        rowY += lineH;
+        double mpRegenPct = 1.0 + (stats.getMind() - 1) * 0.01;
+        int mpRecovLv = sd.getLevel(SkillType.MP_RECOVERY);
+        StringBuilder regenTag = new StringBuilder();
+        if (mpRecovLv > 0) regenTag.append("+").append(String.format("%.1f", mpRecovLv * 0.2)).append("%");
+        if (ccLv > 0) {
+            if (regenTag.length() > 0) regenTag.append(" ");
+            regenTag.append("CC+").append(String.format("%.1f", ccLv * 0.15f)).append("%");
+        }
+        String mpSkill = regenTag.length() > 0 ? " (" + regenTag + ")" : "";
+        drawStat(g, "MP REGEN:", String.format("%.1f%%/s", mpRegenPct) + mpSkill, left, rowY);
+
+        // Active buffs section
+        rowY += lineH + 3;
+        drawSep(g, left, rowY, innerW);
+        rowY += 5;
+        List<String> buffs = collectActiveBuffs(sd, player);
+        if (!buffs.isEmpty()) {
+            g.drawString(font, "BUFFS:", left, rowY, TEXT_DIM, false);
+            int bx = left + font.width("BUFFS: ");
+            int resetX = left + font.width("BUFFS: ");
+            for (int i = 0; i < buffs.size(); i++) {
+                String b = buffs.get(i);
+                int bw = font.width(b);
+                if (bx + bw > right && bx > resetX) {
+                    bx = resetX;
+                    rowY += lineH - 2;
+                }
+                g.drawString(font, b, bx, rowY, TEXT_ACCENT, false);
+                bx += bw;
+                if (i < buffs.size() - 1) {
+                    g.drawString(font, ", ", bx, rowY, TEXT_DIM, false);
+                    bx += font.width(", ");
+                }
+            }
+        } else {
+            g.drawString(font, "NO ACTIVE BUFFS", left, rowY, TEXT_DIM, false);
+        }
+
+        return rowY;
+    }
+
+    // === Active buffs collector ===
+
+    private List<String> collectActiveBuffs(SkillData sd, Player player) {
+        List<String> buffs = new ArrayList<>();
+        // Toggles
+        if (sd.isToggleActive(SkillType.IRON_WILL)) buffs.add("Iron Will");
+        if (sd.isToggleActive(SkillType.STEALTH)) buffs.add("Stealth");
+        if (sd.isToggleActive(SkillType.SOUL_ARROW)) buffs.add("Soul Arrow");
+        if (sd.isToggleActive(SkillType.MAGIC_GUARD)) buffs.add("Magic Guard");
+        if (sd.isToggleActive(SkillType.RAISE_SKELETON)) buffs.add("Skeleton");
+        if (sd.isToggleActive(SkillType.SHADOW_CLONE)) buffs.add("Clone");
+        if (sd.isToggleActive(SkillType.BONE_SHIELD)) buffs.add("Bone Shield");
+        if (sd.isToggleActive(SkillType.SHADOW_PARTNER)) buffs.add("Shadow Partner");
+        if (sd.isToggleActive(SkillType.HURRICANE)) buffs.add("Hurricane");
+        if (sd.isToggleActive(SkillType.SAGE_MODE))
+            buffs.add("Sage +" + (20 + sd.getLevel(SkillType.SAGE_MODE)) + "%");
+        if (sd.isToggleActive(SkillType.SOUL_LINK)) buffs.add("Soul Link");
+        // Eight Inner Gates (passive, active below 30% HP)
+        int gatesLv = sd.getLevel(SkillType.EIGHT_INNER_GATES);
+        if (gatesLv > 0 && player.getHealth() / Math.max(1, player.getMaxHealth()) <= 0.3f) {
+            buffs.add("8Gates +" + (gatesLv * 2) + "%");
+        }
+        // Timed buffs
+        if (sd.isShadowStrikeActive()) buffs.add("S.Strike");
+        if (sd.isRasenganBuffActive()) buffs.add("Rasengan " + fmtSec(sd.getRasenganBuffTicks()));
+        if (sd.getSubstitutionTicks() > 0) buffs.add("Sub " + fmtSec(sd.getSubstitutionTicks()));
+        if (sd.getFlyingRaijinPhase() == 1) buffs.add("FR Kunai");
+        if (sd.getFrgPhase() == 1) buffs.add("FRG " + fmtSec(sd.getFrgTicks()));
+        if (sd.getDomainTicks() > 0) buffs.add("Domain " + fmtSec(sd.getDomainTicks()));
+        if (sd.getArmyTicks() > 0) buffs.add("Army " + fmtSec(sd.getArmyTicks()));
+        if (sd.getDeathMarkTicks() > 0) buffs.add("D.Mark " + fmtSec(sd.getDeathMarkTicks()));
+        if (sd.getUndyingWillCooldown() > 0) buffs.add("Undying CD " + fmtSec(sd.getUndyingWillCooldown()));
+        if (sd.getFervorTicks() > 0) buffs.add("Fervor " + fmtSec(sd.getFervorTicks()));
+        // Beast Master
+        if (sd.getBmActiveBuff() != null) {
+            String name = sd.getBmActiveBuff().getDisplayName();
+            if (sd.isBmEnhanced()) name = "Enh." + name;
+            buffs.add(name + " " + fmtSec(sd.getBmBuffTicks()));
+        }
+        if (sd.isPowerOfNatureActive()) buffs.add("Pwr of Nature");
+        if (sd.getTurtleShellTicks() > 0) buffs.add("Shell " + fmtSec(sd.getTurtleShellTicks()));
+        if (sd.getPhoenixLifestealHits() > 0) buffs.add("Lifesteal x" + sd.getPhoenixLifestealHits());
+        return buffs;
+    }
+
+    private static String fmtSec(int ticks) {
+        return String.format("%.0fs", ticks / 20.0f);
+    }
+
+    // === Stat row with inline button ===
 
     private void drawStatRow(GuiGraphics g, int idx, String label, int value,
                              int sx, int sy, int btnS, int colEnd, int mouseX, int mouseY) {
         String text = label + ": " + value;
         g.drawString(font, text, sx, sy, TEXT_VALUE, false);
 
-        int bx = colEnd - btnS; // align button to right edge of column
+        int bx = colEnd - btnS;
         int by = sy - 1;
         boolean hover = false;
 
@@ -275,13 +487,11 @@ public class StatusScreen extends Screen {
             statBtnBounds[idx] = new int[]{0, 0, 0, 0};
         }
 
-        // Button box (greyed out when no points)
         int bgColor = hasPoints ? (hover ? BTN_HOVER_BG : BTN_BG) : BAR_BG;
         int borderColor = hasPoints ? (hover ? BTN_HOVER_BORDER : BTN_BORDER) : FRAME_DIM;
         g.fill(bx, by, bx + btnS, by + btnS, bgColor);
         drawBox(g, bx, by, btnS, btnS, borderColor);
 
-        // Centered ▲ triangle
         int triColor = hasPoints ? (hover ? BTN_HOVER_BORDER : BTN_TEXT) : FRAME_DIM;
         int triH = 4;
         int triW = 7;
@@ -302,8 +512,9 @@ public class StatusScreen extends Screen {
                 onClose();
                 return true;
             }
-            if (hasPoints) {
-                String[] names = {"strength", "vitality", "agility", "intelligence", "sense", "luck", "dexterity", "mind"};
+            // Only handle stat button clicks within the scroll area
+            if (hasPoints && my >= scrollAreaTop && my <= scrollAreaBottom) {
+                String[] names = {"strength", "vitality", "agility", "intelligence", "sight", "luck", "dexterity", "mind", "faith"};
                 for (int i = 0; i < NUM_STATS; i++) {
                     if (statBtnBounds[i][2] > 0 && isInside((int) mx, (int) my, statBtnBounds[i])) {
                         ModNetwork.sendToServer(new C2SAllocateStatPacket(names[i]));
@@ -313,6 +524,12 @@ public class StatusScreen extends Screen {
             }
         }
         return super.mouseClicked(mx, my, btn);
+    }
+
+    @Override
+    public boolean mouseScrolled(double mouseX, double mouseY, double delta) {
+        scrollOffset = Math.max(0, Math.min(maxScroll, scrollOffset - (int) (delta * lineH * 2)));
+        return true;
     }
 
     // === Drawing helpers ===
@@ -325,12 +542,10 @@ public class StatusScreen extends Screen {
     }
 
     private void drawCorner(GuiGraphics g, int cx, int cy, int size, int dx, int dy) {
-        // Horizontal arm
         int x1 = dx > 0 ? cx : cx - size;
         int x2 = dx > 0 ? cx + size : cx;
         int yy = dy > 0 ? cy : cy - 1;
         g.fill(x1, yy, x2, yy + 1, FRAME);
-        // Vertical arm
         int y1 = dy > 0 ? cy : cy - size;
         int y2 = dy > 0 ? cy + size : cy;
         int xx = dx > 0 ? cx : cx - 1;
@@ -361,6 +576,11 @@ public class StatusScreen extends Screen {
 
         drawBox(g, barX, barY, barW, barH, BAR_BORDER);
         g.drawString(font, valText, x + totalW - vw, y, TEXT_VALUE, false);
+    }
+
+    private void drawStat(GuiGraphics g, String label, String value, int x, int y) {
+        g.drawString(font, label, x, y, TEXT_DIM, false);
+        g.drawString(font, " " + value, x + font.width(label), y, TEXT_ACCENT, false);
     }
 
     private void drawLabel(GuiGraphics g, String t, int x, int y) {

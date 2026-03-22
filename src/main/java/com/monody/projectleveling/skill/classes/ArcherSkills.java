@@ -158,7 +158,7 @@ public final class ArcherSkills {
 
     private static void executeArrowRain(ServerPlayer player, PlayerStats stats, SkillData sd, int level) {
         stats.setCurrentMp(stats.getCurrentMp() - SkillType.ARROW_RAIN.getMpCost(level));
-        float damage = 0.3f + level * 0.1f + stats.getDexterity() * 0.02f; // Low per-arrow damage
+        float damage = 0.3f + level * 0.1f + stats.getDexterity() * 0.02f + SkillExecutor.getWeaponDamage(player) * 0.2f; // Low per-arrow damage
         float radius = 3.0f;
         int durationTicks = (int) (20 + (level - 1) * (40.0 / 9.0)); // 1s at lv1, 3s at lv10
 
@@ -189,7 +189,7 @@ public final class ArcherSkills {
     private static void executeArrowBomb(ServerPlayer player, PlayerStats stats, SkillData sd, int level) {
         stats.setCurrentMp(stats.getCurrentMp() - SkillType.ARROW_BOMB.getMpCost(level));
         float aoeRadius = (float) (3 + level * 0.1);
-        float damage = 2 + level * 0.6f + stats.getDexterity() * 0.1f;
+        float damage = 2 + level * 0.6f + stats.getDexterity() * 0.1f + SkillExecutor.getWeaponDamage(player);
         int stunTicks = (2 + level / 5) * 20;
         SkillArrowEntity arrow = new SkillArrowEntity(
                 player.level(), player, SkillArrowEntity.ArrowType.BOMB, damage, aoeRadius, stunTicks);
@@ -209,7 +209,7 @@ public final class ArcherSkills {
         player.push(-look.x * force, 0.3, -look.z * force);
         player.hurtMarked = true;
         // Spawn arrows forward
-        float damage = 1 + level * 0.4f + stats.getDexterity() * 0.08f;
+        float damage = 1 + level * 0.4f + stats.getDexterity() * 0.08f + SkillExecutor.getWeaponDamage(player);
         int arrowCount = 3 + level / 4;
         for (int i = 0; i < arrowCount; i++) {
             SkillArrowEntity arrow = new SkillArrowEntity(
@@ -300,7 +300,7 @@ public final class ArcherSkills {
     public static void tickPhoenix(ServerPlayer player, PlayerStats stats, SkillData sd) {
         int level = sd.getLevel(SkillType.PHOENIX);
         double range = 6 + level * 0.2 + stats.getDexterity() * 0.05;
-        float damage = 1 + level * 0.3f + stats.getDexterity() * 0.06f;
+        float damage = 1 + level * 0.3f + stats.getDexterity() * 0.06f + SkillExecutor.getWeaponDamage(player) * 0.2f;
         AABB area = player.getBoundingBox().inflate(range);
         List<Monster> mobs = player.level().getEntitiesOfClass(Monster.class, area);
         if (!mobs.isEmpty()) {
@@ -337,7 +337,7 @@ public final class ArcherSkills {
     public static void tickHurricane(ServerPlayer player, PlayerStats stats, SkillData sd) {
         int level = sd.getLevel(SkillType.HURRICANE);
         double range = 8 + stats.getDexterity() * 0.1;
-        float damage = 1.5f + level * 0.4f + stats.getDexterity() * 0.1f;
+        float damage = 1.5f + level * 0.4f + stats.getDexterity() * 0.1f + SkillExecutor.getWeaponDamage(player) * 0.2f;
         AABB area = player.getBoundingBox().inflate(range);
         List<Monster> mobs = player.level().getEntitiesOfClass(Monster.class, area);
         if (!mobs.isEmpty()) {
@@ -389,7 +389,7 @@ public final class ArcherSkills {
 
         switch (skill) {
             case ARROW_RAIN -> {
-                float dmg = (0.3f + level * 0.1f + stats.getDexterity() * 0.02f) * multiplier;
+                float dmg = (0.3f + level * 0.1f + stats.getDexterity() * 0.02f + SkillExecutor.getWeaponDamage(player) * 0.2f) * multiplier;
                 for (int i = 0; i < 5; i++) {
                     double ox = (player.getRandom().nextDouble() - 0.5) * 6;
                     double oz = (player.getRandom().nextDouble() - 0.5) * 6;
@@ -401,14 +401,14 @@ public final class ArcherSkills {
                 }
             }
             case ARROW_BOMB -> {
-                float dmg = (3 + level * 0.8f + stats.getDexterity() * 0.15f) * multiplier;
+                float dmg = (3 + level * 0.8f + stats.getDexterity() * 0.15f + SkillExecutor.getWeaponDamage(player)) * multiplier;
                 SkillArrowEntity arrow = new SkillArrowEntity(sl, partner,
                         SkillArrowEntity.ArrowType.BOMB, dmg, 3 + level * 0.1f, 30 + level * 2);
                 arrow.shootFromRotation(partner, partner.getXRot(), partner.getYRot(), 0, 2.5f, 1.0f);
                 sl.addFreshEntity(arrow);
             }
             case COVERING_FIRE -> {
-                float dmg = (2 + level * 0.5f + stats.getDexterity() * 0.1f) * multiplier;
+                float dmg = (2 + level * 0.5f + stats.getDexterity() * 0.1f + SkillExecutor.getWeaponDamage(player)) * multiplier;
                 for (int i = 0; i < 3; i++) {
                     SkillArrowEntity arrow = new SkillArrowEntity(sl, partner,
                             SkillArrowEntity.ArrowType.COVERING_FIRE, dmg, 0, 0);
@@ -418,7 +418,7 @@ public final class ArcherSkills {
                 }
             }
             case PHOENIX -> {
-                float dmg = (1 + level * 0.2f + stats.getDexterity() * 0.04f) * multiplier;
+                float dmg = (1 + level * 0.2f + stats.getDexterity() * 0.04f + SkillExecutor.getWeaponDamage(player) * 0.2f) * multiplier;
                 List<Monster> mobs = sl.getEntitiesOfClass(Monster.class,
                         partner.getBoundingBox().inflate(4));
                 for (Monster mob : mobs) {

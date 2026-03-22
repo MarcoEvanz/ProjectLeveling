@@ -151,7 +151,7 @@ public final class MageSkills {
 
     private static void executeFlameOrb(ServerPlayer player, PlayerStats stats, SkillData sd, int level) {
         stats.setCurrentMp(stats.getCurrentMp() - SkillType.FLAME_ORB.getMpCost(level));
-        float damage = 2 + level * 0.6f + stats.getIntelligence() * 0.12f;
+        float damage = 2 + level * 0.6f + stats.getIntelligence() * 0.12f + stats.getMagicAttack();
         float aoeRadius = (float) (3 + level * 0.1);
         Vec3 look = player.getLookAngle();
         SkillFireballEntity fireball = new SkillFireballEntity(
@@ -188,7 +188,7 @@ public final class MageSkills {
     private static void executeFrostBind(ServerPlayer player, PlayerStats stats, SkillData sd, int level) {
         stats.setCurrentMp(stats.getCurrentMp() - SkillType.FROST_BIND.getMpCost(level));
         double range = 5 + level * 0.15 + stats.getIntelligence() * 0.05;
-        float damage = 1 + level * 0.3f + stats.getIntelligence() * 0.08f;
+        float damage = 1 + level * 0.3f + stats.getIntelligence() * 0.08f + stats.getMagicAttack();
         int freezeDuration = (3 + level / 3) * 20;
         AABB area = player.getBoundingBox().inflate(range);
         List<Monster> mobs = player.level().getEntitiesOfClass(Monster.class, area);
@@ -235,7 +235,7 @@ public final class MageSkills {
     public static void tickPoisonMist(ServerPlayer player, PlayerStats stats, SkillData sd) {
         int level = sd.getLevel(SkillType.POISON_MIST);
         double radius = 4 + level * 0.1;
-        float damage = 0.5f + level * 0.1f + stats.getIntelligence() * 0.03f;
+        float damage = 0.5f + level * 0.1f + stats.getIntelligence() * 0.03f + stats.getMagicAttack() * 0.2f;
         AABB area = new AABB(
                 sd.getMistX() - radius, sd.getMistY() - radius, sd.getMistZ() - radius,
                 sd.getMistX() + radius, sd.getMistY() + radius, sd.getMistZ() + radius);
@@ -256,7 +256,7 @@ public final class MageSkills {
         if (sd.isMistActive()) {
             // Detonate the mist for massive damage
             double radius = 5 + level * 0.15;
-            float damage = 4 + level * 0.8f + stats.getIntelligence() * 0.2f;
+            float damage = 4 + level * 0.8f + stats.getIntelligence() * 0.2f + stats.getMagicAttack();
             AABB area = new AABB(
                     sd.getMistX() - radius, sd.getMistY() - radius, sd.getMistZ() - radius,
                     sd.getMistX() + radius, sd.getMistY() + radius, sd.getMistZ() + radius);
@@ -278,7 +278,7 @@ public final class MageSkills {
                     "\u00a7b[System]\u00a7r \u00a76Mist Eruption! " + mobs.size() + " enemies blasted!"));
         } else {
             // Weaker arcane blast without mist
-            float damage = 2 + level * 0.4f + stats.getIntelligence() * 0.1f;
+            float damage = 2 + level * 0.4f + stats.getIntelligence() * 0.1f + stats.getMagicAttack();
             double range = 4;
             AABB area = player.getBoundingBox().inflate(range);
             List<Monster> mobs = player.level().getEntitiesOfClass(Monster.class, area);
@@ -343,7 +343,7 @@ public final class MageSkills {
         Vec3 look = player.getLookAngle();
         switch (skill) {
             case FLAME_ORB -> {
-                float dmg = (3 + level * 1.2f + stats.getIntelligence() * 0.2f) * multiplier;
+                float dmg = (3 + level * 1.2f + stats.getIntelligence() * 0.2f + stats.getMagicAttack()) * multiplier;
                 SkillFireballEntity fb = new SkillFireballEntity(sl, partner,
                         look.x, look.y, look.z,
                         SkillFireballEntity.FireballType.FLAME_ORB, dmg, 3.0f, level);
@@ -351,7 +351,7 @@ public final class MageSkills {
             }
             case FROST_BIND -> {
                 float radius = 4 + level * 0.2f;
-                float dmg = (3 + level * 0.8f) * multiplier;
+                float dmg = (3 + level * 0.8f + stats.getMagicAttack()) * multiplier;
                 List<Monster> mobs = sl.getEntitiesOfClass(Monster.class,
                         partner.getBoundingBox().inflate(radius));
                 for (Monster mob : mobs) {
@@ -362,7 +362,7 @@ public final class MageSkills {
                 SkillParticles.burst(sl, pos.x, pos.y + 1, pos.z, 20, radius * 0.5, ParticleTypes.SNOWFLAKE);
             }
             case POISON_MIST -> {
-                float dmg = (0.5f + level * 0.1f + stats.getIntelligence() * 0.03f) * multiplier;
+                float dmg = (0.5f + level * 0.1f + stats.getIntelligence() * 0.03f + stats.getMagicAttack() * 0.2f) * multiplier;
                 List<Monster> mobs = sl.getEntitiesOfClass(Monster.class,
                         partner.getBoundingBox().inflate(4));
                 for (Monster mob : mobs) {
@@ -374,7 +374,7 @@ public final class MageSkills {
             }
             case MIST_ERUPTION -> {
                 float radius = 4 + level * 0.1f;
-                float dmg = (2 + level * 0.5f + stats.getIntelligence() * 0.1f) * multiplier;
+                float dmg = (2 + level * 0.5f + stats.getIntelligence() * 0.1f + stats.getMagicAttack()) * multiplier;
                 List<Monster> mobs = sl.getEntitiesOfClass(Monster.class,
                         partner.getBoundingBox().inflate(radius));
                 for (Monster mob : mobs) {

@@ -7,6 +7,8 @@ import com.monody.projectleveling.entity.archer.SkillArrowRenderer;
 import com.monody.projectleveling.entity.assassin.ShadowPartnerRenderer;
 import com.monody.projectleveling.entity.mage.SkillFireballRenderer;
 import com.monody.projectleveling.entity.necromancer.SkeletonMinionRenderer;
+import com.monody.projectleveling.entity.ninja.FlyingRaijinKunaiRenderer;
+import com.monody.projectleveling.entity.ninja.ShadowCloneRenderer;
 import com.monody.projectleveling.network.C2SActivateSkillPacket;
 import com.monody.projectleveling.network.C2SRequestSyncPacket;
 import com.monody.projectleveling.network.ModNetwork;
@@ -56,6 +58,8 @@ public class ClientEvents {
             event.registerEntityRenderer(ModEntities.SKILL_ARROW.get(), SkillArrowRenderer::new);
             event.registerEntityRenderer(ModEntities.SHADOW_PARTNER.get(), ShadowPartnerRenderer::new);
             event.registerEntityRenderer(ModEntities.SKELETON_MINION.get(), SkeletonMinionRenderer::new);
+            event.registerEntityRenderer(ModEntities.SHADOW_CLONE.get(), ShadowCloneRenderer::new);
+            event.registerEntityRenderer(ModEntities.FLYING_RAIJIN_KUNAI.get(), FlyingRaijinKunaiRenderer::new);
         }
     }
 

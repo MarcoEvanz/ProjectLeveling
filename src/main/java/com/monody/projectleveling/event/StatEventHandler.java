@@ -7,6 +7,7 @@ import com.monody.projectleveling.network.ModNetwork;
 import com.monody.projectleveling.network.S2CSyncStatsPacket;
 import com.monody.projectleveling.skill.CombatLog;
 import com.monody.projectleveling.skill.SkillData;
+import com.monody.projectleveling.skill.SkillExecutor;
 import com.monody.projectleveling.entity.archer.SkillArrowEntity;
 import com.monody.projectleveling.entity.assassin.ShadowPartnerEntity;
 import com.monody.projectleveling.entity.mage.SkillFireballEntity;
@@ -24,10 +25,13 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.InteractionHand;
+import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.ai.attributes.AttributeInstance;
 import net.minecraft.world.entity.ai.attributes.AttributeModifier;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.monster.Monster;
+import net.minecraft.world.phys.AABB;
+import net.minecraft.world.phys.Vec3;
 import net.minecraftforge.event.TickEvent;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
@@ -66,6 +70,7 @@ public class StatEventHandler {
         // Despawn Shadow Partner on logout
         if (event.getEntity() instanceof ServerPlayer player && player.level() instanceof ServerLevel sl) {
             AssassinSkills.despawnShadowPartner(player, sl);
+            NinjaSkills.despawnShadowClone(player, sl);
         }
     }
 
@@ -296,6 +301,52 @@ public class StatEventHandler {
                 sd.setUndyingWillCooldown(sd.getUndyingWillCooldown() - 1);
             }
 
+            // Substitution Jutsu tick countdown
+            if (sd.getSubstitutionTicks() > 0) {
+                sd.setSubstitutionTicks(sd.getSubstitutionTicks() - 1);
+                if (sd.getSubstitutionTicks() <= 0) {
+                    player.sendSystemMessage(Component.literal("\u00a7b[System]\u00a7r \u00a77Substitution expired."));
+                    syncToClient(player);
+                }
+            }
+
+            // Eight Inner Gates invuln cooldown
+            if (sd.getGatesInvulnCooldown() > 0) {
+                sd.setGatesInvulnCooldown(sd.getGatesInvulnCooldown() - 1);
+            }
+
+            // Rasengan buff tick countdown + hand particles
+            if (sd.isRasenganBuffActive()) {
+                sd.setRasenganBuffTicks(sd.getRasenganBuffTicks() - 1);
+                if (sd.getRasenganBuffTicks() <= 0) {
+                    sd.setRasenganBuffActive(false);
+                    player.sendSystemMessage(Component.literal("\u00a7b[System]\u00a7r \u00a77Rasengan charge expired."));
+                    syncToClient(player);
+                } else if (player.level() instanceof ServerLevel sl && player.tickCount % 4 == 0) {
+                    // Spiral particles around main hand
+                    double angle = (player.tickCount % 20) * (2 * Math.PI / 20);
+                    double hx = player.getX() + Math.cos(angle) * 0.4;
+                    double hy = player.getY() + 1.0 + Math.sin(angle) * 0.3;
+                    double hz = player.getZ() + Math.sin(angle) * 0.4;
+                    sl.sendParticles(ParticleTypes.END_ROD, hx, hy, hz, 1, 0, 0, 0, 0);
+                }
+            }
+
+            // Flying Raijin: Ground countdown + marker particles
+            if (sd.getFrgPhase() == 1) {
+                sd.setFrgTicks(sd.getFrgTicks() - 1);
+                if (sd.getFrgTicks() <= 0) {
+                    sd.setFrgPhase(0);
+                    int frgLv = sd.getLevel(SkillType.FLYING_RAIJIN_GROUND);
+                    sd.startCooldown(SkillType.FLYING_RAIJIN_GROUND, frgLv);
+                    player.sendSystemMessage(Component.literal("\u00a7b[System]\u00a7r \u00a77Flying Raijin: Ground expired."));
+                    syncToClient(player);
+                } else if (player.level() instanceof ServerLevel sl && player.tickCount % 10 == 0) {
+                    sl.sendParticles(ParticleTypes.END_ROD, sd.getFrgX(), sd.getFrgY() + 0.3, sd.getFrgZ(),
+                            2, 0.1, 0.2, 0.1, 0.01);
+                }
+            }
+
             // Unholy Fervor buff tick
             if (sd.getFervorTicks() > 0) {
                 sd.setFervorTicks(sd.getFervorTicks() - 1);
@@ -308,6 +359,72 @@ public class StatEventHandler {
                     }
                     player.sendSystemMessage(Component.literal("\u00a7b[System]\u00a7r \u00a77Unholy Fervor expired."));
                     syncToClient(player);
+                }
+            }
+
+            // Beast Master: buff expiry (Tiger Claw / Bear Paw / Phoenix Wings)
+            if (sd.getBmActiveBuff() != null && sd.getBmBuffTicks() > 0) {
+                sd.setBmBuffTicks(sd.getBmBuffTicks() - 1);
+                if (sd.getBmBuffTicks() <= 0) {
+                    String expiredName = sd.getBmActiveBuff().getDisplayName();
+                    sd.setBmActiveBuff(null);
+                    sd.setBmEnhanced(false);
+                    sd.setPhoenixLifestealHits(0);
+                    sd.setPhoenixLifestealPct(0);
+                    player.sendSystemMessage(Component.literal(
+                            "\u00a7b[System]\u00a7r \u00a77" + expiredName + " expired."));
+                    syncToClient(player);
+                }
+            }
+
+            // Beast Master: Turtle Shell absorption expiry (5s)
+            if (sd.getTurtleShellTicks() > 0) {
+                sd.setTurtleShellTicks(sd.getTurtleShellTicks() - 1);
+                if (sd.getTurtleShellTicks() <= 0) {
+                    player.setAbsorptionAmount(0);
+                    player.sendSystemMessage(Component.literal(
+                            "\u00a7b[System]\u00a7r \u00a77Turtle Shell faded."));
+                    syncToClient(player);
+                }
+            }
+
+            // Beast Master: Tiger Claw delayed hits (0.2s apart)
+            if (sd.getTigerClawHitsLeft() > 0) {
+                sd.setTigerClawTimer(sd.getTigerClawTimer() - 1);
+                if (sd.getTigerClawTimer() <= 0) {
+                    net.minecraft.world.entity.Entity targetEnt =
+                            player.level().getEntity(sd.getTigerClawTargetId());
+                    if (targetEnt instanceof LivingEntity target && target.isAlive()) {
+                        target.invulnerableTime = 0;
+                        target.hurt(player.damageSources().playerAttack(player), sd.getTigerClawDmg());
+                        if (player.level() instanceof ServerLevel sl) {
+                            SkillParticles.slash(sl,
+                                    player.position(),
+                                    target.position().add(0, target.getBbHeight() * 0.5, 0),
+                                    ParticleTypes.CRIT);
+                            SkillSounds.playAt(sl,
+                                    target.getX(), target.getY(), target.getZ(),
+                                    SoundEvents.PLAYER_ATTACK_SWEEP, 0.8f,
+                                    1.1f + sl.random.nextFloat() * 0.3f);
+                        }
+                        sd.setTigerClawHitsLeft(sd.getTigerClawHitsLeft() - 1);
+                        if (sd.getTigerClawHitsLeft() > 0) {
+                            sd.setTigerClawTimer(4); // next hit in 0.2s
+                        } else {
+                            // All hits dealt, clear state
+                            sd.setTigerClawTargetId(-1);
+                            sd.setTigerClawDmg(0);
+                            sd.setTigerClawTimer(0);
+                            syncToClient(player);
+                        }
+                    } else {
+                        // Target gone, clear state
+                        sd.setTigerClawHitsLeft(0);
+                        sd.setTigerClawTargetId(-1);
+                        sd.setTigerClawDmg(0);
+                        sd.setTigerClawTimer(0);
+                        syncToClient(player);
+                    }
                 }
             }
         });
@@ -489,6 +606,42 @@ public class StatEventHandler {
                     }
                 }
 
+                // Shadow Clone drain
+                if (sd.isToggleActive(SkillType.SHADOW_CLONE)) {
+                    int level = sd.getLevel(SkillType.SHADOW_CLONE);
+                    int drain = SkillType.SHADOW_CLONE.getToggleMpPerSecond(level);
+                    if (stats.getCurrentMp() >= drain) {
+                        stats.setCurrentMp(stats.getCurrentMp() - drain);
+                        changed = true;
+                    } else {
+                        sd.setToggleActive(SkillType.SHADOW_CLONE, false);
+                        if (player.level() instanceof ServerLevel sl) {
+                            NinjaSkills.despawnShadowClone(player, sl);
+                        }
+                        player.sendSystemMessage(Component.literal("\u00a7b[System]\u00a7r \u00a77Shadow Clone deactivated (no MP)."));
+                        changed = true;
+                    }
+                }
+
+                // Sage Mode drain + effects (3% of max MP per second)
+                if (sd.isToggleActive(SkillType.SAGE_MODE)) {
+                    int level = sd.getLevel(SkillType.SAGE_MODE);
+                    int drain = Math.max(1, (int) (stats.getMaxMp() * 0.03));
+                    if (stats.getCurrentMp() >= drain) {
+                        stats.setCurrentMp(stats.getCurrentMp() - drain);
+                        player.addEffect(new MobEffectInstance(MobEffects.MOVEMENT_SPEED, 25, 0, false, false));
+                        player.addEffect(new MobEffectInstance(MobEffects.DAMAGE_RESISTANCE, 25, 0, false, false));
+                        if (player.tickCount % 40 == 0) {
+                            SkillParticles.playerAura(player, 10, 1.0, ParticleTypes.END_ROD);
+                        }
+                        changed = true;
+                    } else {
+                        sd.setToggleActive(SkillType.SAGE_MODE, false);
+                        player.sendSystemMessage(Component.literal("\u00a7b[System]\u00a7r \u00a77Sage Mode deactivated (no MP)."));
+                        changed = true;
+                    }
+                }
+
                 // Passive: Endurance HP regen (+5% HP regen per level, applies as Regen I every few seconds)
                 int enduranceLv = sd.getLevel(SkillType.ENDURANCE);
                 if (enduranceLv > 0 && player.tickCount % 60 == 0) {
@@ -503,6 +656,42 @@ public class StatEventHandler {
                     int mpRegen = (int) (maxMp * mpRecovLv * 0.002);
                     if (mpRegen > 0 && stats.getCurrentMp() < maxMp) {
                         stats.setCurrentMp(Math.min(stats.getCurrentMp() + mpRegen, maxMp));
+                        changed = true;
+                    }
+                }
+
+                // Passive: Chakra Control — bonus MP regen
+                float ccRegenBonus = NinjaSkills.getChakraControlRegenBonus(stats);
+                if (ccRegenBonus > 0) {
+                    int maxMp = stats.getMaxMp();
+                    int ccRegen = (int) (maxMp * ccRegenBonus / 100.0f);
+                    if (ccRegen > 0 && stats.getCurrentMp() < maxMp) {
+                        stats.setCurrentMp(Math.min(stats.getCurrentMp() + ccRegen, maxMp));
+                        changed = true;
+                    }
+                }
+
+                // Passive: Eight Inner Gates — buffs below 30% HP
+                int gatesLv = sd.getLevel(SkillType.EIGHT_INNER_GATES);
+                if (gatesLv > 0) {
+                    float healthPct = player.getHealth() / player.getMaxHealth();
+                    if (healthPct <= 0.3f) {
+                        int speedAmp = Math.min(gatesLv / 5, 2);
+                        player.addEffect(new MobEffectInstance(MobEffects.MOVEMENT_SPEED, 25, speedAmp, false, false));
+                        if (player.tickCount % 40 == 0) {
+                            SkillParticles.playerAura(player, 8, 0.8, ParticleTypes.FLAME);
+                        }
+                        // Max level: brief invuln at 10% HP (60s CD)
+                        if (gatesLv >= 20 && healthPct <= 0.1f && sd.getGatesInvulnCooldown() <= 0) {
+                            player.addEffect(new MobEffectInstance(MobEffects.DAMAGE_RESISTANCE, 60, 4, false, true));
+                            sd.setGatesInvulnCooldown(1200);
+                            player.sendSystemMessage(Component.literal(
+                                    "\u00a7b[System]\u00a7r \u00a75Eight Inner Gates: Invulnerability!"));
+                            if (player.level() instanceof ServerLevel sl) {
+                                SkillParticles.burst(sl, player.getX(), player.getY() + 1, player.getZ(), 30, 1.0, ParticleTypes.FLAME);
+                                SkillSounds.playAt(player, SoundEvents.GENERIC_EXPLODE, 0.5f, 0.8f);
+                            }
+                        }
                         changed = true;
                     }
                 }
@@ -687,6 +876,159 @@ public class StatEventHandler {
                 amount *= 1.0f + wmLv * 0.01f;
             }
 
+            // Passive: Kunai Mastery — +AGI melee damage
+            float kmBonus = NinjaSkills.getKunaiMasteryMeleeBonus(stats);
+            if (kmBonus > 0 && !event.getSource().isIndirect()) {
+                amount += kmBonus;
+            }
+
+            // Sage Mode: damage multiplier
+            amount *= NinjaSkills.getSageModeDamageMultiplier(sd);
+
+            // Eight Inner Gates: damage multiplier below 30% HP
+            float gatesHealthPct = player.getHealth() / player.getMaxHealth();
+            amount *= NinjaSkills.getGatesDamageMultiplier(stats, gatesHealthPct);
+
+            // Rasengan buff: explode in 2-block radius around target, bonus AGI+LUK damage + 30% splash
+            // Only triggers on normal melee attacks, not during skill execution
+            if (sd.isRasenganBuffActive() && !event.getSource().isIndirect()
+                    && !com.monody.projectleveling.skill.SkillExecutor.executingSkill) {
+                sd.setRasenganBuffActive(false);
+                sd.setRasenganBuffTicks(0);
+                int rsgLv = sd.getLevel(SkillType.RASENGAN);
+                float rasenganBonus = NinjaSkills.getRasenganBonusDamage(stats, rsgLv);
+                amount += rasenganBonus;
+                float splashDmg = amount * 0.3f;
+                net.minecraft.world.entity.LivingEntity mainTarget = (net.minecraft.world.entity.LivingEntity) event.getEntity();
+                AABB splashArea = mainTarget.getBoundingBox().inflate(2.0);
+                List<net.minecraft.world.entity.LivingEntity> nearby = player.level().getEntitiesOfClass(
+                        net.minecraft.world.entity.LivingEntity.class, splashArea,
+                        e -> e != mainTarget && e != player && e instanceof Monster);
+                for (net.minecraft.world.entity.LivingEntity mob : nearby) {
+                    mob.hurt(player.damageSources().playerAttack(player), splashDmg);
+                }
+                if (player.level() instanceof ServerLevel sl) {
+                    SkillParticles.explosion(sl, mainTarget.getX(), mainTarget.getY() + 1, mainTarget.getZ(),
+                            2.0f, ParticleTypes.END_ROD, ParticleTypes.ENCHANTED_HIT);
+                    SkillSounds.playAt(sl, mainTarget.getX(), mainTarget.getY(), mainTarget.getZ(),
+                            SoundEvents.GENERIC_EXPLODE, 0.6f, 1.3f);
+                }
+                CombatLog.aoeSkill(player, "Rasengan Explosion", splashDmg, nearby, player.damageSources().playerAttack(player));
+                player.sendSystemMessage(Component.literal(
+                        "\u00a7b[System]\u00a7r \u00a76Rasengan! " + (nearby.size() + 1) + " enemies hit."));
+                syncToClient(player);
+            }
+
+            // Beast Master: Tiger Claw — schedule delayed extra hits (0.2s apart)
+            if (sd.getBmActiveBuff() == SkillType.TIGER_CLAW && !event.getSource().isIndirect()
+                    && !SkillExecutor.executingSkill) {
+                int tcLv = sd.getLevel(SkillType.TIGER_CLAW);
+                boolean enhanced = sd.isBmEnhanced();
+                int extraHits = BeastMasterSkills.getExtraHits(tcLv);
+                int tcmLv = sd.getLevel(SkillType.TIGER_CLAW_MASTERY);
+                int tcm2Lv = sd.getLevel(SkillType.TIGER_CLAW_MASTERY_2);
+                extraHits += BeastMasterSkills.getTigerClawMasteryHits(tcmLv);
+                extraHits += BeastMasterSkills.getTigerClawMasteryHits(tcm2Lv);
+                if (enhanced) extraHits *= 2; // Enhanced doubles hit count
+                float hitPct = BeastMasterSkills.getHitDamagePct(tcLv);
+                float tcmDmgBonus = BeastMasterSkills.getTigerClawMasteryDmg(tcmLv)
+                                  + BeastMasterSkills.getTigerClawMasteryDmg(tcm2Lv);
+                // Master of Nature: +1% enhanced damage per level
+                if (enhanced) {
+                    int monLv = sd.getLevel(SkillType.MASTER_OF_NATURE);
+                    if (monLv > 0) tcmDmgBonus += monLv * 0.01f;
+                }
+                // Boost the triggering melee hit with mastery damage
+                if (tcmDmgBonus > 0) {
+                    amount *= (1.0f + tcmDmgBonus);
+                    event.setAmount(amount);
+                }
+                // Extra hits based on the boosted amount (no double-apply)
+                float extraDmg = amount * hitPct;
+                // Schedule delayed hits
+                sd.setTigerClawHitsLeft(extraHits);
+                sd.setTigerClawTargetId(event.getEntity().getId());
+                sd.setTigerClawDmg(extraDmg);
+                sd.setTigerClawTimer(4); // first hit after 0.2s
+                // Clear buff
+                sd.setBmActiveBuff(null);
+                sd.setBmBuffTicks(0);
+                sd.setBmEnhanced(false);
+                String name = enhanced ? "Enhanced Tiger Claw" : "Tiger Claw";
+                player.sendSystemMessage(Component.literal(
+                        "\u00a7b[System]\u00a7r \u00a76" + name + "! " + extraHits + " extra hits!"));
+                syncToClient(player);
+            }
+
+            // Beast Master: Bear Paw — stun + debuffs on next melee
+            if (sd.getBmActiveBuff() == SkillType.BEAR_PAW && !event.getSource().isIndirect()
+                    && !SkillExecutor.executingSkill) {
+                LivingEntity target = event.getEntity();
+                int bpLv = sd.getLevel(SkillType.BEAR_PAW);
+                boolean enhanced = sd.isBmEnhanced();
+                float stunSec = BeastMasterSkills.getStunDuration(bpLv);
+                int bpmLv = sd.getLevel(SkillType.BEAR_PAW_MASTERY);
+                int bpm2Lv = sd.getLevel(SkillType.BEAR_PAW_MASTERY_2);
+                int bpmTotal = bpmLv + bpm2Lv;
+                if (bpmTotal > 0) stunSec += bpmTotal * 0.1f;
+                if (enhanced) stunSec *= 2;
+                int stunTicks = (int) (stunSec * 20);
+                target.addEffect(new MobEffectInstance(MobEffects.MOVEMENT_SLOWDOWN, stunTicks, 99, false, true));
+                target.addEffect(new MobEffectInstance(MobEffects.WEAKNESS, stunTicks, 0, false, true));
+                target.addEffect(new MobEffectInstance(MobEffects.DARKNESS, stunTicks, 0, false, true));
+                // Final damage boost from Bear Paw Mastery (T2+T3) + Master of Nature
+                float bpDmgBonus = BeastMasterSkills.getBearPawMasteryDmg(bpmLv)
+                                 + BeastMasterSkills.getBearPawMasteryDmg(bpm2Lv);
+                if (enhanced) {
+                    int monLv = sd.getLevel(SkillType.MASTER_OF_NATURE);
+                    if (monLv > 0) bpDmgBonus += monLv * 0.01f;
+                }
+                if (bpDmgBonus > 0) {
+                    amount *= (1.0f + bpDmgBonus);
+                    event.setAmount(amount);
+                }
+                if (player.level() instanceof ServerLevel sl) {
+                    SkillParticles.burst(sl, target.getX(), target.getY() + 1, target.getZ(),
+                            10, 0.4, ParticleTypes.ENCHANTED_HIT);
+                    SkillSounds.playAt(sl, target.getX(), target.getY(), target.getZ(),
+                            SoundEvents.RAVAGER_STUNNED, 0.7f, 1.0f);
+                }
+                String name = enhanced ? "Enhanced Bear Paw" : "Bear Paw";
+                sd.setBmActiveBuff(null);
+                sd.setBmBuffTicks(0);
+                sd.setBmEnhanced(false);
+                player.sendSystemMessage(Component.literal(
+                        "\u00a7b[System]\u00a7r \u00a76" + name + "! Stunned for " + String.format("%.1f", stunSec) + "s!"));
+                syncToClient(player);
+            }
+
+            // Beast Master: Phoenix Wings lifesteal on melee hit
+            if (sd.getPhoenixLifestealHits() > 0 && !event.getSource().isIndirect()
+                    && !SkillExecutor.executingSkill) {
+                float lifestealPct = sd.getPhoenixLifestealPct();
+                float healAmount = amount * lifestealPct;
+                if (healAmount > 0) {
+                    player.heal(healAmount);
+                    CombatLog.heal(player, "Phoenix Wings", healAmount);
+                    if (player.level() instanceof ServerLevel sl) {
+                        SkillSounds.playAt(sl, player.getX(), player.getY(), player.getZ(),
+                                SoundEvents.CHICKEN_HURT, 0.7f, 1.2f + sl.random.nextFloat() * 0.3f);
+                    }
+                }
+                sd.setPhoenixLifestealHits(sd.getPhoenixLifestealHits() - 1);
+                if (sd.getPhoenixLifestealHits() <= 0) {
+                    sd.setPhoenixLifestealPct(0);
+                    if (sd.getBmActiveBuff() == SkillType.PHOENIX_WINGS) {
+                        sd.setBmActiveBuff(null);
+                        sd.setBmBuffTicks(0);
+                        sd.setBmEnhanced(false);
+                    }
+                    player.sendSystemMessage(Component.literal(
+                            "\u00a7b[System]\u00a7r \u00a77Phoenix Wings lifesteal consumed."));
+                    syncToClient(player);
+                }
+            }
+
             // Passive: Rage — +2% damage per level when below 50% HP, +0.5% lifesteal
             int rageLv = sd.getLevel(SkillType.RAGE);
             if (rageLv > 0) {
@@ -742,14 +1084,14 @@ public class StatEventHandler {
                 }
             }
 
-            // Crit calculation: base LUK crit + Critical Edge + Sharp Eyes + Arcane Overdrive + Evasion crit ready + Berserker Spirit
+            // Crit calculation: Sight-based + Critical Edge + Sharp Eyes + Arcane Overdrive + Evasion crit ready + Berserker Spirit
             double critRate = 0;
             double critDmgBonus = 1.5;
 
-            int luk = stats.getLuck();
-            if (luk > 1) {
-                critRate += (luk - 1) * 0.001;
-                critDmgBonus += ((luk - 1) / 50) * 0.10;
+            int sig = stats.getSight();
+            if (sig > 1) {
+                critRate += (sig - 1) * 0.001;
+                critDmgBonus += (sig - 1) * 0.002;
             }
 
             int ceLv = sd.getLevel(SkillType.CRITICAL_EDGE);
@@ -783,6 +1125,12 @@ public class StatEventHandler {
                 CombatLog.heal(player, "Berserker", bsHeal);
             }
 
+            // Kunai Mastery crit bonus
+            float kmCrit = NinjaSkills.getKunaiMasteryCritBonus(stats);
+            if (kmCrit > 0) {
+                critRate += kmCrit / 100.0;
+            }
+
             // Evasion crit ready (guaranteed crit on next hit after dodge)
             if (sd.isEvasionCritReady()) {
                 critRate = 1.0;
@@ -811,6 +1159,8 @@ public class StatEventHandler {
                     int saLv = sd.getLevel(SkillType.SOUL_ARROW);
                     projMult += 0.05f + saLv * 0.01f;
                 }
+                // Kunai Mastery projectile damage
+                projMult *= NinjaSkills.getKunaiMasteryProjectileMultiplier(stats);
                 amount *= projMult;
             }
 
@@ -911,6 +1261,15 @@ public class StatEventHandler {
             return;
         }
 
+        // Shadow Clone melee damage → log to owner
+        if (event.getSource().getEntity() instanceof com.monody.projectleveling.entity.ninja.ShadowCloneEntity clone) {
+            ServerPlayer owner = clone.getOwnerPlayer();
+            if (owner != null) {
+                CombatLog.damage(owner, "Clone", event.getAmount(), event.getEntity());
+            }
+            return;
+        }
+
         if (!(event.getSource().getEntity() instanceof ServerPlayer player)) return;
         // Shadow Partner melee has its own logging
         if (event.getSource().getDirectEntity() instanceof ShadowPartnerEntity) return;
@@ -981,6 +1340,36 @@ public class StatEventHandler {
             if (sd.isToggleActive(SkillType.STEALTH)) {
                 AssassinSkills.breakStealth(player, sd);
                 syncToClient(player);
+            }
+
+            // Substitution Jutsu: negate first hit, teleport behind attacker
+            if (sd.getSubstitutionTicks() > 0) {
+                sd.setSubstitutionTicks(0);
+                event.setCanceled(true);
+                if (event.getSource().getEntity() instanceof net.minecraft.world.entity.LivingEntity attacker) {
+                    Vec3 behind = attacker.position().subtract(attacker.getLookAngle().scale(2.0));
+                    player.teleportTo(behind.x, behind.y, behind.z);
+                    // Look at the attacker
+                    double dx = attacker.getX() - player.getX();
+                    double dy = (attacker.getEyeY()) - player.getEyeY();
+                    double dz = attacker.getZ() - player.getZ();
+                    double dist = Math.sqrt(dx * dx + dz * dz);
+                    float yRot = (float) (Math.atan2(dz, dx) * (180.0 / Math.PI)) - 90.0f;
+                    float xRot = (float) -(Math.atan2(dy, dist) * (180.0 / Math.PI));
+                    player.setYRot(yRot);
+                    player.setXRot(xRot);
+                    player.setYHeadRot(yRot);
+                }
+                player.addEffect(new MobEffectInstance(MobEffects.MOVEMENT_SPEED, 20, 1, false, false));
+                if (player.level() instanceof ServerLevel sl) {
+                    SkillParticles.burst(sl, player.getX(), player.getY() + 1, player.getZ(), 15, 0.5, ParticleTypes.CLOUD);
+                    SkillParticles.burst(sl, player.getX(), player.getY() + 1, player.getZ(), 10, 0.3, ParticleTypes.SMOKE);
+                    SkillSounds.playAt(player, SoundEvents.ILLUSIONER_MIRROR_MOVE, 0.5f, 1.5f);
+                }
+                player.sendSystemMessage(Component.literal(
+                        "\u00a7b[System]\u00a7r \u00a7eSubstitution! Dodged and repositioned."));
+                syncToClient(player);
+                return;
             }
 
             // Passive: Evasion — 2% dodge per level, dodge guarantees next crit

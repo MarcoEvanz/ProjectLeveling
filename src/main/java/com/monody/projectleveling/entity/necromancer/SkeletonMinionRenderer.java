@@ -12,6 +12,8 @@ public class SkeletonMinionRenderer extends HumanoidMobRenderer<SkeletonMinionEn
 
     private static final ResourceLocation SKELETON_TEXTURE =
             new ResourceLocation("textures/entity/skeleton/skeleton.png");
+    private static final ResourceLocation WITHER_SKELETON_TEXTURE =
+            new ResourceLocation("textures/entity/skeleton/wither_skeleton.png");
 
     public SkeletonMinionRenderer(EntityRendererProvider.Context context) {
         super(context, new SkeletonModel<>(context.bakeLayer(ModelLayers.SKELETON)), 0.5f);
@@ -23,7 +25,14 @@ public class SkeletonMinionRenderer extends HumanoidMobRenderer<SkeletonMinionEn
     }
 
     @Override
+    protected void scale(SkeletonMinionEntity entity, com.mojang.blaze3d.vertex.PoseStack poseStack, float partialTick) {
+        if (entity.isWitherVariant()) {
+            poseStack.scale(1.2f, 1.2f, 1.2f);
+        }
+    }
+
+    @Override
     public ResourceLocation getTextureLocation(SkeletonMinionEntity entity) {
-        return SKELETON_TEXTURE;
+        return entity.isWitherVariant() ? WITHER_SKELETON_TEXTURE : SKELETON_TEXTURE;
     }
 }

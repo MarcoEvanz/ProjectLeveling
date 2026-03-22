@@ -208,7 +208,7 @@ public final class WarriorSkills {
     private static void executeGroundSlam(ServerPlayer player, PlayerStats stats, SkillData sd, int level) {
         stats.setCurrentMp(stats.getCurrentMp() - SkillType.GROUND_SLAM.getMpCost(level));
         double range = 3 + level * 0.15 + stats.getStrength() * 0.05;
-        float damage = 2 + level * 0.5f + stats.getStrength() * 0.1f;
+        float damage = 2 + level * 0.5f + stats.getStrength() * 0.1f + SkillExecutor.getWeaponDamage(player);
         int stunDuration = (1 + level / 5) * 20;
         AABB area = player.getBoundingBox().inflate(range);
         List<Monster> mobs = player.level().getEntitiesOfClass(Monster.class, area);
@@ -247,7 +247,7 @@ public final class WarriorSkills {
     public static void tickDomain(ServerPlayer player, PlayerStats stats, SkillData sd) {
         int level = sd.getLevel(SkillType.DOMAIN_OF_MONARCH);
         double radius = 2 + level * 0.3 + stats.getStrength() * 0.1;
-        float damage = 0.5f + level * 0.15f + stats.getStrength() * 0.05f;
+        float damage = 0.5f + level * 0.15f + stats.getStrength() * 0.05f + SkillExecutor.getWeaponDamage(player) * 0.2f;
         AABB area = new AABB(
                 sd.getDomainX() - radius, sd.getDomainY() - radius, sd.getDomainZ() - radius,
                 sd.getDomainX() + radius, sd.getDomainY() + radius, sd.getDomainZ() + radius);
@@ -307,7 +307,7 @@ public final class WarriorSkills {
         switch (skill) {
             case BLOODLUST -> {
                 float radius = 4 + level * 0.3f;
-                float dmg = (2 + level * 0.5f) * multiplier;
+                float dmg = (2 + level * 0.5f + SkillExecutor.getWeaponDamage(player)) * multiplier;
                 List<Monster> mobs = sl.getEntitiesOfClass(Monster.class,
                         partner.getBoundingBox().inflate(radius));
                 for (Monster mob : mobs) {
@@ -328,7 +328,7 @@ public final class WarriorSkills {
             }
             case GROUND_SLAM -> {
                 float radius = 5 + level * 0.2f;
-                float dmg = (4 + level * 1.0f + stats.getStrength() * 0.3f) * multiplier;
+                float dmg = (4 + level * 1.0f + stats.getStrength() * 0.3f + SkillExecutor.getWeaponDamage(player)) * multiplier;
                 List<Monster> mobs = sl.getEntitiesOfClass(Monster.class,
                         partner.getBoundingBox().inflate(radius));
                 for (Monster mob : mobs) {
@@ -340,7 +340,7 @@ public final class WarriorSkills {
             }
             case DOMAIN_OF_MONARCH -> {
                 float radius = 3 + level * 0.2f;
-                float dmg = (1 + level * 0.3f + stats.getStrength() * 0.1f) * multiplier;
+                float dmg = (1 + level * 0.3f + stats.getStrength() * 0.1f + SkillExecutor.getWeaponDamage(player)) * multiplier;
                 List<Monster> mobs = sl.getEntitiesOfClass(Monster.class,
                         partner.getBoundingBox().inflate(radius));
                 for (Monster mob : mobs) {

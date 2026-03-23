@@ -64,7 +64,7 @@ public enum SkillType {
 
     // --- Mage (INT) ---
     FLAME_ORB("flame_orb", "Flame Orb", 10, 1, PlayerClass.MAGE, 10, false, false,
-            16, 12, 120, 60,
+            16, 12, 140, 100,
             "Launch a fireball that explodes on impact. Leaves fire patch.", "FO"),
     MAGIC_GUARD("magic_guard", "Magic Guard", 10, 1, PlayerClass.MAGE, 10, true, false,
             30, 15, 0, 0,
@@ -231,7 +231,7 @@ public enum SkillType {
 
     // --- Warrior ---
     BEAM_BLADE("beam_blade", "Beam Blade", 20, 3, PlayerClass.WARRIOR, 60, false, false,
-            30, 22, 100, 100,
+            30, 22, 80, 80,
             "Launch a piercing blade. Hits all enemies in a line.", "BB"),
     UNBREAKABLE("unbreakable", "Unbreakable", 20, 3, PlayerClass.WARRIOR, 60, false, true,
             0, 0, 0, 0,
@@ -246,7 +246,7 @@ public enum SkillType {
             "Pull nearby enemies toward you with telekinetic force.", "RA"),
     SHADOW_PARTNER("shadow_partner", "Shadow Partner", 20, 3, PlayerClass.ASSASSIN, 60, true, false,
             40, 20, 0, 0,
-            "Toggle. Shadow clone mirrors attacks at 30-50% damage.", "SP"),
+            "Toggle. Shadow clone mirrors attacks at 30-40% damage.", "SP"),
     FATAL_BLOW("fatal_blow", "Fatal Blow", 20, 3, PlayerClass.ASSASSIN, 60, false, true,
             0, 0, 0, 0,
             "Passive. +2% damage per level vs low HP mobs. Execute chance.", "FB"),
@@ -278,7 +278,7 @@ public enum SkillType {
 
     // --- Mage ---
     MIST_ERUPTION("mist_eruption", "Mist Eruption", 20, 3, PlayerClass.MAGE, 60, false, false,
-            48, 35, 900, 450,
+            48, 35, 900, 350,
             "Detonate Poison Mist for massive burst damage.", "ME"),
     INFINITY("infinity", "Infinity", 20, 3, PlayerClass.MAGE, 60, false, false,
             65, 45, 2400, 1200,

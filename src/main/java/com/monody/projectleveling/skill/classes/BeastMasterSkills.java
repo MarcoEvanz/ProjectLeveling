@@ -397,9 +397,9 @@ public final class BeastMasterSkills {
         return level >= 10 ? 3 : 2;
     }
 
-    /** Per-hit damage %: 10% at lv1, 30% at lv10. */
+    /** Per-hit damage %: 15% at lv1, 40% at lv10. */
     public static float getHitDamagePct(int level) {
-        return 0.10f + (level - 1) * (0.20f / 9);
+        return 0.15f + (level - 1) * (0.25f / 9);
     }
 
     /** Shield %: 5% at lv1, 20% at lv10. */

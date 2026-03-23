@@ -67,9 +67,9 @@ public final class WarriorSkills {
         return 0.05f + (level - 1) * (0.15f / 14.0f);
     }
 
-    /** Final Attack trigger chance: 10% at lv1, ~40% at lv15 */
+    /** Final Attack trigger chance: 15% at lv1, ~50% at lv15 */
     public static float getFinalAttackChance(int level) {
-        return 10 + (level - 1) * (30.0f / 14.0f);
+        return 15 + (level - 1) * (35.0f / 14.0f);
     }
 
     /** Beam Blade ATK multiplier: ATK × this value. T3 buffed (~430% at max) */

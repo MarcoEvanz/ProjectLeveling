@@ -356,7 +356,7 @@ public final class ArcherSkills {
         AABB area = player.getBoundingBox().inflate(range);
         List<Monster> mobs = player.level().getEntitiesOfClass(Monster.class, area);
         if (!mobs.isEmpty()) {
-            for (int i = 0; i < 3; i++) {
+            for (int i = 0; i < 2; i++) {
                 Monster target = mobs.get(i % mobs.size());
                 SkillArrowEntity arrow = new SkillArrowEntity(
                         player.level(), player, SkillArrowEntity.ArrowType.HURRICANE, damage, 0, 0);

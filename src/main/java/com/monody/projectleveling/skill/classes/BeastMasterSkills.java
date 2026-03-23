@@ -23,7 +23,7 @@ public final class BeastMasterSkills {
 
     public static final SkillType[] ALL = {
             SkillType.TIGER_CLAW, SkillType.TURTLE_SHELL, SkillType.BEAR_PAW,
-            SkillType.PHOENIX_WINGS, SkillType.POWER_OF_NATURE,
+            SkillType.PHOENIX_WINGS, SkillType.POWER_OF_NATURE, SkillType.PREDATOR_INSTINCT,
     };
 
     private static final SkillType[] BASIC_SKILLS = {
@@ -178,6 +178,14 @@ public final class BeastMasterSkills {
                 lines.add(new int[]{TEXT_VALUE});
                 texts.add("Applies when Power of Nature is consumed");
                 lines.add(new int[]{TEXT_DIM});
+            }
+            case PREDATOR_INSTINCT -> {
+                texts.add("Crit rate: +" + String.format("%.1f", level * 1.5f) + "%");
+                lines.add(new int[]{TEXT_VALUE});
+                texts.add("Crit damage: +" + (level * 2) + "%");
+                lines.add(new int[]{TEXT_VALUE});
+                texts.add("Crits grant Speed I for 2s");
+                lines.add(new int[]{TEXT_VALUE});
             }
             default -> {}
         }

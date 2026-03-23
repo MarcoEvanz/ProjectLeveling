@@ -18,7 +18,7 @@ import net.minecraft.world.level.Level;
 import javax.annotation.Nullable;
 import java.util.List;
 
-public class ShurikenItem extends SwordItem {
+public class ShurikenItem extends SwordItem implements TaggedWeapon {
 
     public ShurikenItem(Tier tier, Properties properties) {
         // Same stats as kunai: attackDamageModifier = 1, attackSpeedModifier = -2.2f (speed 1.8)
@@ -44,6 +44,9 @@ public class ShurikenItem extends SwordItem {
         player.getCooldowns().addCooldown(this, 20); // 1 second cooldown
         return InteractionResultHolder.sidedSuccess(stack, level.isClientSide());
     }
+
+    @Override
+    public WeaponTag getWeaponTag() { return WeaponTag.SHURIKEN; }
 
     @Override
     public void appendHoverText(ItemStack stack, @Nullable Level level, List<Component> tooltip, TooltipFlag flag) {

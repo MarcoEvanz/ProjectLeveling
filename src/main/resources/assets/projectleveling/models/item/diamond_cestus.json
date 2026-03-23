@@ -1,0 +1,6 @@
+{
+  "parent": "minecraft:item/handheld",
+  "textures": {
+    "layer0": "projectleveling:item/diamond_cestus"
+  }
+}

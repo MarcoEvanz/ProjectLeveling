@@ -11,8 +11,12 @@ import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.ai.attributes.AttributeModifier;
 import net.minecraft.world.entity.ai.attributes.Attributes;
+import com.monody.projectleveling.item.TaggedWeapon;
+import com.monody.projectleveling.item.WeaponTag;
+import net.minecraft.world.item.AxeItem;
 import net.minecraft.world.item.BowItem;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.SwordItem;
 
 public class SkillExecutor {
 
@@ -82,11 +86,10 @@ public class SkillExecutor {
             return;
         }
 
-        // Archer skills require holding a bow
-        if (skill.getRequiredClass() == PlayerClass.ARCHER
-                && !(player.getMainHandItem().getItem() instanceof BowItem)) {
-            player.sendSystemMessage(Component.literal(
-                    "\u00a7cYou must hold a bow to use Archer skills!"));
+        // Weapon restriction per class
+        String weaponError = checkWeaponRestriction(player, skill);
+        if (weaponError != null) {
+            player.sendSystemMessage(Component.literal("\u00a7c" + weaponError));
             return;
         }
 
@@ -124,6 +127,57 @@ public class SkillExecutor {
         }
 
         StatEventHandler.syncToClient(player);
+    }
+
+    // ================================================================
+    // Weapon restriction check
+    // ================================================================
+
+    private static String checkWeaponRestriction(ServerPlayer player, SkillType skill) {
+        PlayerClass cls = skill.getRequiredClass();
+        if (cls == null) return null; // Novice skills — no restriction
+
+        ItemStack weapon = player.getMainHandItem();
+        WeaponTag tag = TaggedWeapon.getTag(weapon);
+        boolean bareHand = weapon.isEmpty();
+
+        return switch (cls) {
+            case WARRIOR -> {
+                // Sword/Axe: mod's Greatsword/Warhammer OR vanilla SwordItem/AxeItem
+                if (tag == WeaponTag.SWORD || tag == WeaponTag.AXE
+                        || weapon.getItem() instanceof SwordItem
+                        || weapon.getItem() instanceof AxeItem)
+                    yield null;
+                yield "You must hold a sword or axe to use Warrior skills!";
+            }
+            case ASSASSIN -> {
+                // Dagger or bare hand
+                if (tag == WeaponTag.DAGGER || bareHand)
+                    yield null;
+                yield "You must hold a dagger or bare hand to use Assassin skills!";
+            }
+            case ARCHER -> {
+                // Any bow (mod or vanilla)
+                if (weapon.getItem() instanceof BowItem)
+                    yield null;
+                yield "You must hold a bow to use Archer skills!";
+            }
+            case BEAST_MASTER -> {
+                // Bare hand or Cestus
+                if (bareHand || tag == WeaponTag.CESTUS)
+                    yield null;
+                yield "You must use bare hand or cestus to use Beast Master skills!";
+            }
+            case NINJA -> {
+                // Kunai, Shuriken, or bare hand
+                if (tag == WeaponTag.KUNAI || tag == WeaponTag.SHURIKEN || bareHand)
+                    yield null;
+                yield "You must hold a kunai, shuriken, or bare hand to use Ninja skills!";
+            }
+            // Mage, Necromancer, Healer — no restriction
+            case MAGE, NECROMANCER, HEALER -> null;
+            default -> null;
+        };
     }
 
     // ================================================================

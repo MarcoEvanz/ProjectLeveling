@@ -33,6 +33,17 @@ public final class HealerSkills {
     private HealerSkills() {}
 
     // ================================================================
+    // MATK multiplier helpers (damage only, healing stays flat)
+    // ================================================================
+
+    /** Holy Light damage: MATK × this value. Undead full, others 50%. (~30% reduced) */
+    public static float getHolyLightDmgMultiplier(int level, int fai) { return 0.70f + level * 0.06f + fai * 0.014f; }
+    /** Benediction per-tick damage: MATK × this value. (~30% reduced) */
+    public static float getBenedictionDmgMultiplier(int level, int fai) { return 0.28f + level * 0.02f + fai * 0.004f; }
+    /** Angel Ray damage: MATK × this value. (~30% reduced) */
+    public static float getAngelRayMultiplier(int level, int fai) { return 1.00f + level * 0.07f + fai * 0.014f; }
+
+    // ================================================================
     // Tooltips
     // ================================================================
 
@@ -42,10 +53,10 @@ public final class HealerSkills {
             // === T1 ===
             case HOLY_LIGHT -> {
                 float heal = 2 + level * 0.8f + stats.getFaith() * 0.15f + stats.getHealingPower();
-                float undeadDmg = 1 + level * 0.5f + stats.getFaith() * 0.1f + stats.getHealingPower() + stats.getMagicAttack();
+                float dmgMult = getHolyLightDmgMultiplier(level, stats.getFaith()) * 100;
                 texts.add("Heal: " + String.format("%.1f", heal) + " HP (FAI scales)");
                 lines.add(new int[]{TEXT_VALUE});
-                texts.add("Undead dmg: " + String.format("%.1f", undeadDmg) + " (FAI+MATK scales)");
+                texts.add("Undead dmg: MATK x " + String.format("%.0f", dmgMult) + "% (others 50%)");
                 lines.add(new int[]{TEXT_VALUE});
                 texts.add("Range: 6 blocks (self + allies)");
                 lines.add(new int[]{TEXT_DIM});
@@ -99,26 +110,25 @@ public final class HealerSkills {
             case BENEDICTION -> {
                 int dur = 15 + level;
                 double radius = 4 + level * 0.2 + stats.getFaith() * 0.05;
-                float tickDmg = 0.5f + level * 0.1f + stats.getFaith() * 0.03f + stats.getHealingPower() * 0.2f + stats.getMagicAttack() * 0.3f;
+                float dmgMult = getBenedictionDmgMultiplier(level, stats.getFaith()) * 100;
                 texts.add("Duration: " + dur + "s");
                 lines.add(new int[]{TEXT_VALUE});
                 texts.add("Radius: " + String.format("%.1f", radius) + " blocks (FAI scales)");
                 lines.add(new int[]{TEXT_VALUE});
                 texts.add("Allies: Regen II + Strength I each sec");
                 lines.add(new int[]{TEXT_VALUE});
-                texts.add("Enemies: " + String.format("%.1f", tickDmg) + " DPS + Slowness I");
+                texts.add("Enemies: MATK x " + String.format("%.0f", dmgMult) + "% DPS + Slowness I");
                 lines.add(new int[]{TEXT_VALUE});
                 texts.add("Stationary zone");
                 lines.add(new int[]{TEXT_DIM});
             }
             case ANGEL_RAY -> {
-                float dmg = 2 + level * 0.6f + stats.getFaith() * 0.15f + stats.getHealingPower() + stats.getMagicAttack();
-                float heal = dmg * 0.3f;
-                texts.add("Damage: " + String.format("%.1f", dmg) + " (FAI+MATK scales)");
+                float mult = getAngelRayMultiplier(level, stats.getFaith()) * 100;
+                texts.add("Damage: MATK x " + String.format("%.0f", mult) + "%");
                 lines.add(new int[]{TEXT_VALUE});
                 texts.add("AoE radius: 3 blocks on impact");
                 lines.add(new int[]{TEXT_VALUE});
-                texts.add("Heals allies: " + String.format("%.1f", heal) + " HP");
+                texts.add("Heals allies: 30% of damage dealt");
                 lines.add(new int[]{TEXT_VALUE});
                 texts.add("Holy projectile, damages + heals");
                 lines.add(new int[]{TEXT_DIM});
@@ -133,6 +143,10 @@ public final class HealerSkills {
                 texts.add("Damage: +" + (level * 2) + "%");
                 lines.add(new int[]{TEXT_VALUE});
                 texts.add("Damage vs undead: +" + (level * 3) + "%");
+                lines.add(new int[]{TEXT_VALUE});
+                texts.add("Crit rate: +" + String.format("%.1f", level * 0.5f) + "%");
+                lines.add(new int[]{TEXT_VALUE});
+                texts.add("Crit damage: +" + level + "%");
                 lines.add(new int[]{TEXT_VALUE});
                 texts.add("MATK scaling: +" + String.format("%.0f", level * 1.5f) + "% of MATK added to skills");
                 lines.add(new int[]{TEXT_VALUE});
@@ -174,7 +188,7 @@ public final class HealerSkills {
             p.heal(healAmount);
         }
         // Damage mobs (full damage to undead, 50% to others)
-        float holyDamage = 1 + level * 0.5f + stats.getFaith() * 0.1f + stats.getHealingPower() + stats.getMagicAttack(player);
+        float holyDamage = stats.getMagicAttack(player) * getHolyLightDmgMultiplier(level, stats.getFaith());
         int hfLv = sd.getLevel(SkillType.HOLY_FERVOR);
         if (hfLv > 0) {
             holyDamage *= 1.0f + hfLv * 0.02f;
@@ -313,7 +327,7 @@ public final class HealerSkills {
 
     private static void executeAngelRay(ServerPlayer player, PlayerStats stats, SkillData sd, int level) {
         stats.setCurrentMp(stats.getCurrentMp() - SkillType.ANGEL_RAY.getMpCost(level));
-        float damage = 2 + level * 0.6f + stats.getFaith() * 0.15f + stats.getHealingPower() + stats.getMagicAttack(player);
+        float damage = stats.getMagicAttack(player) * getAngelRayMultiplier(level, stats.getFaith());
         int hfLv = sd.getLevel(SkillType.HOLY_FERVOR);
         if (hfLv > 0) damage *= 1.0f + hfLv * 0.02f;
         float aoeRadius = 3.0f;
@@ -338,7 +352,7 @@ public final class HealerSkills {
     public static void tickBenediction(ServerPlayer player, PlayerStats stats, SkillData sd) {
         int level = sd.getLevel(SkillType.BENEDICTION);
         double radius = 4 + level * 0.2 + stats.getFaith() * 0.05;
-        float damage = 0.5f + level * 0.1f + stats.getFaith() * 0.03f + stats.getHealingPower() * 0.2f + stats.getMagicAttack(player) * 0.3f;
+        float damage = stats.getMagicAttack(player) * getBenedictionDmgMultiplier(level, stats.getFaith());
         int hfLv = sd.getLevel(SkillType.HOLY_FERVOR);
         if (hfLv > 0) damage *= 1.0f + hfLv * 0.02f;
         AABB area = new AABB(
@@ -378,7 +392,7 @@ public final class HealerSkills {
                 float healAmt = (1 + level * 0.4f + stats.getFaith() * 0.08f + stats.getHealingPower()) * multiplier;
                 player.heal(healAmt);
                 CombatLog.heal(player, "Shadow Holy Light", healAmt);
-                float undeadDmg = (0.5f + level * 0.25f + stats.getFaith() * 0.05f + stats.getHealingPower()) * multiplier;
+                float undeadDmg = stats.getMagicAttack(player) * getHolyLightDmgMultiplier(level, stats.getFaith()) * multiplier;
                 List<Monster> mobs = sl.getEntitiesOfClass(Monster.class,
                         partner.getBoundingBox().inflate(6),
                         m -> m.getMobType() == net.minecraft.world.entity.MobType.UNDEAD);
@@ -393,7 +407,7 @@ public final class HealerSkills {
                 SkillParticles.column(sl, pos.x, pos.z, pos.y, pos.y + 2, 0.3, 8, ParticleTypes.END_ROD);
             }
             case ANGEL_RAY -> {
-                float dmg = (2 + level * 0.8f + stats.getFaith() * 0.15f + stats.getHealingPower()) * multiplier;
+                float dmg = stats.getMagicAttack(player) * getAngelRayMultiplier(level, stats.getFaith()) * multiplier;
                 SkillFireballEntity ray = new SkillFireballEntity(sl, partner,
                         look.x, look.y, look.z,
                         SkillFireballEntity.FireballType.ANGEL_RAY, dmg, 3.0f, level);

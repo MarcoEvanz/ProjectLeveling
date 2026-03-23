@@ -26,10 +26,21 @@ public final class NecromancerSkills {
             SkillType.LIFE_DRAIN, SkillType.RAISE_SKELETON, SkillType.DARK_PACT, SkillType.UNHOLY_FERVOR,
             SkillType.BONE_SHIELD, SkillType.CORPSE_EXPLOSION, SkillType.SOUL_SIPHON, SkillType.SKELETAL_MASTERY,
             SkillType.ARMY_OF_THE_DEAD, SkillType.DEATH_MARK, SkillType.UNDYING_WILL, SkillType.SOUL_LINK,
-            SkillType.ENHANCE_UNDEAD,
+            SkillType.ENHANCE_UNDEAD, SkillType.DARK_RESONANCE,
     };
 
     private NecromancerSkills() {}
+
+    // ========== MATK MULTIPLIER HELPERS ==========
+
+    /** Life Drain: MATK × this value. (~35% reduced) */
+    public static float getLifeDrainMultiplier(int level, int intel) { return 1.00f + level * 0.05f + intel * 0.008f; }
+    /** Corpse Explosion: MATK × this value. (~35% reduced) */
+    public static float getCorpseExplosionMultiplier(int level, int intel) { return 2.00f + level * 0.10f + intel * 0.013f; }
+    /** Death Mark DoT: MATK × this value per tick. (~35% reduced) */
+    public static float getDeathMarkDotMultiplier(int level, int intel) { return 0.40f + level * 0.025f + intel * 0.004f; }
+    /** Death Mark explode: MATK × this value. (~35% reduced) */
+    public static float getDeathMarkExplodeMultiplier(int level, int intel) { return 1.30f + level * 0.065f + intel * 0.010f; }
 
     // ========== TOOLTIPS ==========
 
@@ -39,9 +50,9 @@ public final class NecromancerSkills {
             // === T1 ===
             case LIFE_DRAIN -> {
                 float ldRange = 5 + level * 0.3f;
-                float ldDmg = 2 + level * 0.5f + stats.getIntelligence() * 0.1f;
+                float ldMult = getLifeDrainMultiplier(level, stats.getIntelligence()) * 100;
                 float ldHeal = 20 + level * 1.6f;
-                texts.add("Damage: " + String.format("%.1f", ldDmg) + " (INT scales)");
+                texts.add("Damage: MATK x " + String.format("%.0f", ldMult) + "%");
                 lines.add(new int[]{TEXT_VALUE});
                 texts.add("Range: " + String.format("%.1f", ldRange) + " blocks");
                 lines.add(new int[]{TEXT_VALUE});
@@ -89,8 +100,8 @@ public final class NecromancerSkills {
                 lines.add(new int[]{TEXT_VALUE});
             }
             case CORPSE_EXPLOSION -> {
-                float ceDmg = 5 + level * 1.0f + stats.getIntelligence() * 0.2f;
-                texts.add("Dmg/skeleton: " + String.format("%.1f", ceDmg) + " (INT scales)");
+                float ceMult = getCorpseExplosionMultiplier(level, stats.getIntelligence()) * 100;
+                texts.add("Dmg/skeleton: MATK x " + String.format("%.0f", ceMult) + "%");
                 lines.add(new int[]{TEXT_VALUE});
                 texts.add("Blast radius: 4 blocks per skeleton");
                 lines.add(new int[]{TEXT_VALUE});
@@ -131,9 +142,9 @@ public final class NecromancerSkills {
                 lines.add(new int[]{TEXT_DIM});
             }
             case DEATH_MARK -> {
-                float dmDot = 1 + level * 0.3f + stats.getIntelligence() * 0.08f;
+                float dotMult = getDeathMarkDotMultiplier(level, stats.getIntelligence()) * 100;
                 float dmDur = 10 + level * 0.5f;
-                texts.add("DoT: " + String.format("%.1f", dmDot) + "/s (INT scales)");
+                texts.add("DoT: MATK x " + String.format("%.0f", dotMult) + "%/s");
                 lines.add(new int[]{TEXT_VALUE});
                 texts.add("Duration: " + String.format("%.1f", dmDur) + "s");
                 lines.add(new int[]{TEXT_VALUE});
@@ -171,6 +182,14 @@ public final class NecromancerSkills {
                     lines.add(new int[]{TEXT_DIM});
                 }
             }
+            case DARK_RESONANCE -> {
+                texts.add("Crit rate: +" + level + "%");
+                lines.add(new int[]{TEXT_VALUE});
+                texts.add("Crit damage: +" + (level * 2) + "%");
+                lines.add(new int[]{TEXT_VALUE});
+                texts.add("Crits apply Wither I for 2s");
+                lines.add(new int[]{TEXT_VALUE});
+            }
             default -> {}
         }
     }
@@ -195,7 +214,7 @@ public final class NecromancerSkills {
     private static void executeLifeDrain(ServerPlayer player, PlayerStats stats, SkillData sd, int level) {
         stats.setCurrentMp(stats.getCurrentMp() - SkillType.LIFE_DRAIN.getMpCost(level));
         float range = 5 + level * 0.3f;
-        float damage = 2 + level * 0.5f + stats.getIntelligence() * 0.1f + stats.getMagicAttack(player);
+        float damage = stats.getMagicAttack(player) * getLifeDrainMultiplier(level, stats.getIntelligence());
         float healPct = 0.2f + level * 0.016f; // 20-36%
         AABB area = player.getBoundingBox().inflate(range);
         List<Monster> mobs = player.level().getEntitiesOfClass(Monster.class, area);
@@ -280,7 +299,7 @@ public final class NecromancerSkills {
         }
 
         stats.setCurrentMp(stats.getCurrentMp() - SkillType.CORPSE_EXPLOSION.getMpCost(level));
-        float damage = 5 + level * 1.0f + stats.getIntelligence() * 0.2f + stats.getMagicAttack(player);
+        float damage = stats.getMagicAttack(player) * getCorpseExplosionMultiplier(level, stats.getIntelligence());
 
         int detonated = 0;
         for (SkeletonMinionEntity skeleton : skeletons) {
@@ -398,7 +417,7 @@ public final class NecromancerSkills {
             sd.setDeathMarkTargetId(-1);
             return;
         }
-        float dotDmg = 1 + level * 0.3f + stats.getIntelligence() * 0.08f + stats.getMagicAttack(player) * 0.2f;
+        float dotDmg = stats.getMagicAttack(player) * getDeathMarkDotMultiplier(level, stats.getIntelligence());
         living.hurt(SkillDamageSource.get(player.level()), dotDmg);
         CombatLog.damageSkill(player, "Death Mark", dotDmg, living);
         if (player.level() instanceof ServerLevel sl) {
@@ -412,7 +431,7 @@ public final class NecromancerSkills {
         int level = sd.getLevel(SkillType.DEATH_MARK);
         if (level <= 0) return;
         float aoeRange = 6;
-        float aoeDmg = 3 + level * 0.7f + stats.getIntelligence() * 0.15f + stats.getMagicAttack(player);
+        float aoeDmg = stats.getMagicAttack(player) * getDeathMarkExplodeMultiplier(level, stats.getIntelligence());
         if (player.level() instanceof ServerLevel sl) {
             double dx = deadEntity.getX(), dy = deadEntity.getY(), dz = deadEntity.getZ();
             AABB area = deadEntity.getBoundingBox().inflate(aoeRange);

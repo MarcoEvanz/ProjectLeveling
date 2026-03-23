@@ -18,6 +18,43 @@ public class ModItems {
             DeferredRegister.create(Registries.CREATIVE_MODE_TAB, ProjectLeveling.MOD_ID);
 
     // ================================================================
+    // Greatswords — high damage (modifier 4), slower speed (1.2), +Melee Damage%
+    // ModSwordItem(tier, meleeDamage%, properties)
+    // Total ATK: Wood 4, Stone 5, Iron 6, Gold 4, Diamond 7, Netherite 8
+    // Melee Dmg: 4/8/12/10/16/20%
+    // ================================================================
+    public static final RegistryObject<Item> WOOD_SWORD = ITEMS.register("wood_sword",
+            () -> new ModSwordItem(Tiers.WOOD, 4f, new Item.Properties()));
+    public static final RegistryObject<Item> STONE_SWORD = ITEMS.register("stone_sword",
+            () -> new ModSwordItem(Tiers.STONE, 8f, new Item.Properties()));
+    public static final RegistryObject<Item> IRON_SWORD = ITEMS.register("iron_sword",
+            () -> new ModSwordItem(Tiers.IRON, 12f, new Item.Properties()));
+    public static final RegistryObject<Item> GOLD_SWORD = ITEMS.register("gold_sword",
+            () -> new ModSwordItem(Tiers.GOLD, 10f, new Item.Properties()));
+    public static final RegistryObject<Item> DIAMOND_SWORD = ITEMS.register("diamond_sword",
+            () -> new ModSwordItem(Tiers.DIAMOND, 16f, new Item.Properties()));
+    public static final RegistryObject<Item> NETHERITE_SWORD = ITEMS.register("netherite_sword",
+            () -> new ModSwordItem(Tiers.NETHERITE, 20f, new Item.Properties().fireResistant()));
+
+    // ================================================================
+    // Warhammers — vanilla axe ATK/speed per tier, +Melee Damage%
+    // ModAxeItem(tier, attackDamage, attackSpeed, meleeDamage%, properties)
+    // Melee Dmg: 4/8/12/10/16/20%
+    // ================================================================
+    public static final RegistryObject<Item> WOOD_AXE = ITEMS.register("wood_axe",
+            () -> new ModAxeItem(Tiers.WOOD, 6.0f, -3.2f, 4f, new Item.Properties()));
+    public static final RegistryObject<Item> STONE_AXE = ITEMS.register("stone_axe",
+            () -> new ModAxeItem(Tiers.STONE, 7.0f, -3.2f, 8f, new Item.Properties()));
+    public static final RegistryObject<Item> IRON_AXE = ITEMS.register("iron_axe",
+            () -> new ModAxeItem(Tiers.IRON, 6.0f, -3.1f, 12f, new Item.Properties()));
+    public static final RegistryObject<Item> GOLD_AXE = ITEMS.register("gold_axe",
+            () -> new ModAxeItem(Tiers.GOLD, 6.0f, -3.0f, 10f, new Item.Properties()));
+    public static final RegistryObject<Item> DIAMOND_AXE = ITEMS.register("diamond_axe",
+            () -> new ModAxeItem(Tiers.DIAMOND, 5.0f, -3.0f, 16f, new Item.Properties()));
+    public static final RegistryObject<Item> NETHERITE_AXE = ITEMS.register("netherite_axe",
+            () -> new ModAxeItem(Tiers.NETHERITE, 5.0f, -3.0f, 20f, new Item.Properties().fireResistant()));
+
+    // ================================================================
     // Staffs — 20% sword ATK, high MATK, slow speed (0.8)
     // ATK modifier: total ATK = 1(base) + modifier
     // Wood/Stone/Iron/Gold → 0 modifier (1 ATK), Diamond → 0 (1 ATK), Netherite → 1 (2 ATK)
@@ -74,6 +111,44 @@ public class ModItems {
             () -> new DaggerItem(Tiers.NETHERITE, 20, 40, new Item.Properties().fireResistant()));
 
     // ================================================================
+    // Cestus — very fast (2.2), low damage, +Melee Damage% (BeastMaster fist weapon)
+    // CestusItem(tier, meleeDamage%, properties)
+    // Total ATK: Wood 1, Stone 2, Iron 3, Gold 1, Diamond 4, Netherite 5
+    // Melee Dmg: 4/8/12/10/16/20%
+    // ================================================================
+    public static final RegistryObject<Item> WOOD_CESTUS = ITEMS.register("wood_cestus",
+            () -> new CestusItem(Tiers.WOOD, 4f, new Item.Properties()));
+    public static final RegistryObject<Item> STONE_CESTUS = ITEMS.register("stone_cestus",
+            () -> new CestusItem(Tiers.STONE, 8f, new Item.Properties()));
+    public static final RegistryObject<Item> IRON_CESTUS = ITEMS.register("iron_cestus",
+            () -> new CestusItem(Tiers.IRON, 12f, new Item.Properties()));
+    public static final RegistryObject<Item> GOLD_CESTUS = ITEMS.register("gold_cestus",
+            () -> new CestusItem(Tiers.GOLD, 10f, new Item.Properties()));
+    public static final RegistryObject<Item> DIAMOND_CESTUS = ITEMS.register("diamond_cestus",
+            () -> new CestusItem(Tiers.DIAMOND, 16f, new Item.Properties()));
+    public static final RegistryObject<Item> NETHERITE_CESTUS = ITEMS.register("netherite_cestus",
+            () -> new CestusItem(Tiers.NETHERITE, 20f, new Item.Properties().fireResistant()));
+
+    // ================================================================
+    // Bows — ranged, ATK feeds into skill damage, +Projectile Damage%
+    // ModBowItem(tier, attackDamage, projectileDamage%, properties)
+    // Total ATK: Wood 2, Stone 3, Iron 4, Gold 3, Diamond 5, Netherite 6
+    // Proj Dmg: 5/8/12/10/16/20%
+    // ================================================================
+    public static final RegistryObject<Item> WOOD_BOW = ITEMS.register("wood_bow",
+            () -> new ModBowItem(Tiers.WOOD, 2f, 5f, new Item.Properties()));
+    public static final RegistryObject<Item> STONE_BOW = ITEMS.register("stone_bow",
+            () -> new ModBowItem(Tiers.STONE, 3f, 8f, new Item.Properties()));
+    public static final RegistryObject<Item> IRON_BOW = ITEMS.register("iron_bow",
+            () -> new ModBowItem(Tiers.IRON, 4f, 12f, new Item.Properties()));
+    public static final RegistryObject<Item> GOLD_BOW = ITEMS.register("gold_bow",
+            () -> new ModBowItem(Tiers.GOLD, 3f, 10f, new Item.Properties()));
+    public static final RegistryObject<Item> DIAMOND_BOW = ITEMS.register("diamond_bow",
+            () -> new ModBowItem(Tiers.DIAMOND, 5f, 16f, new Item.Properties()));
+    public static final RegistryObject<Item> NETHERITE_BOW = ITEMS.register("netherite_bow",
+            () -> new ModBowItem(Tiers.NETHERITE, 6f, 20f, new Item.Properties().fireResistant()));
+
+    // ================================================================
     // Shuriken — fast (1.8), low damage, throwable with spinning
     // Same stats as Kunai
     // ================================================================
@@ -99,6 +174,20 @@ public class ModItems {
                     .title(Component.literal("Project Leveling"))
                     .icon(() -> IRON_STAFF.get().getDefaultInstance())
                     .displayItems((params, output) -> {
+                        // Greatswords
+                        output.accept(WOOD_SWORD.get());
+                        output.accept(STONE_SWORD.get());
+                        output.accept(IRON_SWORD.get());
+                        output.accept(GOLD_SWORD.get());
+                        output.accept(DIAMOND_SWORD.get());
+                        output.accept(NETHERITE_SWORD.get());
+                        // Warhammers
+                        output.accept(WOOD_AXE.get());
+                        output.accept(STONE_AXE.get());
+                        output.accept(IRON_AXE.get());
+                        output.accept(GOLD_AXE.get());
+                        output.accept(DIAMOND_AXE.get());
+                        output.accept(NETHERITE_AXE.get());
                         // Staffs
                         output.accept(WOOD_STAFF.get());
                         output.accept(STONE_STAFF.get());
@@ -120,6 +209,20 @@ public class ModItems {
                         output.accept(GOLD_DAGGER.get());
                         output.accept(DIAMOND_DAGGER.get());
                         output.accept(NETHERITE_DAGGER.get());
+                        // Cestus
+                        output.accept(WOOD_CESTUS.get());
+                        output.accept(STONE_CESTUS.get());
+                        output.accept(IRON_CESTUS.get());
+                        output.accept(GOLD_CESTUS.get());
+                        output.accept(DIAMOND_CESTUS.get());
+                        output.accept(NETHERITE_CESTUS.get());
+                        // Bows
+                        output.accept(WOOD_BOW.get());
+                        output.accept(STONE_BOW.get());
+                        output.accept(IRON_BOW.get());
+                        output.accept(GOLD_BOW.get());
+                        output.accept(DIAMOND_BOW.get());
+                        output.accept(NETHERITE_BOW.get());
                         // Shuriken
                         output.accept(WOOD_SHURIKEN.get());
                         output.accept(STONE_SHURIKEN.get());

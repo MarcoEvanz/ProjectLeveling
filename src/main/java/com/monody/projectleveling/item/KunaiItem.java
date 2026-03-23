@@ -24,7 +24,7 @@ import javax.annotation.Nullable;
 import java.util.List;
 import java.util.UUID;
 
-public class KunaiItem extends SwordItem {
+public class KunaiItem extends SwordItem implements TaggedWeapon {
     private static final UUID CRIT_RATE_UUID = UUID.fromString("C9A0E5F3-7D4B-4C13-AF89-5E3B201D6C74");
     private static final UUID CRIT_DAMAGE_UUID = UUID.fromString("D0B1F604-8E5C-4D24-B09A-6F4C302E7D85");
 
@@ -67,6 +67,9 @@ public class KunaiItem extends SwordItem {
         player.getCooldowns().addCooldown(this, 20); // 1 second cooldown
         return InteractionResultHolder.sidedSuccess(stack, level.isClientSide());
     }
+
+    @Override
+    public WeaponTag getWeaponTag() { return WeaponTag.KUNAI; }
 
     @Override
     public void appendHoverText(ItemStack stack, @Nullable Level level, List<Component> tooltip, TooltipFlag flag) {

@@ -43,9 +43,9 @@ public final class NinjaSkills {
         switch (skill) {
             // === T1 ===
             case SHURIKEN_JUTSU -> {
-                float dmg = 1 + level * 0.3f + stats.getAgility() * 0.05f + stats.getLuck() * 0.03f;
+                float mult = getShurikenJutsuMultiplier(level, stats.getAgility()) * 100;
                 int count = 5 + level / 3;
-                texts.add("Damage per shuriken: " + String.format("%.1f", dmg) + " (AGI+LUK scale)");
+                texts.add("Damage per shuriken: ATK x " + String.format("%.0f", mult) + "%");
                 lines.add(new int[]{TEXT_VALUE});
                 texts.add("Shurikens: " + count);
                 lines.add(new int[]{TEXT_VALUE});
@@ -62,10 +62,10 @@ public final class NinjaSkills {
                 lines.add(new int[]{TEXT_DIM});
             }
             case KUNAI_MASTERY -> {
-                float meleeBonus = stats.getAgility() * 0.08f * level / 10.0f;
+                float meleeMult = (level * 0.006f + stats.getAgility() * 0.001f) * 100;
                 float projBonus = level * 1.5f;
                 float critBonus = stats.getLuck() * 0.05f * level / 10.0f;
-                texts.add("Melee dmg: +" + String.format("%.2f", meleeBonus) + " (AGI scales)");
+                texts.add("Melee dmg: ATK x " + String.format("%.1f", meleeMult) + "%");
                 lines.add(new int[]{TEXT_VALUE});
                 texts.add("Projectile dmg: +" + String.format("%.1f", projBonus) + "%");
                 lines.add(new int[]{TEXT_VALUE});
@@ -95,8 +95,8 @@ public final class NinjaSkills {
                 lines.add(new int[]{TEXT_DIM});
             }
             case FLYING_RAIJIN -> {
-                float dmg = 3 + level * 0.5f + stats.getAgility() * 0.08f;
-                texts.add("Kunai damage: " + String.format("%.1f", dmg) + " (on hit)");
+                float mult = getFlyingRaijinMultiplier(level, stats.getAgility()) * 100;
+                texts.add("Kunai damage: ATK x " + String.format("%.0f", mult) + "%");
                 lines.add(new int[]{TEXT_VALUE});
                 texts.add("1st use: throw kunai, marks hit target");
                 lines.add(new int[]{TEXT_VALUE});
@@ -106,10 +106,10 @@ public final class NinjaSkills {
                 lines.add(new int[]{TEXT_DIM});
                 int rsgLv = stats.getSkillData().getLevel(SkillType.RASENGAN);
                 if (rsgLv > 0) {
-                    float comboDmg = 5 + getRasenganBonusDamage(stats, rsgLv);
+                    float comboMult = getRasenganMultiplier(rsgLv, stats.getAgility()) * 100;
                     texts.add("\u00a76Lv2 Combo: \u00a7fRasengan buff + marked target");
                     lines.add(new int[]{TEXT_VALUE});
-                    texts.add("  Deals " + String.format("%.1f", comboDmg) + " + 30% AoE splash");
+                    texts.add("  Deals ATK x " + String.format("%.0f", comboMult) + "% + 30% AoE splash");
                     lines.add(new int[]{TEXT_VALUE});
                 }
             }
@@ -130,10 +130,10 @@ public final class NinjaSkills {
 
             // === T3 ===
             case RASENGAN -> {
-                float bonusDmg = getRasenganBonusDamage(stats, level);
+                float mult = getRasenganMultiplier(level, stats.getAgility()) * 100;
                 texts.add("Empowers next melee attack");
                 lines.add(new int[]{TEXT_VALUE});
-                texts.add("Bonus damage: +" + String.format("%.1f", bonusDmg) + " (AGI+LUK scale)");
+                texts.add("Bonus damage: ATK x " + String.format("%.0f", mult) + "%");
                 lines.add(new int[]{TEXT_VALUE});
                 texts.add("AoE explosion: 2-block radius");
                 lines.add(new int[]{TEXT_VALUE});
@@ -143,7 +143,7 @@ public final class NinjaSkills {
                 lines.add(new int[]{TEXT_DIM});
             }
             case SAGE_MODE -> {
-                float dmgBoost = 20 + level;
+                float dmgBoost = 25 + level * 1.5f;
                 texts.add("Damage boost: +" + String.format("%.0f", dmgBoost) + "%");
                 lines.add(new int[]{TEXT_VALUE});
                 texts.add("Speed: +15%  |  Knockback resist");
@@ -201,7 +201,7 @@ public final class NinjaSkills {
 
     private static void executeShurikenJutsu(ServerPlayer player, PlayerStats stats, SkillData sd, int level) {
         stats.setCurrentMp(stats.getCurrentMp() - SkillType.SHURIKEN_JUTSU.getMpCost(level));
-        float damage = 1 + level * 0.3f + stats.getAgility() * 0.05f + stats.getLuck() * 0.03f + SkillExecutor.getWeaponDamage(player);
+        float damage = stats.getAttack(player) * getShurikenJutsuMultiplier(level, stats.getAgility());
         int shurikenCount = 5 + level / 3;
 
         if (player.level() instanceof ServerLevel sl) {
@@ -277,7 +277,7 @@ public final class NinjaSkills {
             sd.setFlyingRaijinKunaiId(-1);
 
             if (player.level() instanceof ServerLevel sl) {
-                float dmg = 3 + level * 0.5f + stats.getAgility() * 0.08f + SkillExecutor.getWeaponDamage(player);
+                float dmg = stats.getAttack(player) * getFlyingRaijinMultiplier(level, stats.getAgility());
                 FlyingRaijinKunaiEntity kunai = new FlyingRaijinKunaiEntity(sl, player, dmg, player.getMainHandItem());
                 kunai.shootFromRotation(player, player.getXRot(), player.getYRot(), 0.0f, 2.5f, 0.5f);
                 sl.addFreshEntity(kunai);
@@ -342,9 +342,8 @@ public final class NinjaSkills {
                 sd.setRasenganBuffTicks(0);
 
                 int rsgLv = sd.getLevel(SkillType.RASENGAN);
-                float rasenganBonus = getRasenganBonusDamage(stats, rsgLv);
-                // Deal Rasengan damage to the marked target
-                float rasenganDmg = 5 + rasenganBonus + SkillExecutor.getWeaponDamage(player);
+                // Deal Rasengan damage to the marked target (×1.5 combo bonus)
+                float rasenganDmg = stats.getAttack(player) * getRasenganMultiplier(rsgLv, stats.getAgility()) * 1.5f;
                 CombatLog.nextSource = "Flying Raijin: Rasengan";
                 livingTarget.hurt(player.damageSources().playerAttack(player), rasenganDmg);
 
@@ -518,7 +517,7 @@ public final class NinjaSkills {
         Vec3 pos = clone.position();
         switch (skill) {
             case SHURIKEN_JUTSU -> {
-                float dmg = (1 + level * 0.3f + stats.getAgility() * 0.05f + SkillExecutor.getWeaponDamage(player)) * statMult;
+                float dmg = stats.getAttack(player) * getShurikenJutsuMultiplier(level, stats.getAgility()) * statMult;
                 ItemStack visualStack = new ItemStack(ModItems.IRON_SHURIKEN.get());
                 for (int i = 0; i < 3; i++) {
                     ThrownShurikenEntity shuriken = new ThrownShurikenEntity(sl, clone, visualStack);
@@ -583,7 +582,7 @@ public final class NinjaSkills {
             clone.setRasenganReady(false);
             SkillData sd = stats.getSkillData();
             int rsgLv = sd.getLevel(SkillType.RASENGAN);
-            float rasenganDmg = (5 + getRasenganBonusDamage(stats, rsgLv) + SkillExecutor.getWeaponDamage(player)) * statMult;
+            float rasenganDmg = stats.getAttack(player) * getRasenganMultiplier(rsgLv, stats.getAgility()) * statMult;
 
             // AoE around clone's arrival position
             AABB splashBox = new AABB(cx - 2, player.getY() - 1, cz - 2, cx + 2, player.getY() + 3, cz + 2);
@@ -632,17 +631,27 @@ public final class NinjaSkills {
         return 0.2f + 0.3f * (level - 1) / 14.0f;
     }
 
-    /** Rasengan bonus damage scaling with AGI + LUK. */
-    public static float getRasenganBonusDamage(PlayerStats stats, int level) {
+    /** Rasengan ATK multiplier: ATK × this value. (buffed, ~400% at max) */
+    public static float getRasenganMultiplier(int level, int agi) {
         if (level <= 0) return 0;
-        return level * 0.5f + stats.getAgility() * 0.15f + stats.getLuck() * 0.1f;
+        return 1.10f + level * 0.07f + agi * 0.012f;
     }
 
-    /** Kunai Mastery melee damage bonus. */
-    public static float getKunaiMasteryMeleeBonus(PlayerStats stats) {
+    /** Shuriken Jutsu ATK multiplier per shuriken: ATK × this value. (buffed, ~155% at max) */
+    public static float getShurikenJutsuMultiplier(int level, int agi) {
+        return 0.40f + level * 0.04f + agi * 0.006f;
+    }
+
+    /** Flying Raijin kunai ATK multiplier: ATK × this value. (buffed, ~280% at max) */
+    public static float getFlyingRaijinMultiplier(int level, int agi) {
+        return 1.00f + level * 0.05f + agi * 0.008f;
+    }
+
+    /** Kunai Mastery melee ATK multiplier. ATK × this = flat melee bonus. */
+    public static float getKunaiMasteryMeleeMultiplier(PlayerStats stats) {
         int level = stats.getSkillData().getLevel(SkillType.KUNAI_MASTERY);
         if (level <= 0) return 0;
-        return stats.getAgility() * 0.08f * level / 10.0f;
+        return level * 0.006f + stats.getAgility() * 0.001f;
     }
 
     /** Kunai Mastery projectile damage multiplier (1.0 = no bonus). */
@@ -673,11 +682,11 @@ public final class NinjaSkills {
         return level * 0.15f;
     }
 
-    /** Sage Mode damage multiplier (1.0 = no boost). */
+    /** Sage Mode damage multiplier (1.0 = no boost). Buffed: ~27-48% at lv1-15. */
     public static float getSageModeDamageMultiplier(SkillData sd) {
         if (!sd.isToggleActive(SkillType.SAGE_MODE)) return 1.0f;
         int level = sd.getLevel(SkillType.SAGE_MODE);
-        return 1.0f + (20 + level) / 100.0f;
+        return 1.0f + (25 + level * 1.5f) / 100.0f;
     }
 
     /** Eight Inner Gates damage multiplier. Only applies below 30% HP. */
@@ -747,7 +756,7 @@ public final class NinjaSkills {
         Vec3 pos = partner.position();
         switch (skill) {
             case SHURIKEN_JUTSU -> {
-                float dmg = (1 + level * 0.3f + stats.getAgility() * 0.05f + SkillExecutor.getWeaponDamage(player)) * multiplier;
+                float dmg = stats.getAttack(player) * getShurikenJutsuMultiplier(level, stats.getAgility()) * multiplier;
                 ItemStack visualStack = new ItemStack(ModItems.IRON_SHURIKEN.get());
                 for (int i = 0; i < 3; i++) {
                     ThrownShurikenEntity shuriken = new ThrownShurikenEntity(sl, partner, visualStack);

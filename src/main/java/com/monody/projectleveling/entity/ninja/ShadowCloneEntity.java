@@ -215,8 +215,7 @@ public class ShadowCloneEntity extends PathfinderMob {
 
     /** Clone uses Shuriken Jutsu independently. */
     private void cloneShuriken(ServerLevel sl, PlayerStats ownerStats, int level) {
-        float dmg = (2 + level * 0.5f + ownerStats.getAgility() * 0.1f + ownerStats.getLuck() * 0.05f
-                + SkillExecutor.getWeaponDamage(this)) * statMultiplier;
+        float dmg = ownerStats.getAttack(getOwnerPlayer()) * NinjaSkills.getShurikenJutsuMultiplier(level, ownerStats.getAgility()) * statMultiplier;
         float range = 5 + level * 0.3f;
         Vec3 look = getLookAngle();
         Vec3 eye = getEyePosition();
@@ -255,7 +254,7 @@ public class ShadowCloneEntity extends PathfinderMob {
             if (owner != null && level() instanceof ServerLevel sl) {
                 owner.getCapability(PlayerStatsCapability.PLAYER_STATS).ifPresent(stats -> {
                     int rsgLv = stats.getSkillData().getLevel(SkillType.RASENGAN);
-                    float rasenganDmg = (NinjaSkills.getRasenganBonusDamage(stats, rsgLv) + SkillExecutor.getWeaponDamage(ShadowCloneEntity.this)) * statMultiplier;
+                    float rasenganDmg = stats.getAttack(owner) * NinjaSkills.getRasenganMultiplier(rsgLv, stats.getAgility()) * statMultiplier;
                     float splashDmg = rasenganDmg * 0.3f;
 
                     // Damage main target with rasengan bonus

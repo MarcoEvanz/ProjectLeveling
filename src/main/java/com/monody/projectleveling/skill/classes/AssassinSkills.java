@@ -38,8 +38,8 @@ public final class AssassinSkills {
         switch (skill) {
             // === T1 ===
             case SHADOW_STRIKE -> {
-                float dmg = 1 + level * 0.8f + stats.getLuck() * 0.15f;
-                texts.add("Bonus dmg: +" + String.format("%.1f", dmg) + " (LUK scales)");
+                float mult = (0.40f + level * 0.06f + stats.getLuck() * 0.005f) * 100;
+                texts.add("Bonus dmg: ATK x " + String.format("%.0f", mult) + "%");
                 lines.add(new int[]{TEXT_VALUE});
                 texts.add("Window: 5s to land a hit");
                 lines.add(new int[]{TEXT_VALUE});
@@ -50,20 +50,20 @@ public final class AssassinSkills {
                 int venomDur = 10 + level;
                 int poisonDur = 3 + level / 3;
                 int poisonAmp = Math.min(level / 4, 2);
-                float directDmg = 0.5f + level * 0.15f;
+                float venomMult = getVenomDamageMultiplier(level, stats.getLuck()) * 100;
                 texts.add("Active: " + venomDur + "s (all melee attacks poison)");
                 lines.add(new int[]{TEXT_VALUE});
                 texts.add("Poison " + SkillTooltips.toRoman(poisonAmp + 1) + ": " + poisonDur + "s per hit");
                 lines.add(new int[]{TEXT_VALUE});
-                texts.add("Magic dmg: " + String.format("%.1f", directDmg) + " per hit");
+                texts.add("Magic dmg: ATK x " + String.format("%.0f", venomMult) + "% per hit");
                 lines.add(new int[]{TEXT_VALUE});
                 texts.add("Wither on undead (immune to Poison)");
                 lines.add(new int[]{TEXT_DIM});
             }
             case CRITICAL_EDGE -> {
-                texts.add("Crit rate: +" + level + "%");
+                texts.add("Crit rate: +" + String.format("%.1f", level * 1.5f) + "%");
                 lines.add(new int[]{TEXT_VALUE});
-                texts.add("Crit damage: +" + (level * 2) + "%");
+                texts.add("Crit damage: +" + (level * 3) + "%");
                 lines.add(new int[]{TEXT_VALUE});
                 texts.add("Crit lifesteal: " + String.format("%.1f", level * 0.5f) + "%");
                 lines.add(new int[]{TEXT_VALUE});
@@ -83,8 +83,8 @@ public final class AssassinSkills {
             }
             case BLADE_FURY -> {
                 double range = 3 + level * 0.1 + stats.getLuck() * 0.03;
-                float dmg = 2 + level * 0.6f + stats.getLuck() * 0.12f;
-                texts.add("Damage: " + String.format("%.1f", dmg) + " (LUK scales)");
+                float mult = getBladeFuryMultiplier(level, stats.getLuck()) * 100;
+                texts.add("Damage: ATK x " + String.format("%.0f", mult) + "%");
                 lines.add(new int[]{TEXT_VALUE});
                 texts.add("Range: " + String.format("%.1f", range) + " blocks (LUK scales)");
                 lines.add(new int[]{TEXT_VALUE});
@@ -101,9 +101,9 @@ public final class AssassinSkills {
             // === T3 ===
             case RULERS_AUTHORITY -> {
                 double range = 4 + level * 0.4 + stats.getLuck() * 0.15;
-                float dmg = level * 0.4f + stats.getLuck() * 0.08f;
+                float mult = getRulersAuthorityMultiplier(level, stats.getLuck()) * 100;
                 double pullForce = 0.3 + level * 0.1;
-                texts.add("Damage: " + String.format("%.1f", dmg) + " (LUK scales)");
+                texts.add("Damage: ATK x " + String.format("%.0f", mult) + "%");
                 lines.add(new int[]{TEXT_VALUE});
                 texts.add("Range: " + String.format("%.1f", range) + " blocks (LUK scales)");
                 lines.add(new int[]{TEXT_VALUE});
@@ -217,7 +217,7 @@ public final class AssassinSkills {
     private static void executeBladeFury(ServerPlayer player, PlayerStats stats, SkillData sd, int level) {
         stats.setCurrentMp(stats.getCurrentMp() - SkillType.BLADE_FURY.getMpCost(level));
         double range = 3 + level * 0.1 + stats.getLuck() * 0.03;
-        float damage = 2 + level * 0.6f + stats.getLuck() * 0.12f + SkillExecutor.getWeaponDamage(player);
+        float damage = stats.getAttack(player) * getBladeFuryMultiplier(level, stats.getLuck());
         AABB area = player.getBoundingBox().inflate(range);
         List<Monster> mobs = player.level().getEntitiesOfClass(Monster.class, area);
         CombatLog.suppressDamageLog = true;
@@ -241,7 +241,7 @@ public final class AssassinSkills {
     private static void executeRulersAuthority(ServerPlayer player, PlayerStats stats, SkillData sd, int level) {
         stats.setCurrentMp(stats.getCurrentMp() - SkillType.RULERS_AUTHORITY.getMpCost(level));
         double range = 4 + level * 0.4 + stats.getLuck() * 0.15;
-        float damage = level * 0.4f + stats.getLuck() * 0.08f + SkillExecutor.getWeaponDamage(player);
+        float damage = stats.getAttack(player) * getRulersAuthorityMultiplier(level, stats.getLuck());
         Vec3 look = player.getLookAngle();
         Vec3 eye = player.getEyePosition();
         AABB area = player.getBoundingBox().inflate(range);
@@ -318,9 +318,26 @@ public final class AssassinSkills {
 
     // ── Public helper methods ────────────────────────────────────────────
 
-    public static float getShadowStrikeDamage(PlayerStats stats) {
+    /** Shadow Strike ATK multiplier: ATK × this = bonus damage on next hit. (+50% buffed) */
+    public static float getShadowStrikeMultiplier(PlayerStats stats) {
         int level = stats.getSkillData().getLevel(SkillType.SHADOW_STRIKE);
-        return 1 + level * 0.8f + stats.getLuck() * 0.15f;
+        if (level <= 0) return 0;
+        return 0.60f + level * 0.09f + stats.getLuck() * 0.008f;
+    }
+
+    /** Blade Fury ATK multiplier: ATK × this value. (+50% buffed) */
+    public static float getBladeFuryMultiplier(int level, int luk) {
+        return 1.05f + level * 0.06f + luk * 0.008f;
+    }
+
+    /** Ruler's Authority ATK multiplier: ATK × this value. (+50% buffed) */
+    public static float getRulersAuthorityMultiplier(int level, int luk) {
+        return 0.45f + level * 0.045f + luk * 0.006f;
+    }
+
+    /** Venom per-hit ATK multiplier: ATK × this = element damage per hit. (+50% buffed) */
+    public static float getVenomDamageMultiplier(int level, int luk) {
+        return 0.15f + level * 0.015f + luk * 0.0015f;
     }
 
     /** Get venom poison duration in ticks based on level. */
@@ -425,7 +442,7 @@ public final class AssassinSkills {
             }
             case BLADE_FURY -> {
                 float radius = 3 + level * 0.2f;
-                float dmg = (3 + level * 0.6f + stats.getLuck() * 0.1f + SkillExecutor.getWeaponDamage(player)) * multiplier;
+                float dmg = stats.getAttack(player) * getBladeFuryMultiplier(level, stats.getLuck()) * multiplier;
                 List<Monster> mobs = sl.getEntitiesOfClass(Monster.class,
                         partner.getBoundingBox().inflate(radius));
                 for (Monster mob : mobs) {
@@ -436,7 +453,7 @@ public final class AssassinSkills {
             }
             case RULERS_AUTHORITY -> {
                 float radius = 4 + level * 0.3f;
-                float dmg = (level * 0.3f + stats.getLuck() * 0.06f + SkillExecutor.getWeaponDamage(player)) * multiplier;
+                float dmg = stats.getAttack(player) * getRulersAuthorityMultiplier(level, stats.getLuck()) * multiplier;
                 List<net.minecraft.world.entity.LivingEntity> entities = sl.getEntitiesOfClass(
                         net.minecraft.world.entity.LivingEntity.class,
                         partner.getBoundingBox().inflate(radius), e -> e != partner && e != player);

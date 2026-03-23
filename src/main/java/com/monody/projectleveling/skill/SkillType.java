@@ -38,7 +38,7 @@ public enum SkillType {
             "Coat weapon in poison. Attacks apply stacking poison DoT.", "VN"),
     CRITICAL_EDGE("critical_edge", "Critical Edge", 10, 1, PlayerClass.ASSASSIN, 10, false, true,
             0, 0, 0, 0,
-            "Passive. +1% crit rate and +2% crit damage per level.", "CE"),
+            "Passive. +1.5% crit rate and +3% crit damage per level.", "CE"),
 
     // --- Archer (DEX) ---
     ARROW_RAIN("arrow_rain", "Arrow Rain", 10, 1, PlayerClass.ARCHER, 10, false, false,
@@ -128,6 +128,9 @@ public enum SkillType {
     PHOENIX_WINGS_MASTERY("phoenix_wings_mastery", "Phoenix Wings Mastery", 10, 2, PlayerClass.BEAST_MASTER, 30, false, true,
             0, 0, 0, 0,
             "Passive. +0.5% healing per level. Max level: +1 lifesteal hit.", "PWM"),
+    PREDATOR_INSTINCT("predator_instinct", "Predator Instinct", 10, 2, PlayerClass.BEAST_MASTER, 30, false, true,
+            0, 0, 0, 0,
+            "Passive. +1.5% crit rate and +2% crit damage per level. Crits grant Speed.", "PI"),
 
     // =====================================================
     // Tier 2 — Class skills, requires player level 30
@@ -138,7 +141,7 @@ public enum SkillType {
             30, 22, 900, 900,
             "Party buff. Flat +ATK for 30s. Self: -Damage Taken.", "SpB"),
     GROUND_SLAM("ground_slam", "Ground Slam", 15, 2, PlayerClass.WARRIOR, 30, false, false,
-            30, 22, 400, 200,
+            30, 22, 280, 140,
             "Slam the ground. AoE damage + stun in radius.", "GS"),
     FINAL_ATTACK("final_attack", "Final Attack", 15, 2, PlayerClass.WARRIOR, 30, false, true,
             0, 0, 0, 0,
@@ -178,7 +181,7 @@ public enum SkillType {
             "Passive. +3% status resistance per level. Auto-cleanse chance.", "DP"),
     HOLY_FERVOR("holy_fervor", "Holy Fervor", 15, 2, PlayerClass.HEALER, 30, false, true,
             0, 0, 0, 0,
-            "Passive. +2% damage per level. +3% vs undead. MATK enhances skills.", "HF"),
+            "Passive. +2% damage per level. +3% vs undead. +Crit rate/damage. MATK enhances skills.", "HF"),
 
     // --- Mage ---
     FROST_BIND("frost_bind", "Frost Bind", 15, 2, PlayerClass.MAGE, 30, false, false,
@@ -189,7 +192,7 @@ public enum SkillType {
             "Place a poison cloud zone. Can be detonated by Mist Eruption.", "PM"),
     ELEMENT_AMPLIFICATION("element_amplification", "Element Amplification", 15, 2, PlayerClass.MAGE, 30, false, true,
             0, 0, 0, 0,
-            "Passive. +3% skill damage per level. +20% MP cost for all skills.", "EA"),
+            "Passive. +2% skill damage per level. +20% MP cost for all skills.", "EA"),
 
     // --- Ninja T2 ---
     SHADOW_CLONE("shadow_clone", "Shadow Clone", 15, 2, PlayerClass.NINJA, 30, true, false,
@@ -218,6 +221,9 @@ public enum SkillType {
     SKELETAL_MASTERY("skeletal_mastery", "Skeletal Mastery", 15, 2, PlayerClass.NECROMANCER, 30, false, true,
             0, 0, 0, 0,
             "Passive. Minions gain lifesteal and take reduced damage.", "SM"),
+    DARK_RESONANCE("dark_resonance", "Dark Resonance", 15, 2, PlayerClass.NECROMANCER, 30, false, true,
+            0, 0, 0, 0,
+            "Passive. +1% crit rate and +2% crit damage per level. Crits apply Wither.", "DR"),
 
     // =====================================================
     // Tier 3 — Class skills, requires player level 60
@@ -225,14 +231,14 @@ public enum SkillType {
 
     // --- Warrior ---
     BEAM_BLADE("beam_blade", "Beam Blade", 20, 3, PlayerClass.WARRIOR, 60, false, false,
-            30, 22, 140, 140,
+            30, 22, 100, 100,
             "Launch a piercing blade. Hits all enemies in a line.", "BB"),
     UNBREAKABLE("unbreakable", "Unbreakable", 20, 3, PlayerClass.WARRIOR, 60, false, true,
             0, 0, 0, 0,
             "Passive. Revive on fatal damage. 5 minute cooldown.", "UB"),
     BERSERKER_SPIRIT("berserker_spirit", "Berserker Spirit", 20, 3, PlayerClass.WARRIOR, 60, false, true,
             0, 0, 0, 0,
-            "Passive. +Crit rate. +Lifesteal. +Final Attack trigger chance.", "BS"),
+            "Passive. +Crit rate. +Crit damage. +Lifesteal. +Final Attack trigger chance.", "BS"),
 
     // --- Assassin ---
     RULERS_AUTHORITY("rulers_authority", "Ruler's Authority", 20, 3, PlayerClass.ASSASSIN, 60, false, false,

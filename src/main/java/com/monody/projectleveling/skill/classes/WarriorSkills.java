@@ -57,9 +57,9 @@ public final class WarriorSkills {
     /** Warrior Mastery: +2% knockback resist per level */
     public static float getWarriorMasteryKbResist(int level) { return level * 0.02f; }
 
-    /** Spirit Blade flat ATK: 1 at lv1, 5 at lv15 */
-    public static float getSpiritBladeAtk(int level) {
-        return 1 + (level - 1) * (4.0f / 14.0f);
+    /** Spirit Blade ATK multiplier: ATK × this = flat bonus. (+60% buffed) */
+    public static float getSpiritBladeMultiplier(int level, int str) {
+        return 0.08f + level * 0.008f + str * 0.0015f;
     }
 
     /** Spirit Blade self damage reduction: 5% at lv1, 20% at lv15 */
@@ -72,9 +72,14 @@ public final class WarriorSkills {
         return 10 + (level - 1) * (30.0f / 14.0f);
     }
 
-    /** Beam Blade damage multiplier: 100% at lv1, 160% at lv20 */
-    public static float getBeamBladeMultiplier(int level) {
-        return 1.0f + (level - 1) * (0.6f / 19.0f);
+    /** Beam Blade ATK multiplier: ATK × this value. T3 buffed (~430% at max) */
+    public static float getBeamBladeMultiplier(int level, int str) {
+        return 1.50f + level * 0.05f + str * 0.012f;
+    }
+
+    /** Ground Slam ATK multiplier: ATK × this value. (+50% buffed, ~345% at max) */
+    public static float getGroundSlamMultiplier(int level, int str) {
+        return 1.20f + level * 0.06f + str * 0.009f;
     }
 
     /** Unbreakable revive HP %: 20% + 1% per level */
@@ -117,20 +122,20 @@ public final class WarriorSkills {
                 lines.add(new int[]{TEXT_VALUE});
             }
             case SPIRIT_BLADE -> {
-                float atk = getSpiritBladeAtk(level);
+                float mult = getSpiritBladeMultiplier(level, stats.getStrength()) * 100;
                 float defPct = getSpiritBladeDefPct(level) * 100;
-                texts.add("Flat ATK: +" + String.format("%.1f", atk) + " for 30s (party)");
+                texts.add("Flat ATK: ATK x " + String.format("%.0f", mult) + "% for 30s (party)");
                 lines.add(new int[]{TEXT_VALUE});
                 texts.add("Self: -" + String.format("%.0f", defPct) + "% damage taken");
                 lines.add(new int[]{TEXT_VALUE});
-                texts.add("Flat ATK ignores % buffs");
+                texts.add("Flat ATK added after ATK%");
                 lines.add(new int[]{TEXT_DIM});
             }
             case GROUND_SLAM -> {
                 double range = 3 + level * 0.15 + stats.getStrength() * 0.05;
-                float dmg = 2 + level * 0.5f + stats.getStrength() * 0.1f;
+                float mult = getGroundSlamMultiplier(level, stats.getStrength()) * 100;
                 int stunDur = 1 + level / 5;
-                texts.add("Damage: " + String.format("%.1f", dmg) + " (STR scales)");
+                texts.add("Damage: ATK x " + String.format("%.0f", mult) + "%");
                 lines.add(new int[]{TEXT_VALUE});
                 texts.add("Range: " + String.format("%.1f", range) + " blocks (STR scales)");
                 lines.add(new int[]{TEXT_VALUE});
@@ -150,8 +155,8 @@ public final class WarriorSkills {
                 lines.add(new int[]{TEXT_DIM});
             }
             case BEAM_BLADE -> {
-                float mult = getBeamBladeMultiplier(level) * 100;
-                texts.add("Damage: " + String.format("%.0f", mult) + "% ATK (STR scales)");
+                float mult = getBeamBladeMultiplier(level, stats.getStrength()) * 100;
+                texts.add("Damage: ATK x " + String.format("%.0f", mult) + "%");
                 lines.add(new int[]{TEXT_VALUE});
                 texts.add("Max range: 7 blocks, pierces enemies");
                 lines.add(new int[]{TEXT_VALUE});
@@ -167,6 +172,8 @@ public final class WarriorSkills {
             }
             case BERSERKER_SPIRIT -> {
                 texts.add("Crit rate: +" + level + "%");
+                lines.add(new int[]{TEXT_VALUE});
+                texts.add("Crit damage: +" + String.format("%.1f", level * 1.5) + "%");
                 lines.add(new int[]{TEXT_VALUE});
                 texts.add("Lifesteal: " + String.format("%.1f", level * 0.3) + "%");
                 lines.add(new int[]{TEXT_VALUE});
@@ -236,7 +243,7 @@ public final class WarriorSkills {
 
     private static void executeSpiritBlade(ServerPlayer player, PlayerStats stats, SkillData sd, int level) {
         stats.setCurrentMp(stats.getCurrentMp() - SkillType.SPIRIT_BLADE.getMpCost(level));
-        float flatAtk = getSpiritBladeAtk(level);
+        float flatAtk = stats.getAttack(player) * getSpiritBladeMultiplier(level, stats.getStrength());
         int durationTicks = 600; // 30 seconds
 
         // Self: flat ATK + damage reduction
@@ -271,7 +278,7 @@ public final class WarriorSkills {
     private static void executeGroundSlam(ServerPlayer player, PlayerStats stats, SkillData sd, int level) {
         stats.setCurrentMp(stats.getCurrentMp() - SkillType.GROUND_SLAM.getMpCost(level));
         double range = 3 + level * 0.15 + stats.getStrength() * 0.05;
-        float damage = 2 + level * 0.5f + stats.getStrength() * 0.1f + SkillExecutor.getWeaponDamage(player);
+        float damage = stats.getAttack(player) * getGroundSlamMultiplier(level, stats.getStrength());
         int stunDuration = (1 + level / 5) * 20;
         AABB area = player.getBoundingBox().inflate(range);
         List<Monster> mobs = player.level().getEntitiesOfClass(Monster.class, area);
@@ -293,8 +300,7 @@ public final class WarriorSkills {
 
     private static void executeBeamBlade(ServerPlayer player, PlayerStats stats, SkillData sd, int level) {
         stats.setCurrentMp(stats.getCurrentMp() - SkillType.BEAM_BLADE.getMpCost(level));
-        float baseAtk = (stats.getStrength() - 1) * 0.1f + SkillExecutor.getWeaponDamage(player);
-        float damage = baseAtk * getBeamBladeMultiplier(level) + stats.getStrength() * 0.15f;
+        float damage = stats.getAttack(player) * getBeamBladeMultiplier(level, stats.getStrength());
         float maxDist = 7.0f;
 
         if (player.level() instanceof ServerLevel sl) {
@@ -374,7 +380,7 @@ public final class WarriorSkills {
         switch (skill) {
             case GROUND_SLAM -> {
                 float radius = 5 + level * 0.2f;
-                float dmg = (4 + level * 1.0f + stats.getStrength() * 0.3f + SkillExecutor.getWeaponDamage(player)) * multiplier;
+                float dmg = stats.getAttack(player) * getGroundSlamMultiplier(level, stats.getStrength()) * multiplier;
                 List<Monster> mobs = sl.getEntitiesOfClass(Monster.class,
                         partner.getBoundingBox().inflate(radius));
                 for (Monster mob : mobs) {
@@ -385,8 +391,7 @@ public final class WarriorSkills {
                 SkillParticles.disc(sl, pos.x, pos.y + 0.1, pos.z, radius, 25, ParticleTypes.CAMPFIRE_COSY_SMOKE);
             }
             case BEAM_BLADE -> {
-                float baseAtk = (stats.getStrength() - 1) * 0.1f + SkillExecutor.getWeaponDamage(player);
-                float dmg = baseAtk * getBeamBladeMultiplier(level) * multiplier;
+                float dmg = stats.getAttack(player) * getBeamBladeMultiplier(level, stats.getStrength()) * multiplier;
                 Vec3 look = player.getLookAngle();
                 for (float d = 0.5f; d <= 7.0f; d += 0.5f) {
                     Vec3 point = pos.add(look.scale(d));

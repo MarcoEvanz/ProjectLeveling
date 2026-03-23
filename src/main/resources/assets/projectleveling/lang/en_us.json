@@ -17,6 +17,8 @@
   "attribute.projectleveling.attack_percent": "Attack %",
   "attribute.projectleveling.magic_attack_percent": "Magic Attack %",
   "attribute.projectleveling.final_damage": "Final Damage %",
+  "attribute.projectleveling.projectile_damage": "Projectile Damage",
+  "attribute.projectleveling.melee_damage": "Melee Damage",
 
   "item.projectleveling.wood_staff": "Wooden Staff",
   "item.projectleveling.stone_staff": "Stone Staff",
@@ -44,5 +46,33 @@
   "item.projectleveling.iron_shuriken": "Iron Shuriken",
   "item.projectleveling.gold_shuriken": "Golden Shuriken",
   "item.projectleveling.diamond_shuriken": "Diamond Shuriken",
-  "item.projectleveling.netherite_shuriken": "Netherite Shuriken"
+  "item.projectleveling.netherite_shuriken": "Netherite Shuriken",
+
+  "item.projectleveling.wood_bow": "Wooden Bow",
+  "item.projectleveling.stone_bow": "Stone Bow",
+  "item.projectleveling.iron_bow": "Iron Bow",
+  "item.projectleveling.gold_bow": "Golden Bow",
+  "item.projectleveling.diamond_bow": "Diamond Bow",
+  "item.projectleveling.netherite_bow": "Netherite Bow",
+
+  "item.projectleveling.wood_sword": "Wooden Greatsword",
+  "item.projectleveling.stone_sword": "Stone Greatsword",
+  "item.projectleveling.iron_sword": "Iron Greatsword",
+  "item.projectleveling.gold_sword": "Golden Greatsword",
+  "item.projectleveling.diamond_sword": "Diamond Greatsword",
+  "item.projectleveling.netherite_sword": "Netherite Greatsword",
+
+  "item.projectleveling.wood_axe": "Wooden Warhammer",
+  "item.projectleveling.stone_axe": "Stone Warhammer",
+  "item.projectleveling.iron_axe": "Iron Warhammer",
+  "item.projectleveling.gold_axe": "Golden Warhammer",
+  "item.projectleveling.diamond_axe": "Diamond Warhammer",
+  "item.projectleveling.netherite_axe": "Netherite Warhammer",
+
+  "item.projectleveling.wood_cestus": "Wooden Cestus",
+  "item.projectleveling.stone_cestus": "Stone Cestus",
+  "item.projectleveling.iron_cestus": "Iron Cestus",
+  "item.projectleveling.gold_cestus": "Golden Cestus",
+  "item.projectleveling.diamond_cestus": "Diamond Cestus",
+  "item.projectleveling.netherite_cestus": "Netherite Cestus"
 }

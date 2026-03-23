@@ -28,4 +28,10 @@ public class ModAttributes {
 
     public static final RegistryObject<Attribute> FINAL_DAMAGE = ATTRIBUTES.register("final_damage",
             () -> new RangedAttribute("attribute.projectleveling.final_damage", 0.0, 0.0, 1000.0));
+
+    public static final RegistryObject<Attribute> PROJECTILE_DAMAGE = ATTRIBUTES.register("projectile_damage",
+            () -> new RangedAttribute("attribute.projectleveling.projectile_damage", 0.0, 0.0, 1000.0));
+
+    public static final RegistryObject<Attribute> MELEE_DAMAGE = ATTRIBUTES.register("melee_damage",
+            () -> new RangedAttribute("attribute.projectleveling.melee_damage", 0.0, 0.0, 1000.0));
 }

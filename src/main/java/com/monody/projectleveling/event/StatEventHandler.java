@@ -5,6 +5,7 @@ import com.monody.projectleveling.capability.PlayerStats;
 import com.monody.projectleveling.capability.PlayerStatsCapability;
 import com.monody.projectleveling.network.ModNetwork;
 import com.monody.projectleveling.network.S2CSyncStatsPacket;
+import com.monody.projectleveling.item.ModAttributes;
 import com.monody.projectleveling.skill.CombatLog;
 import com.monody.projectleveling.skill.SkillData;
 import com.monody.projectleveling.skill.SkillExecutor;
@@ -864,7 +865,7 @@ public class StatEventHandler {
 
             // Shadow Strike bonus damage
             if (sd.isShadowStrikeActive()) {
-                float bonus = AssassinSkills.getShadowStrikeDamage(stats);
+                float bonus = stats.getAttack(player) * AssassinSkills.getShadowStrikeMultiplier(stats);
                 amount += bonus;
                 sd.setShadowStrikeActive(false);
                 sd.setShadowStrikeTicks(0);
@@ -948,7 +949,7 @@ public class StatEventHandler {
             }
 
             // Passive: Kunai Mastery — +AGI melee damage
-            float kmBonus = NinjaSkills.getKunaiMasteryMeleeBonus(stats);
+            float kmBonus = stats.getAttack(player) * NinjaSkills.getKunaiMasteryMeleeMultiplier(stats);
             if (kmBonus > 0 && !event.getSource().isIndirect()) {
                 amount += kmBonus;
             }
@@ -967,7 +968,7 @@ public class StatEventHandler {
                 sd.setRasenganBuffActive(false);
                 sd.setRasenganBuffTicks(0);
                 int rsgLv = sd.getLevel(SkillType.RASENGAN);
-                float rasenganBonus = NinjaSkills.getRasenganBonusDamage(stats, rsgLv);
+                float rasenganBonus = stats.getAttack(player) * NinjaSkills.getRasenganMultiplier(rsgLv, stats.getAgility());
                 amount += rasenganBonus;
                 float splashDmg = amount * 0.3f;
                 net.minecraft.world.entity.LivingEntity mainTarget = (net.minecraft.world.entity.LivingEntity) event.getEntity();
@@ -1156,7 +1157,7 @@ public class StatEventHandler {
             // Passive: Element Amplification — +3% skill damage per level (magic damage sources)
             int eaLv = sd.getLevel(SkillType.ELEMENT_AMPLIFICATION);
             if (eaLv > 0 && event.getSource().is(net.minecraft.tags.DamageTypeTags.WITCH_RESISTANT_TO)) {
-                amount *= 1.0f + eaLv * 0.03f;
+                amount *= 1.0f + eaLv * 0.02f;
             }
 
             // Passive: Fatal Blow — +2% damage vs targets below 30% HP, execute chance
@@ -1195,8 +1196,8 @@ public class StatEventHandler {
 
             int ceLv = sd.getLevel(SkillType.CRITICAL_EDGE);
             if (ceLv > 0) {
-                critRate += ceLv * 0.01;
-                critDmgBonus += ceLv * 0.02;
+                critRate += ceLv * 0.015;
+                critDmgBonus += ceLv * 0.03;
             }
 
             int seLv = sd.getLevel(SkillType.SHARP_EYES);
@@ -1214,10 +1215,32 @@ public class StatEventHandler {
             int bsLv = sd.getLevel(SkillType.BERSERKER_SPIRIT);
             if (bsLv > 0) {
                 critRate += bsLv * 0.01;
+                critDmgBonus += bsLv * 0.015;
                 // Lifesteal
                 float bsHeal = amount * bsLv * 0.003f;
                 player.heal(bsHeal);
                 CombatLog.heal(player, "Berserker", bsHeal);
+            }
+
+            // Dark Resonance (Necromancer): +1% crit rate, +2% crit damage per level
+            int drLv = sd.getLevel(SkillType.DARK_RESONANCE);
+            if (drLv > 0) {
+                critRate += drLv * 0.01;
+                critDmgBonus += drLv * 0.02;
+            }
+
+            // Predator Instinct (Beast Master): +1.5% crit rate, +2% crit damage per level
+            int piLv = sd.getLevel(SkillType.PREDATOR_INSTINCT);
+            if (piLv > 0) {
+                critRate += piLv * 0.015;
+                critDmgBonus += piLv * 0.02;
+            }
+
+            // Holy Fervor (Healer): +0.5% crit rate, +1% crit damage per level
+            int hfLv = sd.getLevel(SkillType.HOLY_FERVOR);
+            if (hfLv > 0) {
+                critRate += hfLv * 0.005;
+                critDmgBonus += hfLv * 0.01;
             }
 
             // Kunai Mastery crit bonus
@@ -1252,6 +1275,15 @@ public class StatEventHandler {
                     player.heal(ceHeal);
                     CombatLog.heal(player, "Critical Edge", ceHeal);
                 }
+                // Dark Resonance: crits apply Wither I for 2s
+                if (drLv > 0) {
+                    ((net.minecraft.world.entity.LivingEntity) event.getEntity())
+                            .addEffect(new MobEffectInstance(MobEffects.WITHER, 40, 0, false, true));
+                }
+                // Predator Instinct: crits grant Speed I for 2s
+                if (piLv > 0) {
+                    player.addEffect(new MobEffectInstance(MobEffects.MOVEMENT_SPEED, 40, 0, false, true));
+                }
                 if (player.level() instanceof ServerLevel sl) {
                     net.minecraft.world.entity.LivingEntity target = (net.minecraft.world.entity.LivingEntity) event.getEntity();
                     SkillParticles.burst(sl, target.getX(), target.getY() + 1.5, target.getZ(), 12, 0.4, ParticleTypes.CRIT);
@@ -1274,6 +1306,11 @@ public class StatEventHandler {
                 }
                 // Kunai Mastery projectile damage
                 projMult *= NinjaSkills.getKunaiMasteryProjectileMultiplier(stats);
+                // Bow Projectile Damage attribute bonus
+                AttributeInstance projDmgInst = player.getAttribute(ModAttributes.PROJECTILE_DAMAGE.get());
+                if (projDmgInst != null && projDmgInst.getValue() > 0) {
+                    projMult += (float)(projDmgInst.getValue() / 100.0);
+                }
                 amount *= projMult;
             }
 
@@ -1299,6 +1336,11 @@ public class StatEventHandler {
                 var atkPctInst = player.getAttribute(com.monody.projectleveling.item.ModAttributes.ATTACK_PERCENT.get());
                 if (atkPctInst != null && atkPctInst.getValue() > 0) {
                     amount *= 1.0f + (float) (atkPctInst.getValue() / 100.0);
+                }
+                // Equipment Melee Damage% bonus
+                var meleeDmgInst = player.getAttribute(ModAttributes.MELEE_DAMAGE.get());
+                if (meleeDmgInst != null && meleeDmgInst.getValue() > 0) {
+                    amount *= 1.0f + (float) (meleeDmgInst.getValue() / 100.0);
                 }
             }
 

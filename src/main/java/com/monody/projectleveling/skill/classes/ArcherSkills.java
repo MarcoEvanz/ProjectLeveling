@@ -33,6 +33,21 @@ public final class ArcherSkills {
     private ArcherSkills() {}
 
     // ================================================================
+    // ATK multiplier helpers
+    // ================================================================
+
+    /** Arrow Rain per-arrow multiplier: ATK × this value. (+50% buffed) */
+    public static float getArrowRainMultiplier(int level, int dex) { return 0.12f + level * 0.012f + dex * 0.0015f; }
+    /** Arrow Bomb multiplier: ATK × this value. (+50% buffed) */
+    public static float getArrowBombMultiplier(int level, int dex) { return 1.20f + level * 0.06f + dex * 0.008f; }
+    /** Covering Fire per-arrow multiplier: ATK × this value. (+50% buffed) */
+    public static float getCoveringFireMultiplier(int level, int dex) { return 0.75f + level * 0.045f + dex * 0.006f; }
+    /** Phoenix per-tick multiplier: ATK × this value. (+50% buffed) */
+    public static float getPhoenixMultiplier(int level, int dex) { return 0.38f + level * 0.03f + dex * 0.005f; }
+    /** Hurricane per-arrow multiplier: ATK × this value. (+50% buffed) */
+    public static float getHurricaneMultiplier(int level, int dex) { return 0.45f + level * 0.03f + dex * 0.006f; }
+
+    // ================================================================
     // Tooltips
     // ================================================================
 
@@ -41,9 +56,9 @@ public final class ArcherSkills {
         switch (skill) {
             // === T1 ===
             case ARROW_RAIN -> {
-                float dmg = 0.15f + level * 0.05f + stats.getDexterity() * 0.01f;
+                float mult = getArrowRainMultiplier(level, stats.getDexterity()) * 100;
                 double dur = 20 + (level - 1) * (40.0 / 9.0);
-                texts.add("Dmg/arrow: " + String.format("%.1f", dmg) + " (DEX scales)");
+                texts.add("Dmg/arrow: ATK x " + String.format("%.0f", mult) + "%");
                 lines.add(new int[]{TEXT_VALUE});
                 texts.add("Duration: " + String.format("%.1f", dur / 20.0) + "s");
                 lines.add(new int[]{TEXT_VALUE});
@@ -71,10 +86,10 @@ public final class ArcherSkills {
 
             // === T2 ===
             case ARROW_BOMB -> {
-                float dmg = 2 + level * 0.6f + stats.getDexterity() * 0.1f;
+                float mult = getArrowBombMultiplier(level, stats.getDexterity()) * 100;
                 double radius = 3 + level * 0.1;
                 int stunDur = 2 + level / 5;
-                texts.add("Damage: " + String.format("%.1f", dmg) + " (DEX scales)");
+                texts.add("Damage: ATK x " + String.format("%.0f", mult) + "%");
                 lines.add(new int[]{TEXT_VALUE});
                 texts.add("AoE radius: " + String.format("%.1f", radius) + " blocks");
                 lines.add(new int[]{TEXT_VALUE});
@@ -84,9 +99,9 @@ public final class ArcherSkills {
                 lines.add(new int[]{TEXT_DIM});
             }
             case COVERING_FIRE -> {
-                float dmg = 1 + level * 0.4f + stats.getDexterity() * 0.08f;
+                float mult = getCoveringFireMultiplier(level, stats.getDexterity()) * 100;
                 int arrowCount = 3 + level / 4;
-                texts.add("Dmg/arrow: " + String.format("%.1f", dmg) + " (DEX scales)");
+                texts.add("Dmg/arrow: ATK x " + String.format("%.0f", mult) + "%");
                 lines.add(new int[]{TEXT_VALUE});
                 texts.add("Arrows: " + arrowCount);
                 lines.add(new int[]{TEXT_VALUE});
@@ -102,12 +117,12 @@ public final class ArcherSkills {
 
             // === T3 ===
             case PHOENIX -> {
-                float dmg = 1 + level * 0.3f + stats.getDexterity() * 0.06f;
+                float mult = getPhoenixMultiplier(level, stats.getDexterity()) * 100;
                 double range = 6 + level * 0.2 + stats.getDexterity() * 0.05;
                 int dur = (int) Math.min(30 + level * 1.5, 60);
                 texts.add("Duration: " + dur + "s");
                 lines.add(new int[]{TEXT_VALUE});
-                texts.add("DPS: " + String.format("%.1f", dmg) + "/sec (DEX scales)");
+                texts.add("DPS: ATK x " + String.format("%.0f", mult) + "%/sec");
                 lines.add(new int[]{TEXT_VALUE});
                 texts.add("Range: " + String.format("%.1f", range) + " blocks (DEX scales)");
                 lines.add(new int[]{TEXT_VALUE});
@@ -115,9 +130,9 @@ public final class ArcherSkills {
                 lines.add(new int[]{TEXT_DIM});
             }
             case HURRICANE -> {
-                float dmg = 1.0f + level * 0.3f + stats.getDexterity() * 0.08f;
+                float mult = getHurricaneMultiplier(level, stats.getDexterity()) * 100;
                 double range = 8 + stats.getDexterity() * 0.1;
-                texts.add("Dmg/arrow: " + String.format("%.1f", dmg) + " (DEX scales)");
+                texts.add("Dmg/arrow: ATK x " + String.format("%.0f", mult) + "%");
                 lines.add(new int[]{TEXT_VALUE});
                 texts.add("Range: " + String.format("%.1f", range) + " blocks (DEX scales)");
                 lines.add(new int[]{TEXT_VALUE});
@@ -158,7 +173,7 @@ public final class ArcherSkills {
 
     private static void executeArrowRain(ServerPlayer player, PlayerStats stats, SkillData sd, int level) {
         stats.setCurrentMp(stats.getCurrentMp() - SkillType.ARROW_RAIN.getMpCost(level));
-        float damage = 0.15f + level * 0.05f + stats.getDexterity() * 0.01f + SkillExecutor.getWeaponDamage(player) * 0.1f; // Halved per-arrow damage
+        float damage = stats.getAttack(player) * getArrowRainMultiplier(level, stats.getDexterity());
         float radius = 3.0f;
         int durationTicks = (int) (20 + (level - 1) * (40.0 / 9.0)); // 1s at lv1, 3s at lv10
 
@@ -189,7 +204,7 @@ public final class ArcherSkills {
     private static void executeArrowBomb(ServerPlayer player, PlayerStats stats, SkillData sd, int level) {
         stats.setCurrentMp(stats.getCurrentMp() - SkillType.ARROW_BOMB.getMpCost(level));
         float aoeRadius = (float) (3 + level * 0.1);
-        float damage = 2 + level * 0.6f + stats.getDexterity() * 0.1f + SkillExecutor.getWeaponDamage(player);
+        float damage = stats.getAttack(player) * getArrowBombMultiplier(level, stats.getDexterity());
         int stunTicks = (2 + level / 5) * 20;
         SkillArrowEntity arrow = new SkillArrowEntity(
                 player.level(), player, SkillArrowEntity.ArrowType.BOMB, damage, aoeRadius, stunTicks);
@@ -209,7 +224,7 @@ public final class ArcherSkills {
         player.push(-look.x * force, 0.3, -look.z * force);
         player.hurtMarked = true;
         // Spawn arrows forward
-        float damage = 1 + level * 0.4f + stats.getDexterity() * 0.08f + SkillExecutor.getWeaponDamage(player);
+        float damage = stats.getAttack(player) * getCoveringFireMultiplier(level, stats.getDexterity());
         int arrowCount = 3 + level / 4;
         for (int i = 0; i < arrowCount; i++) {
             SkillArrowEntity arrow = new SkillArrowEntity(
@@ -300,7 +315,7 @@ public final class ArcherSkills {
     public static void tickPhoenix(ServerPlayer player, PlayerStats stats, SkillData sd) {
         int level = sd.getLevel(SkillType.PHOENIX);
         double range = 6 + level * 0.2 + stats.getDexterity() * 0.05;
-        float damage = 1 + level * 0.3f + stats.getDexterity() * 0.06f + SkillExecutor.getWeaponDamage(player) * 0.2f;
+        float damage = stats.getAttack(player) * getPhoenixMultiplier(level, stats.getDexterity());
         AABB area = player.getBoundingBox().inflate(range);
         List<Monster> mobs = player.level().getEntitiesOfClass(Monster.class, area);
         if (!mobs.isEmpty()) {
@@ -337,7 +352,7 @@ public final class ArcherSkills {
     public static void tickHurricane(ServerPlayer player, PlayerStats stats, SkillData sd) {
         int level = sd.getLevel(SkillType.HURRICANE);
         double range = 8 + stats.getDexterity() * 0.1;
-        float damage = 1.0f + level * 0.3f + stats.getDexterity() * 0.08f + SkillExecutor.getWeaponDamage(player) * 0.15f;
+        float damage = stats.getAttack(player) * getHurricaneMultiplier(level, stats.getDexterity());
         AABB area = player.getBoundingBox().inflate(range);
         List<Monster> mobs = player.level().getEntitiesOfClass(Monster.class, area);
         if (!mobs.isEmpty()) {
@@ -390,7 +405,7 @@ public final class ArcherSkills {
 
         switch (skill) {
             case ARROW_RAIN -> {
-                float dmg = (0.3f + level * 0.1f + stats.getDexterity() * 0.02f + SkillExecutor.getWeaponDamage(player) * 0.2f) * multiplier;
+                float dmg = stats.getAttack(player) * getArrowRainMultiplier(level, stats.getDexterity()) * multiplier;
                 for (int i = 0; i < 5; i++) {
                     double ox = (player.getRandom().nextDouble() - 0.5) * 6;
                     double oz = (player.getRandom().nextDouble() - 0.5) * 6;
@@ -402,14 +417,14 @@ public final class ArcherSkills {
                 }
             }
             case ARROW_BOMB -> {
-                float dmg = (3 + level * 0.8f + stats.getDexterity() * 0.15f + SkillExecutor.getWeaponDamage(player)) * multiplier;
+                float dmg = stats.getAttack(player) * getArrowBombMultiplier(level, stats.getDexterity()) * multiplier;
                 SkillArrowEntity arrow = new SkillArrowEntity(sl, partner,
                         SkillArrowEntity.ArrowType.BOMB, dmg, 3 + level * 0.1f, 30 + level * 2);
                 arrow.shootFromRotation(partner, partner.getXRot(), partner.getYRot(), 0, 2.5f, 1.0f);
                 sl.addFreshEntity(arrow);
             }
             case COVERING_FIRE -> {
-                float dmg = (2 + level * 0.5f + stats.getDexterity() * 0.1f + SkillExecutor.getWeaponDamage(player)) * multiplier;
+                float dmg = stats.getAttack(player) * getCoveringFireMultiplier(level, stats.getDexterity()) * multiplier;
                 for (int i = 0; i < 3; i++) {
                     SkillArrowEntity arrow = new SkillArrowEntity(sl, partner,
                             SkillArrowEntity.ArrowType.COVERING_FIRE, dmg, 0, 0);
@@ -419,7 +434,7 @@ public final class ArcherSkills {
                 }
             }
             case PHOENIX -> {
-                float dmg = (1 + level * 0.2f + stats.getDexterity() * 0.04f + SkillExecutor.getWeaponDamage(player) * 0.2f) * multiplier;
+                float dmg = stats.getAttack(player) * getPhoenixMultiplier(level, stats.getDexterity()) * multiplier;
                 List<Monster> mobs = sl.getEntitiesOfClass(Monster.class,
                         partner.getBoundingBox().inflate(4));
                 for (Monster mob : mobs) {

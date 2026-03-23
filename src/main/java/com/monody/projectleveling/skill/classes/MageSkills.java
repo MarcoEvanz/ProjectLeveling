@@ -30,6 +30,19 @@ public final class MageSkills {
 
     private MageSkills() {}
 
+    // ========== MATK MULTIPLIER HELPERS ==========
+
+    /** Flame Orb: MATK × this value. (~35% reduced) */
+    public static float getFlameOrbMultiplier(int level, int intel) { return 1.00f + level * 0.06f + intel * 0.010f; }
+    /** Frost Bind: MATK × this value. (~35% reduced) */
+    public static float getFrostBindMultiplier(int level, int intel) { return 0.65f + level * 0.04f + intel * 0.006f; }
+    /** Poison Mist per-tick: MATK × this value. (~35% reduced) */
+    public static float getPoisonMistMultiplier(int level, int intel) { return 0.26f + level * 0.02f + intel * 0.003f; }
+    /** Mist Eruption (detonate): MATK × this value. (~35% reduced) */
+    public static float getMistEruptionDetonateMultiplier(int level, int intel) { return 1.60f + level * 0.08f + intel * 0.013f; }
+    /** Mist Eruption (arcane fallback): MATK × this value. (~35% reduced) */
+    public static float getMistEruptionArcaneMultiplier(int level, int intel) { return 0.80f + level * 0.04f + intel * 0.006f; }
+
     // ========== TOOLTIPS ==========
 
     public static void addDetailLines(List<String> texts, List<int[]> lines,
@@ -37,10 +50,10 @@ public final class MageSkills {
         switch (skill) {
             // === T1 ===
             case FLAME_ORB -> {
-                float dmg = 2 + level * 0.6f + stats.getIntelligence() * 0.12f;
+                float mult = getFlameOrbMultiplier(level, stats.getIntelligence()) * 100;
                 double radius = 3 + level * 0.1;
                 int fireDur = 3 + level / 3;
-                texts.add("Damage: " + String.format("%.1f", dmg) + " (INT scales)");
+                texts.add("Damage: MATK x " + String.format("%.0f", mult) + "%");
                 lines.add(new int[]{TEXT_VALUE});
                 texts.add("AoE radius: " + String.format("%.1f", radius) + " blocks");
                 lines.add(new int[]{TEXT_VALUE});
@@ -68,9 +81,9 @@ public final class MageSkills {
             // === T2 ===
             case FROST_BIND -> {
                 double range = 5 + level * 0.15 + stats.getIntelligence() * 0.05;
-                float dmg = 1 + level * 0.3f + stats.getIntelligence() * 0.08f;
+                float mult = getFrostBindMultiplier(level, stats.getIntelligence()) * 100;
                 int freezeDur = 3 + level / 3;
-                texts.add("Damage: " + String.format("%.1f", dmg) + " (INT scales)");
+                texts.add("Damage: MATK x " + String.format("%.0f", mult) + "%");
                 lines.add(new int[]{TEXT_VALUE});
                 texts.add("Range: " + String.format("%.1f", range) + " blocks (INT scales)");
                 lines.add(new int[]{TEXT_VALUE});
@@ -81,11 +94,11 @@ public final class MageSkills {
             }
             case POISON_MIST -> {
                 int mistDur = 8 + level / 3;
-                float tickDmg = 0.5f + level * 0.1f + stats.getIntelligence() * 0.03f;
+                float mult = getPoisonMistMultiplier(level, stats.getIntelligence()) * 100;
                 double radius = 4 + level * 0.1;
                 texts.add("Duration: " + mistDur + "s");
                 lines.add(new int[]{TEXT_VALUE});
-                texts.add("DPS: " + String.format("%.1f", tickDmg) + "/sec (INT scales)");
+                texts.add("DPS: MATK x " + String.format("%.0f", mult) + "%/sec");
                 lines.add(new int[]{TEXT_VALUE});
                 texts.add("Radius: " + String.format("%.1f", radius) + " blocks");
                 lines.add(new int[]{TEXT_VALUE});
@@ -93,7 +106,7 @@ public final class MageSkills {
                 lines.add(new int[]{TEXT_DIM});
             }
             case ELEMENT_AMPLIFICATION -> {
-                texts.add("Skill damage: +" + (level * 3) + "%");
+                texts.add("Skill damage: +" + (level * 2) + "%");
                 lines.add(new int[]{TEXT_VALUE});
                 texts.add("MP cost: +20% for all skills");
                 lines.add(new int[]{TEXT_DIM});
@@ -101,14 +114,14 @@ public final class MageSkills {
 
             // === T3 ===
             case MIST_ERUPTION -> {
-                float detDmg = 4 + level * 0.8f + stats.getIntelligence() * 0.2f;
+                float detMult = getMistEruptionDetonateMultiplier(level, stats.getIntelligence()) * 100;
                 double detRadius = 5 + level * 0.15;
-                float blastDmg = 2 + level * 0.4f + stats.getIntelligence() * 0.1f;
-                texts.add("With Mist: " + String.format("%.1f", detDmg) + " dmg (INT scales)");
+                float arcMult = getMistEruptionArcaneMultiplier(level, stats.getIntelligence()) * 100;
+                texts.add("With Mist: MATK x " + String.format("%.0f", detMult) + "%");
                 lines.add(new int[]{TEXT_VALUE});
                 texts.add("  Radius: " + String.format("%.1f", detRadius) + " blocks + fire");
                 lines.add(new int[]{TEXT_VALUE});
-                texts.add("No Mist: " + String.format("%.1f", blastDmg) + " dmg, 4 block range");
+                texts.add("No Mist: MATK x " + String.format("%.0f", arcMult) + "%, 4 block range");
                 lines.add(new int[]{TEXT_VALUE});
                 texts.add("Detonates Poison Mist for bonus damage");
                 lines.add(new int[]{TEXT_DIM});
@@ -153,7 +166,7 @@ public final class MageSkills {
 
     private static void executeFlameOrb(ServerPlayer player, PlayerStats stats, SkillData sd, int level) {
         stats.setCurrentMp(stats.getCurrentMp() - SkillType.FLAME_ORB.getMpCost(level));
-        float damage = 2 + level * 0.6f + stats.getIntelligence() * 0.12f + stats.getMagicAttack(player);
+        float damage = stats.getMagicAttack(player) * getFlameOrbMultiplier(level, stats.getIntelligence());
         float aoeRadius = (float) (3 + level * 0.1);
         Vec3 look = player.getLookAngle();
         SkillFireballEntity fireball = new SkillFireballEntity(
@@ -190,7 +203,7 @@ public final class MageSkills {
     private static void executeFrostBind(ServerPlayer player, PlayerStats stats, SkillData sd, int level) {
         stats.setCurrentMp(stats.getCurrentMp() - SkillType.FROST_BIND.getMpCost(level));
         double range = 5 + level * 0.15 + stats.getIntelligence() * 0.05;
-        float damage = 1 + level * 0.3f + stats.getIntelligence() * 0.08f + stats.getMagicAttack(player);
+        float damage = stats.getMagicAttack(player) * getFrostBindMultiplier(level, stats.getIntelligence());
         int freezeDuration = (3 + level / 3) * 20;
         AABB area = player.getBoundingBox().inflate(range);
         List<Monster> mobs = player.level().getEntitiesOfClass(Monster.class, area);
@@ -237,7 +250,7 @@ public final class MageSkills {
     public static void tickPoisonMist(ServerPlayer player, PlayerStats stats, SkillData sd) {
         int level = sd.getLevel(SkillType.POISON_MIST);
         double radius = 4 + level * 0.1;
-        float damage = 0.5f + level * 0.1f + stats.getIntelligence() * 0.03f + stats.getMagicAttack(player) * 0.2f;
+        float damage = stats.getMagicAttack(player) * getPoisonMistMultiplier(level, stats.getIntelligence());
         AABB area = new AABB(
                 sd.getMistX() - radius, sd.getMistY() - radius, sd.getMistZ() - radius,
                 sd.getMistX() + radius, sd.getMistY() + radius, sd.getMistZ() + radius);
@@ -258,7 +271,7 @@ public final class MageSkills {
         if (sd.isMistActive()) {
             // Detonate the mist for massive damage
             double radius = 5 + level * 0.15;
-            float damage = 4 + level * 0.8f + stats.getIntelligence() * 0.2f + stats.getMagicAttack(player);
+            float damage = stats.getMagicAttack(player) * getMistEruptionDetonateMultiplier(level, stats.getIntelligence());
             AABB area = new AABB(
                     sd.getMistX() - radius, sd.getMistY() - radius, sd.getMistZ() - radius,
                     sd.getMistX() + radius, sd.getMistY() + radius, sd.getMistZ() + radius);
@@ -280,7 +293,7 @@ public final class MageSkills {
                     "\u00a7b[System]\u00a7r \u00a76Mist Eruption! " + mobs.size() + " enemies blasted!"));
         } else {
             // Weaker arcane blast without mist
-            float damage = 2 + level * 0.4f + stats.getIntelligence() * 0.1f + stats.getMagicAttack(player);
+            float damage = stats.getMagicAttack(player) * getMistEruptionArcaneMultiplier(level, stats.getIntelligence());
             double range = 4;
             AABB area = player.getBoundingBox().inflate(range);
             List<Monster> mobs = player.level().getEntitiesOfClass(Monster.class, area);
@@ -343,7 +356,7 @@ public final class MageSkills {
         Vec3 look = player.getLookAngle();
         switch (skill) {
             case FLAME_ORB -> {
-                float dmg = (3 + level * 1.2f + stats.getIntelligence() * 0.2f + stats.getMagicAttack(player)) * multiplier;
+                float dmg = stats.getMagicAttack(player) * getFlameOrbMultiplier(level, stats.getIntelligence()) * multiplier;
                 SkillFireballEntity fb = new SkillFireballEntity(sl, partner,
                         look.x, look.y, look.z,
                         SkillFireballEntity.FireballType.FLAME_ORB, dmg, 3.0f, level);
@@ -351,7 +364,7 @@ public final class MageSkills {
             }
             case FROST_BIND -> {
                 float radius = 4 + level * 0.2f;
-                float dmg = (3 + level * 0.8f + stats.getMagicAttack(player)) * multiplier;
+                float dmg = stats.getMagicAttack(player) * getFrostBindMultiplier(level, stats.getIntelligence()) * multiplier;
                 List<Monster> mobs = sl.getEntitiesOfClass(Monster.class,
                         partner.getBoundingBox().inflate(radius));
                 for (Monster mob : mobs) {
@@ -362,7 +375,7 @@ public final class MageSkills {
                 SkillParticles.burst(sl, pos.x, pos.y + 1, pos.z, 20, radius * 0.5, ParticleTypes.SNOWFLAKE);
             }
             case POISON_MIST -> {
-                float dmg = (0.5f + level * 0.1f + stats.getIntelligence() * 0.03f + stats.getMagicAttack(player) * 0.2f) * multiplier;
+                float dmg = stats.getMagicAttack(player) * getPoisonMistMultiplier(level, stats.getIntelligence()) * multiplier;
                 List<Monster> mobs = sl.getEntitiesOfClass(Monster.class,
                         partner.getBoundingBox().inflate(4));
                 for (Monster mob : mobs) {
@@ -374,7 +387,7 @@ public final class MageSkills {
             }
             case MIST_ERUPTION -> {
                 float radius = 4 + level * 0.1f;
-                float dmg = (2 + level * 0.5f + stats.getIntelligence() * 0.1f + stats.getMagicAttack(player)) * multiplier;
+                float dmg = stats.getMagicAttack(player) * getMistEruptionArcaneMultiplier(level, stats.getIntelligence()) * multiplier;
                 List<Monster> mobs = sl.getEntitiesOfClass(Monster.class,
                         partner.getBoundingBox().inflate(radius));
                 for (Monster mob : mobs) {

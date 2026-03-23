@@ -11,7 +11,7 @@ import net.minecraft.world.item.Tier;
 
 import java.util.UUID;
 
-public class DaggerItem extends SwordItem {
+public class DaggerItem extends SwordItem implements TaggedWeapon {
     private static final UUID CRIT_RATE_UUID = UUID.fromString("A7E8C3D1-5B2F-4A91-8D67-3C1F0E9B4A52");
     private static final UUID CRIT_DAMAGE_UUID = UUID.fromString("B8F9D4E2-6C3A-4B02-9E78-4D2A1F0C5B63");
 
@@ -35,6 +35,9 @@ public class DaggerItem extends SwordItem {
     public Multimap<Attribute, AttributeModifier> getDefaultAttributeModifiers(EquipmentSlot slot) {
         return slot == EquipmentSlot.MAINHAND ? this.daggerModifiers : super.getDefaultAttributeModifiers(slot);
     }
+
+    @Override
+    public WeaponTag getWeaponTag() { return WeaponTag.DAGGER; }
 
     public static boolean isDagger(ItemStack stack) {
         return stack.getItem() instanceof DaggerItem;

@@ -63,6 +63,24 @@ public class PlayerStats {
     public boolean isQuestRewardClaimed() { return questRewardClaimed; }
     public long getQuestDay() { return questDay; }
 
+    /** Physical Attack: derived from STR, LUK, DEX, AGI. Used in tooltips (no player context). */
+    public float getAttack() {
+        return (strength - 1) * 0.1f + (luck - 1) * 0.07f + (dexterity - 1) * 0.07f + (agility - 1) * 0.05f;
+    }
+
+    /** Physical Attack including weapon + ATK%. Use in execution where player is available. */
+    public float getAttack(Player player) {
+        float base = (strength - 1) * 0.1f + (luck - 1) * 0.07f + (dexterity - 1) * 0.07f + (agility - 1) * 0.05f;
+        if (player != null) {
+            base += com.monody.projectleveling.skill.SkillExecutor.getWeaponDamage(player);
+            AttributeInstance atkPctInst = player.getAttribute(ModAttributes.ATTACK_PERCENT.get());
+            if (atkPctInst != null && atkPctInst.getValue() > 0) {
+                base *= 1.0f + (float) (atkPctInst.getValue() / 100.0);
+            }
+        }
+        return base;
+    }
+
     /** Magic Attack: derived from INT. 0.1 MATK per INT point. Used in tooltips (no player context). */
     public float getMagicAttack() { return intelligence * 0.1f; }
 

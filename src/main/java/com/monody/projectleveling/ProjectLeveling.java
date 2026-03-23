@@ -72,6 +72,8 @@ public class ProjectLeveling {
         event.add(EntityType.PLAYER, ModAttributes.ATTACK_PERCENT.get());
         event.add(EntityType.PLAYER, ModAttributes.MAGIC_ATTACK_PERCENT.get());
         event.add(EntityType.PLAYER, ModAttributes.FINAL_DAMAGE.get());
+        event.add(EntityType.PLAYER, ModAttributes.PROJECTILE_DAMAGE.get());
+        event.add(EntityType.PLAYER, ModAttributes.MELEE_DAMAGE.get());
     }
 
     @SubscribeEvent

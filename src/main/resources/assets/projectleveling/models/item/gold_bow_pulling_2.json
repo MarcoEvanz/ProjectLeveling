@@ -1,0 +1,6 @@
+{
+  "parent": "projectleveling:item/gold_bow",
+  "textures": {
+    "layer0": "projectleveling:item/gold_bow_pulling_2"
+  }
+}

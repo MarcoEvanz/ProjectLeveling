@@ -11,13 +11,17 @@ import com.monody.projectleveling.entity.kunai.ThrownKunaiRenderer;
 import com.monody.projectleveling.entity.kunai.ThrownShurikenRenderer;
 import com.monody.projectleveling.entity.ninja.FlyingRaijinKunaiRenderer;
 import com.monody.projectleveling.entity.ninja.ShadowCloneRenderer;
+import com.monody.projectleveling.item.ModItems;
 import com.monody.projectleveling.network.C2SActivateSkillPacket;
 import com.monody.projectleveling.network.C2SRequestSyncPacket;
 import com.monody.projectleveling.network.ModNetwork;
 import com.monody.projectleveling.skill.SkillType;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.renderer.item.ItemProperties;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.client.event.EntityRenderersEvent;
@@ -27,6 +31,8 @@ import net.minecraftforge.client.event.RenderPlayerEvent;
 import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
+import net.minecraftforge.fml.event.lifecycle.FMLClientSetupEvent;
+import net.minecraftforge.registries.RegistryObject;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -35,6 +41,25 @@ import java.util.UUID;
 public class ClientEvents {
     @Mod.EventBusSubscriber(modid = ProjectLeveling.MOD_ID, bus = Mod.EventBusSubscriber.Bus.MOD, value = Dist.CLIENT)
     public static class ModBusEvents {
+        @SubscribeEvent
+        public static void onClientSetup(FMLClientSetupEvent event) {
+            event.enqueueWork(() -> {
+                RegistryObject<Item>[] bows = new RegistryObject[]{
+                        ModItems.WOOD_BOW, ModItems.STONE_BOW, ModItems.IRON_BOW,
+                        ModItems.GOLD_BOW, ModItems.DIAMOND_BOW, ModItems.NETHERITE_BOW
+                };
+                for (RegistryObject<Item> bow : bows) {
+                    ItemProperties.register(bow.get(), new ResourceLocation("pulling"), (stack, level, entity, seed) ->
+                            entity != null && entity.isUsingItem() && entity.getUseItem() == stack ? 1.0F : 0.0F);
+                    ItemProperties.register(bow.get(), new ResourceLocation("pull"), (stack, level, entity, seed) -> {
+                        if (entity == null) return 0.0F;
+                        return entity.getUseItem() != stack ? 0.0F
+                                : (float)(stack.getUseDuration() - entity.getUseItemRemainingTicks()) / 20.0F;
+                    });
+                }
+            });
+        }
+
         @SubscribeEvent
         public static void onRegisterKeyMappings(RegisterKeyMappingsEvent event) {
             event.register(KeyBindings.STATUS_SCREEN);

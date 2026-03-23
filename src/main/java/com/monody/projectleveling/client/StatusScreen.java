@@ -11,13 +11,18 @@ import com.monody.projectleveling.item.ModAttributes;
 import com.monody.projectleveling.skill.classes.MageSkills;
 import com.monody.projectleveling.skill.classes.NecromancerSkills;
 import com.monody.projectleveling.skill.classes.WarriorSkills;
+import com.google.common.collect.Multimap;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
+import net.minecraft.world.entity.EquipmentSlot;
+import net.minecraft.world.entity.ai.attributes.Attribute;
 import net.minecraft.world.entity.ai.attributes.AttributeInstance;
+import net.minecraft.world.entity.ai.attributes.AttributeModifier;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.ItemStack;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -241,6 +246,20 @@ public class StatusScreen extends Screen {
         }
     }
 
+    // === Utility ===
+
+    private static double getEquipModifier(Player player, Attribute attribute) {
+        if (player == null) return 0;
+        ItemStack mainHand = player.getMainHandItem();
+        if (mainHand.isEmpty()) return 0;
+        double total = 0;
+        Multimap<Attribute, AttributeModifier> modifiers = mainHand.getAttributeModifiers(EquipmentSlot.MAINHAND);
+        for (AttributeModifier mod : modifiers.get(attribute)) {
+            total += mod.getAmount();
+        }
+        return total;
+    }
+
     // === Summary + Buffs rendering ===
 
     private int renderSummary(GuiGraphics g, PlayerStats stats, int left, int right, int innerW, int rowY) {
@@ -284,11 +303,7 @@ public class StatusScreen extends Screen {
             atkTag.append("SB+").append(String.format("%.1f", sd.getSpiritBladeAtk()));
         }
         // ATK% from equipment
-        double atkPct = 0;
-        if (player != null) {
-            AttributeInstance atkPctInst = player.getAttribute(ModAttributes.ATTACK_PERCENT.get());
-            if (atkPctInst != null) atkPct = atkPctInst.getValue();
-        }
+        double atkPct = getEquipModifier(player, ModAttributes.ATTACK_PERCENT.get());
         double totalAtk = dmg + weaponDmg;
         if (atkPct > 0) totalAtk *= 1 + atkPct / 100.0;
         if (atkPct > 0) {
@@ -301,16 +316,8 @@ public class StatusScreen extends Screen {
         // MATK
         rowY += lineH;
         float matk = stats.getIntelligence() * 0.1f;
-        float equipMatk = 0;
-        if (player != null) {
-            AttributeInstance matkInst = player.getAttribute(ModAttributes.MAGIC_ATTACK.get());
-            if (matkInst != null) equipMatk = (float) matkInst.getValue();
-        }
-        double matkPct = 0;
-        if (player != null) {
-            AttributeInstance matkPctInst = player.getAttribute(ModAttributes.MAGIC_ATTACK_PERCENT.get());
-            if (matkPctInst != null) matkPct = matkPctInst.getValue();
-        }
+        float equipMatk = (float) getEquipModifier(player, ModAttributes.MAGIC_ATTACK.get());
+        double matkPct = getEquipModifier(player, ModAttributes.MAGIC_ATTACK_PERCENT.get());
         double totalMatk = matk + equipMatk;
         if (matkPct > 0) totalMatk *= 1 + matkPct / 100.0;
         StringBuilder matkTagB = new StringBuilder();
@@ -333,12 +340,16 @@ public class StatusScreen extends Screen {
         int saLv = sd.getLevel(SkillType.SOUL_ARROW);
         if (saLv > 0 && sd.isToggleActive(SkillType.SOUL_ARROW)) projPct += 5 + saLv;
         if (kmLv > 0) projPct += kmLv * 1.5;
-        drawStat(g, "PROJ:", String.format("+%.1f%%", projPct), left, rowY);
+        double projWpn = getEquipModifier(player, ModAttributes.PROJECTILE_DAMAGE.get());
+        projPct += projWpn;
+        String projTag = projWpn > 0 ? " (WPN+" + String.format("%.0f", projWpn) + "%)" : "";
+        drawStat(g, "PROJ:", String.format("+%.1f%%", projPct) + projTag, left, rowY);
 
         // MELEE
         rowY += lineH;
-        double meleePct = 0;
-        drawStat(g, "MELEE:", String.format("+%.1f%%", meleePct), left, rowY);
+        double meleePct = getEquipModifier(player, ModAttributes.MELEE_DAMAGE.get());
+        String meleeTag = meleePct > 0 ? " (WPN+" + String.format("%.0f", meleePct) + "%)" : "";
+        drawStat(g, "MELEE:", String.format("+%.1f%%", meleePct) + meleeTag, left, rowY);
 
         // --- Critical (Sight-based) ---
         rowY += lineH;
@@ -349,11 +360,7 @@ public class StatusScreen extends Screen {
         if (aoLv > 0) critRate += aoLv * 1.5;
         if (bsLv > 0) critRate += bsLv;
         if (kmLv > 0) critRate += lukStat * 0.05f * kmLv / 10.0f;
-        double equipCrit = 0;
-        if (player != null) {
-            AttributeInstance critInst = player.getAttribute(ModAttributes.CRIT_RATE.get());
-            if (critInst != null) equipCrit = critInst.getValue();
-        }
+        double equipCrit = getEquipModifier(player, ModAttributes.CRIT_RATE.get());
         critRate += equipCrit;
         String critTag = equipCrit > 0 ? " (WPN+" + String.format("%.0f", equipCrit) + "%)" : "";
         drawStat(g, "CRIT:", String.format("%.1f%%", critRate) + critTag, left, rowY);
@@ -363,11 +370,7 @@ public class StatusScreen extends Screen {
         if (ceLv > 0) critDmg += ceLv * 2;
         if (seLv > 0) critDmg += seLv * 5;
         if (aoLv > 0) critDmg += aoLv;
-        double equipCritDmg = 0;
-        if (player != null) {
-            AttributeInstance cdInst = player.getAttribute(ModAttributes.CRIT_DAMAGE.get());
-            if (cdInst != null) equipCritDmg = cdInst.getValue();
-        }
+        double equipCritDmg = getEquipModifier(player, ModAttributes.CRIT_DAMAGE.get());
         critDmg += equipCritDmg;
         String cdTag = equipCritDmg > 0 ? " (WPN+" + String.format("%.0f", equipCritDmg) + "%)" : "";
         drawStat(g, "CDMG:", String.format("%.0f%%", critDmg) + cdTag, left, rowY);
@@ -476,11 +479,7 @@ public class StatusScreen extends Screen {
 
         // FINAL DMG%
         rowY += lineH;
-        double finalDmgPct = 0;
-        if (player != null) {
-            AttributeInstance fdInst = player.getAttribute(ModAttributes.FINAL_DAMAGE.get());
-            if (fdInst != null) finalDmgPct = fdInst.getValue();
-        }
+        double finalDmgPct = getEquipModifier(player, ModAttributes.FINAL_DAMAGE.get());
         String fdTag = finalDmgPct > 0 ? " (WPN+" + String.format("%.0f", finalDmgPct) + "%)" : "";
         drawStat(g, "FINAL DMG:", String.format("+%.1f%%", finalDmgPct) + fdTag, left, rowY);
 

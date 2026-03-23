@@ -5,6 +5,8 @@ import com.monody.projectleveling.entity.archer.SkillArrowEntity;
 import com.monody.projectleveling.entity.assassin.ShadowPartnerEntity;
 import com.monody.projectleveling.entity.mage.SkillFireballEntity;
 import com.monody.projectleveling.entity.necromancer.SkeletonMinionEntity;
+import com.monody.projectleveling.entity.kunai.ThrownKunaiEntity;
+import com.monody.projectleveling.entity.kunai.ThrownShurikenEntity;
 import com.monody.projectleveling.entity.ninja.FlyingRaijinKunaiEntity;
 import com.monody.projectleveling.entity.ninja.ShadowCloneEntity;
 import net.minecraft.world.entity.EntityType;
@@ -64,4 +66,20 @@ public class ModEntities {
                             .clientTrackingRange(8)
                             .updateInterval(20)
                             .build("flying_raijin_kunai"));
+
+    public static final RegistryObject<EntityType<ThrownKunaiEntity>> THROWN_KUNAI =
+            ENTITIES.register("thrown_kunai", () ->
+                    EntityType.Builder.<ThrownKunaiEntity>of(ThrownKunaiEntity::new, MobCategory.MISC)
+                            .sized(0.5f, 0.5f)
+                            .clientTrackingRange(8)
+                            .updateInterval(20)
+                            .build("thrown_kunai"));
+
+    public static final RegistryObject<EntityType<ThrownShurikenEntity>> THROWN_SHURIKEN =
+            ENTITIES.register("thrown_shuriken", () ->
+                    EntityType.Builder.<ThrownShurikenEntity>of(ThrownShurikenEntity::new, MobCategory.MISC)
+                            .sized(0.5f, 0.5f)
+                            .clientTrackingRange(8)
+                            .updateInterval(20)
+                            .build("thrown_shuriken"));
 }

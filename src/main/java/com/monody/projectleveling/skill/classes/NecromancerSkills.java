@@ -49,16 +49,16 @@ public final class NecromancerSkills {
                 lines.add(new int[]{TEXT_VALUE});
             }
             case RAISE_SKELETON -> {
-                float mDmg = 2 + stats.getMind() * 0.1f;
-                float mHp = 15 + stats.getMind() * 0.3f;
+                float mDmg = 3 + stats.getMind() * 0.2f + stats.getIntelligence() * 0.1f + stats.getMagicAttack();
+                float mHp = 20 + stats.getMind() * 0.5f;
                 String weapon = level >= 9 ? "Diamond" : level >= 7 ? "Iron" : level >= 5 ? "Iron" : level >= 3 ? "Stone" : "Wooden";
                 texts.add("Minion HP: " + String.format("%.0f", mHp) + " (Mind scales)");
                 lines.add(new int[]{TEXT_VALUE});
-                texts.add("Minion DMG: " + String.format("%.1f", mDmg) + " (Mind scales)");
+                texts.add("Minion DMG: " + String.format("%.1f", mDmg) + " (Mind+INT+MATK)");
                 lines.add(new int[]{TEXT_VALUE});
                 texts.add("Weapon: " + weapon + " Sword");
                 lines.add(new int[]{TEXT_VALUE});
-                texts.add("MP drain: " + SkillType.RAISE_SKELETON.getToggleMpPerSecond(level) + "/s");
+                texts.add("MP drain: " + String.format("%.1f", SkillType.RAISE_SKELETON.getToggleDrainPercent(level)) + "% MP/s");
                 lines.add(new int[]{TEXT_VALUE});
             }
             case DARK_PACT -> {
@@ -85,7 +85,7 @@ public final class NecromancerSkills {
                 int reduction = Math.min(8 + level, 20);
                 texts.add("Damage reduction: " + reduction + "%");
                 lines.add(new int[]{TEXT_VALUE});
-                texts.add("MP drain: " + SkillType.BONE_SHIELD.getToggleMpPerSecond(level) + "/s");
+                texts.add("MP drain: " + String.format("%.1f", SkillType.BONE_SHIELD.getToggleDrainPercent(level)) + "% MP/s");
                 lines.add(new int[]{TEXT_VALUE});
             }
             case CORPSE_EXPLOSION -> {
@@ -116,8 +116,8 @@ public final class NecromancerSkills {
 
             // === T3 ===
             case ARMY_OF_THE_DEAD -> {
-                float mDmg = (2 + stats.getMind() * 0.1f) * 0.5f;
-                float mHp = (15 + stats.getMind() * 0.3f) * 0.5f;
+                float mDmg = (3 + stats.getMind() * 0.2f + stats.getIntelligence() * 0.1f + stats.getMagicAttack()) * 0.5f;
+                float mHp = (20 + stats.getMind() * 0.5f) * 0.5f;
                 float adDur = 10 + level * 0.5f;
                 texts.add("Summons: 5 skeleton minions");
                 lines.add(new int[]{TEXT_VALUE});
@@ -157,7 +157,7 @@ public final class NecromancerSkills {
                 lines.add(new int[]{TEXT_VALUE});
                 texts.add("Minion bonus damage: +" + String.format("%.1f", slBonusDmg) + "%");
                 lines.add(new int[]{TEXT_VALUE});
-                texts.add("MP drain: " + SkillType.SOUL_LINK.getToggleMpPerSecond(level) + "/s");
+                texts.add("MP drain: " + String.format("%.1f", SkillType.SOUL_LINK.getToggleDrainPercent(level)) + "% MP/s");
                 lines.add(new int[]{TEXT_VALUE});
             }
             case ENHANCE_UNDEAD -> {
@@ -195,7 +195,7 @@ public final class NecromancerSkills {
     private static void executeLifeDrain(ServerPlayer player, PlayerStats stats, SkillData sd, int level) {
         stats.setCurrentMp(stats.getCurrentMp() - SkillType.LIFE_DRAIN.getMpCost(level));
         float range = 5 + level * 0.3f;
-        float damage = 2 + level * 0.5f + stats.getIntelligence() * 0.1f + stats.getMagicAttack();
+        float damage = 2 + level * 0.5f + stats.getIntelligence() * 0.1f + stats.getMagicAttack(player);
         float healPct = 0.2f + level * 0.016f; // 20-36%
         AABB area = player.getBoundingBox().inflate(range);
         List<Monster> mobs = player.level().getEntitiesOfClass(Monster.class, area);
@@ -221,7 +221,7 @@ public final class NecromancerSkills {
     }
 
     private static void executeRaiseSkeleton(ServerPlayer player, PlayerStats stats, SkillData sd, int level) {
-        if (stats.getCurrentMp() < SkillType.RAISE_SKELETON.getToggleMpPerSecond(level)) {
+        if (stats.getCurrentMp() < SkillType.RAISE_SKELETON.getToggleMpPerSecond(level, stats.getMaxMp())) {
             player.sendSystemMessage(Component.literal("\u00a7cNot enough MP!"));
             return;
         }
@@ -229,10 +229,10 @@ public final class NecromancerSkills {
         int dpLv = sd.getLevel(SkillType.DARK_PACT);
         int uwLv = sd.getLevel(SkillType.UNDYING_WILL);
         int euLv = sd.getLevel(SkillType.ENHANCE_UNDEAD);
-        float minionDmg = 2 + mindStat * 0.1f;
+        float minionDmg = 3 + mindStat * 0.2f + stats.getIntelligence() * 0.1f + stats.getMagicAttack(player);
         minionDmg *= (1 + dpLv * 0.015f);
         if (euLv > 0) minionDmg *= (1 + euLv * 0.01f);
-        float minionHp = 15 + mindStat * 0.3f;
+        float minionHp = 20 + mindStat * 0.5f;
         minionHp *= (1 + uwLv * 0.02f);
 
         if (player.level() instanceof ServerLevel sl) {
@@ -252,7 +252,7 @@ public final class NecromancerSkills {
     }
 
     private static void executeBoneShield(ServerPlayer player, PlayerStats stats, SkillData sd, int level) {
-        if (stats.getCurrentMp() < SkillType.BONE_SHIELD.getToggleMpPerSecond(level)) {
+        if (stats.getCurrentMp() < SkillType.BONE_SHIELD.getToggleMpPerSecond(level, stats.getMaxMp())) {
             player.sendSystemMessage(Component.literal("\u00a7cNot enough MP!"));
             return;
         }
@@ -280,7 +280,7 @@ public final class NecromancerSkills {
         }
 
         stats.setCurrentMp(stats.getCurrentMp() - SkillType.CORPSE_EXPLOSION.getMpCost(level));
-        float damage = 5 + level * 1.0f + stats.getIntelligence() * 0.2f + stats.getMagicAttack();
+        float damage = 5 + level * 1.0f + stats.getIntelligence() * 0.2f + stats.getMagicAttack(player);
 
         int detonated = 0;
         for (SkeletonMinionEntity skeleton : skeletons) {
@@ -327,10 +327,10 @@ public final class NecromancerSkills {
         int dpLv = sd.getLevel(SkillType.DARK_PACT);
         int uwLv = sd.getLevel(SkillType.UNDYING_WILL);
         int euLv = sd.getLevel(SkillType.ENHANCE_UNDEAD);
-        float minionDmg = (2 + mindStat * 0.1f) * 0.5f; // 50% of raise skeleton
+        float minionDmg = (3 + mindStat * 0.2f + stats.getIntelligence() * 0.1f + stats.getMagicAttack(player)) * 0.5f; // 50% of raise skeleton
         minionDmg *= (1 + dpLv * 0.015f);
         if (euLv > 0) minionDmg *= (1 + euLv * 0.01f);
-        float minionHp = (15 + mindStat * 0.3f) * 0.5f;
+        float minionHp = (20 + mindStat * 0.5f) * 0.5f;
         minionHp *= (1 + uwLv * 0.02f);
         boolean wither = euLv >= 20;
 
@@ -398,7 +398,7 @@ public final class NecromancerSkills {
             sd.setDeathMarkTargetId(-1);
             return;
         }
-        float dotDmg = 1 + level * 0.3f + stats.getIntelligence() * 0.08f + stats.getMagicAttack() * 0.2f;
+        float dotDmg = 1 + level * 0.3f + stats.getIntelligence() * 0.08f + stats.getMagicAttack(player) * 0.2f;
         living.hurt(SkillDamageSource.get(player.level()), dotDmg);
         CombatLog.damageSkill(player, "Death Mark", dotDmg, living);
         if (player.level() instanceof ServerLevel sl) {
@@ -412,7 +412,7 @@ public final class NecromancerSkills {
         int level = sd.getLevel(SkillType.DEATH_MARK);
         if (level <= 0) return;
         float aoeRange = 6;
-        float aoeDmg = 3 + level * 0.7f + stats.getIntelligence() * 0.15f + stats.getMagicAttack();
+        float aoeDmg = 3 + level * 0.7f + stats.getIntelligence() * 0.15f + stats.getMagicAttack(player);
         if (player.level() instanceof ServerLevel sl) {
             double dx = deadEntity.getX(), dy = deadEntity.getY(), dz = deadEntity.getZ();
             AABB area = deadEntity.getBoundingBox().inflate(aoeRange);
@@ -463,7 +463,7 @@ public final class NecromancerSkills {
     }
 
     private static void executeSoulLink(ServerPlayer player, PlayerStats stats, SkillData sd, int level) {
-        if (stats.getCurrentMp() < SkillType.SOUL_LINK.getToggleMpPerSecond(level)) {
+        if (stats.getCurrentMp() < SkillType.SOUL_LINK.getToggleMpPerSecond(level, stats.getMaxMp())) {
             player.sendSystemMessage(Component.literal("\u00a7cNot enough MP!"));
             return;
         }

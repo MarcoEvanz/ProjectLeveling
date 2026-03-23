@@ -3,6 +3,7 @@ package com.monody.projectleveling.entity.ninja;
 import com.monody.projectleveling.capability.PlayerStatsCapability;
 import com.monody.projectleveling.entity.ModEntities;
 import com.monody.projectleveling.event.StatEventHandler;
+import com.monody.projectleveling.item.ModItems;
 import com.monody.projectleveling.skill.CombatLog;
 import com.monody.projectleveling.skill.SkillDamageSource;
 import com.monody.projectleveling.skill.SkillData;
@@ -10,20 +11,30 @@ import com.monody.projectleveling.skill.SkillParticles;
 import com.monody.projectleveling.skill.SkillType;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.network.chat.Component;
+import net.minecraft.network.syncher.EntityDataAccessor;
+import net.minecraft.network.syncher.EntityDataSerializers;
+import net.minecraft.network.syncher.SynchedEntityData;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.projectile.AbstractArrow;
+import net.minecraft.world.entity.projectile.ItemSupplier;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.EntityHitResult;
 
-public class FlyingRaijinKunaiEntity extends AbstractArrow {
+public class FlyingRaijinKunaiEntity extends AbstractArrow implements ItemSupplier {
+
+    private static final EntityDataAccessor<ItemStack> DATA_ITEM =
+            SynchedEntityData.defineId(FlyingRaijinKunaiEntity.class, EntityDataSerializers.ITEM_STACK);
+    private static final EntityDataAccessor<Boolean> DATA_STUCK =
+            SynchedEntityData.defineId(FlyingRaijinKunaiEntity.class, EntityDataSerializers.BOOLEAN);
+    private static final EntityDataAccessor<Boolean> DATA_GROUND_PLACED =
+            SynchedEntityData.defineId(FlyingRaijinKunaiEntity.class, EntityDataSerializers.BOOLEAN);
 
     private int groundLife = 0;
-    private boolean stuck = false;
     private float kunaiDamage = 3.0f;
 
     // Required for entity registration (client-side spawn)
@@ -33,24 +44,69 @@ public class FlyingRaijinKunaiEntity extends AbstractArrow {
     }
 
     // Server spawn constructor
-    public FlyingRaijinKunaiEntity(Level level, LivingEntity owner, float damage) {
+    public FlyingRaijinKunaiEntity(Level level, LivingEntity owner, float damage, ItemStack heldKunai) {
         super(ModEntities.FLYING_RAIJIN_KUNAI.get(), owner, level);
         this.pickup = Pickup.DISALLOWED;
         this.kunaiDamage = damage;
+        if (!heldKunai.isEmpty()) {
+            this.entityData.set(DATA_ITEM, heldKunai.copy());
+        }
+    }
+
+    /** Spawn a kunai already stuck in the ground at the given position. */
+    public static FlyingRaijinKunaiEntity placeOnGround(Level level, LivingEntity owner, double x, double y, double z, ItemStack heldKunai) {
+        FlyingRaijinKunaiEntity kunai = new FlyingRaijinKunaiEntity(level, owner, 0, heldKunai);
+        kunai.setPos(x, y, z);
+        kunai.setNoGravity(true);
+        kunai.setDeltaMovement(0, 0, 0);
+        kunai.entityData.set(DATA_STUCK, true);
+        kunai.entityData.set(DATA_GROUND_PLACED, true);
+        kunai.inGround = true; // prevent AbstractArrow from resetting rotation
+        kunai.setYRot(owner.getYRot());
+        kunai.setXRot(60.0F); // angled into the ground like a thrown kunai
+        return kunai;
+    }
+
+    @Override
+    protected void defineSynchedData() {
+        super.defineSynchedData();
+        this.entityData.define(DATA_ITEM, new ItemStack(ModItems.IRON_KUNAI.get()));
+        this.entityData.define(DATA_STUCK, false);
+        this.entityData.define(DATA_GROUND_PLACED, false);
+    }
+
+    public boolean isStuck() {
+        return this.entityData.get(DATA_STUCK);
+    }
+
+    public boolean isGroundPlaced() {
+        return this.entityData.get(DATA_GROUND_PLACED);
+    }
+
+    @Override
+    public ItemStack getItem() {
+        return this.entityData.get(DATA_ITEM);
     }
 
     @Override
     public void tick() {
+        // Ground-placed kunai: skip all arrow physics, just sit still
+        if (isGroundPlaced()) {
+            // Only tick the base Entity (age, remove if discarded, etc.)
+            this.baseTick();
+            return;
+        }
+
         super.tick();
 
         // Golden particle trail while flying
-        if (!stuck && level() instanceof ServerLevel sl) {
+        if (!isStuck() && level() instanceof ServerLevel sl) {
             sl.sendParticles(ParticleTypes.END_ROD, getX(), getY(), getZ(), 1, 0, 0, 0, 0);
         }
 
         // Stuck in block: show marker particles and check lifetime
         if (inGround) {
-            stuck = true;
+            this.entityData.set(DATA_STUCK, true);
             groundLife++;
             if (level() instanceof ServerLevel sl && groundLife % 5 == 0) {
                 sl.sendParticles(ParticleTypes.END_ROD, getX(), getY() + 0.3, getZ(),
@@ -63,7 +119,7 @@ public class FlyingRaijinKunaiEntity extends AbstractArrow {
         }
 
         // Safety: discard if flying too long (5 seconds without hitting anything)
-        if (!stuck && tickCount > 100) {
+        if (!isStuck() && tickCount > 100) {
             notifyOwnerKunaiExpired();
             discard();
         }
@@ -106,7 +162,7 @@ public class FlyingRaijinKunaiEntity extends AbstractArrow {
     @Override
     protected void onHitBlock(BlockHitResult result) {
         super.onHitBlock(result); // stick in block
-        stuck = true;
+        this.entityData.set(DATA_STUCK, true);
 
         if (getOwner() instanceof ServerPlayer owner) {
             owner.getCapability(PlayerStatsCapability.PLAYER_STATS).ifPresent(stats -> {

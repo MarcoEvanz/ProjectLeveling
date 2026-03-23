@@ -53,15 +53,15 @@ public final class MageSkills {
                 float redirect = 0.3f + level * 0.03f;
                 texts.add("Dmg to MP: " + String.format("%.0f", redirect * 100) + "%");
                 lines.add(new int[]{TEXT_VALUE});
-                texts.add("MP drain: " + skill.getToggleMpPerSecond(level) + "/sec");
+                texts.add("MP drain: " + String.format("%.1f", skill.getToggleDrainPercent(level)) + "% MP/sec");
                 lines.add(new int[]{TEXT_VALUE});
                 texts.add("Remaining damage still hurts HP");
                 lines.add(new int[]{TEXT_DIM});
             }
             case ELEMENTAL_DRAIN -> {
-                texts.add("Bonus per debuff: +" + (level * 5) + "% dmg");
+                texts.add("Bonus per debuff: +" + (level * 2) + "% dmg");
                 lines.add(new int[]{TEXT_VALUE});
-                texts.add("Max bonus: +25%");
+                texts.add("Max bonus: +50%");
                 lines.add(new int[]{TEXT_VALUE});
             }
 
@@ -119,8 +119,10 @@ public final class MageSkills {
                 lines.add(new int[]{TEXT_VALUE});
                 texts.add("All skills cost 0 MP while active");
                 lines.add(new int[]{TEXT_VALUE});
-                texts.add("Every 4s: Strength I + 3% max HP heal");
+                texts.add("Every 4s: +5% damage (stacking)");
                 lines.add(new int[]{TEXT_VALUE});
+                texts.add("Max stacks at " + dur + "s: +" + ((dur / 4) * 5) + "% damage");
+                lines.add(new int[]{TEXT_DIM});
             }
             case ARCANE_OVERDRIVE -> {
                 texts.add("Crit rate: +" + String.format("%.1f", level * 1.5) + "%");
@@ -151,7 +153,7 @@ public final class MageSkills {
 
     private static void executeFlameOrb(ServerPlayer player, PlayerStats stats, SkillData sd, int level) {
         stats.setCurrentMp(stats.getCurrentMp() - SkillType.FLAME_ORB.getMpCost(level));
-        float damage = 2 + level * 0.6f + stats.getIntelligence() * 0.12f + stats.getMagicAttack();
+        float damage = 2 + level * 0.6f + stats.getIntelligence() * 0.12f + stats.getMagicAttack(player);
         float aoeRadius = (float) (3 + level * 0.1);
         Vec3 look = player.getLookAngle();
         SkillFireballEntity fireball = new SkillFireballEntity(
@@ -167,7 +169,7 @@ public final class MageSkills {
     }
 
     private static void executeMagicGuard(ServerPlayer player, PlayerStats stats, SkillData sd, int level) {
-        if (stats.getCurrentMp() < SkillType.MAGIC_GUARD.getToggleMpPerSecond(level)) {
+        if (stats.getCurrentMp() < SkillType.MAGIC_GUARD.getToggleMpPerSecond(level, stats.getMaxMp())) {
             player.sendSystemMessage(Component.literal("\u00a7cNot enough MP!"));
             return;
         }
@@ -188,7 +190,7 @@ public final class MageSkills {
     private static void executeFrostBind(ServerPlayer player, PlayerStats stats, SkillData sd, int level) {
         stats.setCurrentMp(stats.getCurrentMp() - SkillType.FROST_BIND.getMpCost(level));
         double range = 5 + level * 0.15 + stats.getIntelligence() * 0.05;
-        float damage = 1 + level * 0.3f + stats.getIntelligence() * 0.08f + stats.getMagicAttack();
+        float damage = 1 + level * 0.3f + stats.getIntelligence() * 0.08f + stats.getMagicAttack(player);
         int freezeDuration = (3 + level / 3) * 20;
         AABB area = player.getBoundingBox().inflate(range);
         List<Monster> mobs = player.level().getEntitiesOfClass(Monster.class, area);
@@ -235,7 +237,7 @@ public final class MageSkills {
     public static void tickPoisonMist(ServerPlayer player, PlayerStats stats, SkillData sd) {
         int level = sd.getLevel(SkillType.POISON_MIST);
         double radius = 4 + level * 0.1;
-        float damage = 0.5f + level * 0.1f + stats.getIntelligence() * 0.03f + stats.getMagicAttack() * 0.2f;
+        float damage = 0.5f + level * 0.1f + stats.getIntelligence() * 0.03f + stats.getMagicAttack(player) * 0.2f;
         AABB area = new AABB(
                 sd.getMistX() - radius, sd.getMistY() - radius, sd.getMistZ() - radius,
                 sd.getMistX() + radius, sd.getMistY() + radius, sd.getMistZ() + radius);
@@ -256,7 +258,7 @@ public final class MageSkills {
         if (sd.isMistActive()) {
             // Detonate the mist for massive damage
             double radius = 5 + level * 0.15;
-            float damage = 4 + level * 0.8f + stats.getIntelligence() * 0.2f + stats.getMagicAttack();
+            float damage = 4 + level * 0.8f + stats.getIntelligence() * 0.2f + stats.getMagicAttack(player);
             AABB area = new AABB(
                     sd.getMistX() - radius, sd.getMistY() - radius, sd.getMistZ() - radius,
                     sd.getMistX() + radius, sd.getMistY() + radius, sd.getMistZ() + radius);
@@ -278,7 +280,7 @@ public final class MageSkills {
                     "\u00a7b[System]\u00a7r \u00a76Mist Eruption! " + mobs.size() + " enemies blasted!"));
         } else {
             // Weaker arcane blast without mist
-            float damage = 2 + level * 0.4f + stats.getIntelligence() * 0.1f + stats.getMagicAttack();
+            float damage = 2 + level * 0.4f + stats.getIntelligence() * 0.1f + stats.getMagicAttack(player);
             double range = 4;
             AABB area = player.getBoundingBox().inflate(range);
             List<Monster> mobs = player.level().getEntitiesOfClass(Monster.class, area);
@@ -300,6 +302,7 @@ public final class MageSkills {
         stats.setCurrentMp(stats.getCurrentMp() - SkillType.INFINITY.getMpCost(level));
         int duration = (20 + level) * 20; // 21-40 seconds
         sd.setInfinityTicks(duration);
+        sd.setInfinityStacks(0);
         if (player.level() instanceof ServerLevel sl) {
             SkillParticles.spiral(sl, player.getX(), player.getY(), player.getZ(), 1.2, 3.0, 3, 12, ParticleTypes.DRAGON_BREATH);
             SkillParticles.sphere(sl, player.getX(), player.getY() + 1, player.getZ(), 1.5, 15, ParticleTypes.END_ROD);
@@ -312,14 +315,11 @@ public final class MageSkills {
 
     /** Called every 4 seconds while Infinity is active to ramp damage buff. */
     public static void tickInfinity(ServerPlayer player, SkillData sd) {
-        // Ramp damage: +5% per 4 seconds, shown as Strength buff
-        player.addEffect(new MobEffectInstance(MobEffects.DAMAGE_BOOST, 100, 0, false, true));
-        // Regen HP/MP
-        float infinityHeal = player.getMaxHealth() * 0.03f;
-        player.heal(infinityHeal);
-        CombatLog.heal(player, "Infinity", infinityHeal);
+        sd.setInfinityStacks(sd.getInfinityStacks() + 1);
         SkillParticles.playerAura(player, 8, 1.0, ParticleTypes.END_ROD);
         SkillParticles.playerFeet(player, 6, 0.8, ParticleTypes.WITCH);
+        player.sendSystemMessage(Component.literal(
+                "\u00a7b[System]\u00a7r \u00a75Infinity +" + (sd.getInfinityStacks() * 5) + "% damage"));
     }
 
     // ========== TOGGLE DEACTIVATION ==========
@@ -343,7 +343,7 @@ public final class MageSkills {
         Vec3 look = player.getLookAngle();
         switch (skill) {
             case FLAME_ORB -> {
-                float dmg = (3 + level * 1.2f + stats.getIntelligence() * 0.2f + stats.getMagicAttack()) * multiplier;
+                float dmg = (3 + level * 1.2f + stats.getIntelligence() * 0.2f + stats.getMagicAttack(player)) * multiplier;
                 SkillFireballEntity fb = new SkillFireballEntity(sl, partner,
                         look.x, look.y, look.z,
                         SkillFireballEntity.FireballType.FLAME_ORB, dmg, 3.0f, level);
@@ -351,7 +351,7 @@ public final class MageSkills {
             }
             case FROST_BIND -> {
                 float radius = 4 + level * 0.2f;
-                float dmg = (3 + level * 0.8f + stats.getMagicAttack()) * multiplier;
+                float dmg = (3 + level * 0.8f + stats.getMagicAttack(player)) * multiplier;
                 List<Monster> mobs = sl.getEntitiesOfClass(Monster.class,
                         partner.getBoundingBox().inflate(radius));
                 for (Monster mob : mobs) {
@@ -362,7 +362,7 @@ public final class MageSkills {
                 SkillParticles.burst(sl, pos.x, pos.y + 1, pos.z, 20, radius * 0.5, ParticleTypes.SNOWFLAKE);
             }
             case POISON_MIST -> {
-                float dmg = (0.5f + level * 0.1f + stats.getIntelligence() * 0.03f + stats.getMagicAttack() * 0.2f) * multiplier;
+                float dmg = (0.5f + level * 0.1f + stats.getIntelligence() * 0.03f + stats.getMagicAttack(player) * 0.2f) * multiplier;
                 List<Monster> mobs = sl.getEntitiesOfClass(Monster.class,
                         partner.getBoundingBox().inflate(4));
                 for (Monster mob : mobs) {
@@ -374,7 +374,7 @@ public final class MageSkills {
             }
             case MIST_ERUPTION -> {
                 float radius = 4 + level * 0.1f;
-                float dmg = (2 + level * 0.5f + stats.getIntelligence() * 0.1f + stats.getMagicAttack()) * multiplier;
+                float dmg = (2 + level * 0.5f + stats.getIntelligence() * 0.1f + stats.getMagicAttack(player)) * multiplier;
                 List<Monster> mobs = sl.getEntitiesOfClass(Monster.class,
                         partner.getBoundingBox().inflate(radius));
                 for (Monster mob : mobs) {

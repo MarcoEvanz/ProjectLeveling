@@ -8,7 +8,7 @@ public enum SkillType {
     // Tier 0 (Novice) — Universal, available from level 1
     // =====================================================
     DASH("dash", "Dash", 5, 0, null, 0, false, false,
-            18, 10, 200, 80,
+            14, 10, 200, 80,
             "Burst forward with a speed boost.", "DSH"),
     ENDURANCE("endurance", "Endurance", 5, 0, null, 0, false, true,
             0, 0, 0, 0,
@@ -20,10 +20,10 @@ public enum SkillType {
 
     // --- Warrior (STR) ---
     SLASH_BLAST("slash_blast", "Slash Blast", 10, 1, PlayerClass.WARRIOR, 10, false, false,
-            25, 12, 160, 80,
+            18, 14, 160, 80,
             "Enhance next melee to deal bonus damage. Hits up to 3 nearby enemies.", "SB"),
     WAR_CRY("war_cry", "War Cry", 10, 1, PlayerClass.WARRIOR, 10, false, false,
-            30, 15, 400, 200,
+            22, 16, 400, 200,
             "Buff ATK by %. Pull aggro from nearby mobs. Range scales with VIT.", "WC"),
     WARRIOR_MASTERY("warrior_mastery", "Warrior Mastery", 10, 1, PlayerClass.WARRIOR, 10, false, true,
             0, 0, 0, 0,
@@ -31,10 +31,10 @@ public enum SkillType {
 
     // --- Assassin (LUK) ---
     SHADOW_STRIKE("shadow_strike", "Shadow Strike", 10, 1, PlayerClass.ASSASSIN, 10, false, false,
-            30, 15, 280, 100,
+            22, 16, 280, 100,
             "Empower your next attack with bonus shadow damage.", "SS"),
     VENOM("venom", "Venom", 10, 1, PlayerClass.ASSASSIN, 10, false, false,
-            25, 12, 300, 150,
+            18, 14, 300, 150,
             "Coat weapon in poison. Attacks apply stacking poison DoT.", "VN"),
     CRITICAL_EDGE("critical_edge", "Critical Edge", 10, 1, PlayerClass.ASSASSIN, 10, false, true,
             0, 0, 0, 0,
@@ -42,10 +42,10 @@ public enum SkillType {
 
     // --- Archer (DEX) ---
     ARROW_RAIN("arrow_rain", "Arrow Rain", 10, 1, PlayerClass.ARCHER, 10, false, false,
-            32, 16, 240, 120,
+            22, 16, 240, 120,
             "Fire a volley of arrows from the sky in a target area.", "AR"),
     SOUL_ARROW("soul_arrow", "Soul Arrow", 10, 1, PlayerClass.ARCHER, 10, true, false,
-            6, 3, 0, 0,
+            20, 10, 0, 0,
             "Toggle. Bow attacks don't consume arrows. +5-15% projectile damage.", "SA"),
     SHARP_EYES("sharp_eyes", "Sharp Eyes", 10, 1, PlayerClass.ARCHER, 10, false, true,
             0, 0, 0, 0,
@@ -53,10 +53,10 @@ public enum SkillType {
 
     // --- Healer (INT) ---
     HOLY_LIGHT("holy_light", "Holy Light", 10, 1, PlayerClass.HEALER, 10, false, false,
-            28, 14, 160, 80,
+            20, 15, 160, 80,
             "Heal self and nearby players. Damages undead mobs.", "HL"),
     BLESS("bless", "Bless", 10, 1, PlayerClass.HEALER, 10, false, false,
-            35, 18, 900, 450,
+            25, 18, 900, 450,
             "Buff ATK, DEF, and Regen for self and nearby players.", "BLS"),
     MP_RECOVERY("mp_recovery", "MP Recovery", 10, 1, PlayerClass.HEALER, 10, false, true,
             0, 0, 0, 0,
@@ -64,10 +64,10 @@ public enum SkillType {
 
     // --- Mage (INT) ---
     FLAME_ORB("flame_orb", "Flame Orb", 10, 1, PlayerClass.MAGE, 10, false, false,
-            22, 11, 120, 60,
+            16, 12, 120, 60,
             "Launch a fireball that explodes on impact. Leaves fire patch.", "FO"),
     MAGIC_GUARD("magic_guard", "Magic Guard", 10, 1, PlayerClass.MAGE, 10, true, false,
-            8, 4, 0, 0,
+            30, 15, 0, 0,
             "Toggle. Redirect 30-60% of incoming damage to MP.", "MG"),
     ELEMENTAL_DRAIN("elemental_drain", "Elemental Drain", 10, 1, PlayerClass.MAGE, 10, false, true,
             0, 0, 0, 0,
@@ -75,10 +75,10 @@ public enum SkillType {
 
     // --- Ninja (AGI + LUK) ---
     SHURIKEN_JUTSU("shuriken_jutsu", "Shuriken Jutsu", 10, 1, PlayerClass.NINJA, 10, false, false,
-            20, 10, 200, 100,
+            16, 12, 200, 100,
             "Throw shurikens in a cone, hitting all enemies in front.", "SJu"),
     SUBSTITUTION_JUTSU("substitution_jutsu", "Substitution Jutsu", 10, 1, PlayerClass.NINJA, 10, false, false,
-            25, 12, 300, 160,
+            18, 14, 300, 160,
             "Dodge buffer. First damage is negated; teleport behind attacker.", "SUB"),
     KUNAI_MASTERY("kunai_mastery", "Kunai Mastery", 10, 1, PlayerClass.NINJA, 10, false, true,
             0, 0, 0, 0,
@@ -86,33 +86,33 @@ public enum SkillType {
 
     // --- Necromancer (INT + Mind) ---
     LIFE_DRAIN("life_drain", "Life Drain", 10, 1, PlayerClass.NECROMANCER, 10, false, false,
-            25, 15, 300, 160,
+            20, 15, 300, 160,
             "Drain life from nearby enemies, healing yourself.", "LD"),
     RAISE_SKELETON("raise_skeleton", "Raise Skeleton", 10, 1, PlayerClass.NECROMANCER, 10, true, false,
-            8, 4, 0, 0,
+            25, 15, 0, 0,
             "Toggle. Summon a skeleton minion that fights for you.", "RS"),
     DARK_PACT("dark_pact", "Dark Pact", 10, 1, PlayerClass.NECROMANCER, 10, false, true,
             0, 0, 0, 0,
             "Passive. +2% max MP and +1.5% summon damage per level.", "DkP"),
     UNHOLY_FERVOR("unholy_fervor", "Unholy Fervor", 10, 1, PlayerClass.NECROMANCER, 10, false, false,
-            30, 15, 400, 200,
+            22, 16, 400, 200,
             "Buff all skeleton minions with speed and damage boost.", "UF"),
 
     // --- Beast Master (STR/VIT) ---
     TIGER_CLAW("tiger_claw", "Tiger Claw", 10, 1, PlayerClass.BEAST_MASTER, 10, false, false,
-            25, 12, 80, 80,
+            18, 14, 80, 80,
             "Next melee hits extra times at reduced damage. Bypasses iframe.", "TC"),
     TURTLE_SHELL("turtle_shell", "Turtle Shell", 10, 1, PlayerClass.BEAST_MASTER, 10, false, false,
-            20, 10, 80, 80,
+            16, 12, 80, 80,
             "Gain max HP % as absorption shield for 5s.", "TS"),
     BEAR_PAW("bear_paw", "Bear Paw", 10, 1, PlayerClass.BEAST_MASTER, 10, false, false,
-            25, 12, 80, 80,
+            18, 14, 80, 80,
             "Next melee stuns. Applies Weakness, Darkness, Slowness.", "BP"),
     PHOENIX_WINGS("phoenix_wings", "Phoenix Wings", 10, 1, PlayerClass.BEAST_MASTER, 10, false, false,
-            30, 15, 80, 80,
+            22, 16, 80, 80,
             "Burst heal + Regen + lifesteal for next 2 melee hits.", "PW"),
     POWER_OF_NATURE("power_of_nature", "Power of Nature", 10, 1, PlayerClass.BEAST_MASTER, 10, false, false,
-            40, 20, 1200, 1200,
+            30, 22, 1200, 1200,
             "Doubles next skill effect. CD reduced 2s per basic skill use.", "PoN"),
 
     // --- Beast Master T2 (passives) ---
@@ -135,10 +135,10 @@ public enum SkillType {
 
     // --- Warrior ---
     SPIRIT_BLADE("spirit_blade", "Spirit Blade", 15, 2, PlayerClass.WARRIOR, 30, false, false,
-            40, 20, 900, 900,
+            30, 22, 900, 900,
             "Party buff. Flat +ATK for 30s. Self: -Damage Taken.", "SpB"),
     GROUND_SLAM("ground_slam", "Ground Slam", 15, 2, PlayerClass.WARRIOR, 30, false, false,
-            40, 20, 400, 200,
+            30, 22, 400, 200,
             "Slam the ground. AoE damage + stun in radius.", "GS"),
     FINAL_ATTACK("final_attack", "Final Attack", 15, 2, PlayerClass.WARRIOR, 30, false, true,
             0, 0, 0, 0,
@@ -146,10 +146,10 @@ public enum SkillType {
 
     // --- Assassin ---
     STEALTH("stealth", "Stealth", 15, 2, PlayerClass.ASSASSIN, 30, true, false,
-            10, 3, 120, 60,
+            35, 20, 120, 60,
             "Toggle. Become invisible. Mobs ignore you beyond detection range.", "STH"),
     BLADE_FURY("blade_fury", "Blade Fury", 15, 2, PlayerClass.ASSASSIN, 30, false, false,
-            28, 14, 160, 80,
+            24, 18, 160, 80,
             "360 degree spin attack hitting all nearby mobs.", "BF"),
     EVASION("evasion", "Evasion", 15, 2, PlayerClass.ASSASSIN, 30, false, true,
             0, 0, 0, 0,
@@ -157,10 +157,10 @@ public enum SkillType {
 
     // --- Archer ---
     ARROW_BOMB("arrow_bomb", "Arrow Bomb", 15, 2, PlayerClass.ARCHER, 30, false, false,
-            30, 15, 200, 100,
+            25, 18, 200, 100,
             "Explosive arrow. AoE damage + stun on impact.", "AB"),
     COVERING_FIRE("covering_fire", "Covering Fire", 15, 2, PlayerClass.ARCHER, 30, false, false,
-            25, 12, 300, 150,
+            22, 16, 300, 150,
             "Leap backward while firing arrows forward.", "CF"),
     EVASION_BOOST("evasion_boost", "Evasion Boost", 15, 2, PlayerClass.ARCHER, 30, false, true,
             0, 0, 0, 0,
@@ -168,21 +168,24 @@ public enum SkillType {
 
     // --- Healer ---
     HOLY_SHELL("holy_shell", "Holy Shell", 15, 2, PlayerClass.HEALER, 30, false, false,
-            50, 25, 1200, 600,
+            38, 28, 1200, 600,
             "Grant absorption shield to self and nearby players. Cleanses debuffs.", "HS"),
     DISPEL("dispel", "Dispel", 15, 2, PlayerClass.HEALER, 30, false, false,
-            30, 15, 600, 300,
+            24, 18, 600, 300,
             "Remove negative effects from allies. Remove buffs from enemies.", "DSP"),
     DIVINE_PROTECTION("divine_protection", "Divine Protection", 15, 2, PlayerClass.HEALER, 30, false, true,
             0, 0, 0, 0,
             "Passive. +3% status resistance per level. Auto-cleanse chance.", "DP"),
+    HOLY_FERVOR("holy_fervor", "Holy Fervor", 15, 2, PlayerClass.HEALER, 30, false, true,
+            0, 0, 0, 0,
+            "Passive. +2% damage per level. +3% vs undead. MATK enhances skills.", "HF"),
 
     // --- Mage ---
     FROST_BIND("frost_bind", "Frost Bind", 15, 2, PlayerClass.MAGE, 30, false, false,
-            40, 20, 400, 200,
+            30, 22, 400, 200,
             "Frost wave pulls mobs inward and freezes them. Frozen take +25% damage.", "FrB"),
     POISON_MIST("poison_mist", "Poison Mist", 15, 2, PlayerClass.MAGE, 30, false, false,
-            35, 18, 300, 150,
+            28, 20, 300, 150,
             "Place a poison cloud zone. Can be detonated by Mist Eruption.", "PM"),
     ELEMENT_AMPLIFICATION("element_amplification", "Element Amplification", 15, 2, PlayerClass.MAGE, 30, false, true,
             0, 0, 0, 0,
@@ -190,13 +193,13 @@ public enum SkillType {
 
     // --- Ninja T2 ---
     SHADOW_CLONE("shadow_clone", "Shadow Clone", 15, 2, PlayerClass.NINJA, 30, true, false,
-            10, 5, 0, 0,
+            30, 15, 0, 0,
             "Toggle. Summon shadow clones that fight and copy your skills.", "SC"),
     FLYING_RAIJIN("flying_raijin", "Flying Raijin", 15, 2, PlayerClass.NINJA, 30, false, false,
-            30, 15, 300, 160,
+            24, 18, 300, 160,
             "Throw a kunai and teleport to it. Marks hit targets.", "FRJ"),
     FLYING_RAIJIN_GROUND("flying_raijin_ground", "Flying Raijin: Ground", 15, 2, PlayerClass.NINJA, 30, false, false,
-            20, 10, 400, 200,
+            16, 12, 400, 200,
             "Place a kunai at your feet. Reuse to teleport back.", "FRG"),
     CHAKRA_CONTROL("chakra_control", "Chakra Control", 15, 2, PlayerClass.NINJA, 30, false, true,
             0, 0, 0, 0,
@@ -204,10 +207,10 @@ public enum SkillType {
 
     // --- Necromancer T2 ---
     BONE_SHIELD("bone_shield", "Bone Shield", 15, 2, PlayerClass.NECROMANCER, 30, true, false,
-            10, 5, 0, 0,
+            30, 15, 0, 0,
             "Toggle. Reduce incoming damage by 10-25%.", "BnS"),
     CORPSE_EXPLOSION("corpse_explosion", "Corpse Explosion", 15, 2, PlayerClass.NECROMANCER, 30, false, false,
-            40, 20, 400, 200,
+            30, 22, 400, 200,
             "Dark AoE explosion. Bonus damage if skeleton is alive.", "CEx"),
     SOUL_SIPHON("soul_siphon", "Soul Siphon", 15, 2, PlayerClass.NECROMANCER, 30, false, true,
             0, 0, 0, 0,
@@ -222,7 +225,7 @@ public enum SkillType {
 
     // --- Warrior ---
     BEAM_BLADE("beam_blade", "Beam Blade", 20, 3, PlayerClass.WARRIOR, 60, false, false,
-            35, 18, 140, 140,
+            30, 22, 140, 140,
             "Launch a piercing blade. Hits all enemies in a line.", "BB"),
     UNBREAKABLE("unbreakable", "Unbreakable", 20, 3, PlayerClass.WARRIOR, 60, false, true,
             0, 0, 0, 0,
@@ -233,21 +236,24 @@ public enum SkillType {
 
     // --- Assassin ---
     RULERS_AUTHORITY("rulers_authority", "Ruler's Authority", 20, 3, PlayerClass.ASSASSIN, 60, false, false,
-            45, 20, 500, 160,
+            38, 26, 500, 160,
             "Pull nearby enemies toward you with telekinetic force.", "RA"),
     SHADOW_PARTNER("shadow_partner", "Shadow Partner", 20, 3, PlayerClass.ASSASSIN, 60, true, false,
-            12, 5, 0, 0,
+            40, 20, 0, 0,
             "Toggle. Shadow clone mirrors attacks at 30-50% damage.", "SP"),
     FATAL_BLOW("fatal_blow", "Fatal Blow", 20, 3, PlayerClass.ASSASSIN, 60, false, true,
             0, 0, 0, 0,
             "Passive. +2% damage per level vs low HP mobs. Execute chance.", "FB"),
+    SHADOW_LEGION("shadow_legion", "Shadow Legion", 20, 3, PlayerClass.ASSASSIN, 60, false, true,
+            0, 0, 0, 0,
+            "Passive. 2nd Shadow Partner, auto-attacks, counter on dodge, reduced MP penalty.", "SL"),
 
     // --- Archer ---
     PHOENIX("phoenix", "Phoenix", 20, 3, PlayerClass.ARCHER, 60, false, false,
-            60, 30, 1800, 900,
+            48, 35, 1800, 900,
             "Summon a fire bird. Auto-attacks with stun. Grants damage resistance.", "PX"),
     HURRICANE("hurricane", "Hurricane", 20, 3, PlayerClass.ARCHER, 60, true, false,
-            15, 6, 0, 0,
+            40, 20, 0, 0,
             "Toggle. Rapid-fire arrow stream at nearest mob. Slows movement.", "HC"),
     MORTAL_BLOW("mortal_blow", "Mortal Blow", 20, 3, PlayerClass.ARCHER, 60, false, true,
             0, 0, 0, 0,
@@ -255,10 +261,10 @@ public enum SkillType {
 
     // --- Healer ---
     BENEDICTION("benediction", "Benediction", 20, 3, PlayerClass.HEALER, 60, false, false,
-            70, 35, 1800, 900,
+            55, 40, 1800, 900,
             "Place holy zone. Allies gain Regen + damage boost. Enemies take damage.", "BN"),
     ANGEL_RAY("angel_ray", "Angel Ray", 20, 3, PlayerClass.HEALER, 60, false, false,
-            20, 10, 200, 100,
+            18, 14, 200, 100,
             "Holy beam that damages mobs and heals nearby allies.", "ARL"),
     BLESSED_ENSEMBLE("blessed_ensemble", "Blessed Ensemble", 20, 3, PlayerClass.HEALER, 60, false, true,
             0, 0, 0, 0,
@@ -266,10 +272,10 @@ public enum SkillType {
 
     // --- Mage ---
     MIST_ERUPTION("mist_eruption", "Mist Eruption", 20, 3, PlayerClass.MAGE, 60, false, false,
-            60, 30, 900, 450,
+            48, 35, 900, 450,
             "Detonate Poison Mist for massive burst damage.", "ME"),
     INFINITY("infinity", "Infinity", 20, 3, PlayerClass.MAGE, 60, false, false,
-            80, 40, 2400, 1200,
+            65, 45, 2400, 1200,
             "All skills cost 0 MP. +5% damage every 4s. Lasts 20-40s.", "INF"),
     ARCANE_OVERDRIVE("arcane_overdrive", "Arcane Overdrive", 20, 3, PlayerClass.MAGE, 60, false, true,
             0, 0, 0, 0,
@@ -277,11 +283,11 @@ public enum SkillType {
 
     // --- Ninja T3 ---
     RASENGAN("rasengan", "Rasengan", 20, 3, PlayerClass.NINJA, 60, false, false,
-            60, 30, 600, 300,
+            70, 50, 600, 160,
             "Empower next attack with a spiraling explosion in 2-block radius.", "RSG"),
     SAGE_MODE("sage_mode", "Sage Mode", 20, 3, PlayerClass.NINJA, 60, true, false,
-            15, 8, 0, 0,
-            "Toggle. +dmg%, +speed, knockback resist. Drains 3% max MP/s.", "SgM"),
+            30, 20, 0, 0,
+            "Toggle. +dmg%, +speed, knockback resist. Drains MP% per second.", "SgM"),
     EIGHT_INNER_GATES("eight_inner_gates", "Eight Inner Gates", 20, 3, PlayerClass.NINJA, 60, false, true,
             0, 0, 0, 0,
             "Passive. Below 30% HP: massive damage and speed boost.", "8G"),
@@ -291,16 +297,16 @@ public enum SkillType {
 
     // --- Necromancer T3 ---
     ARMY_OF_THE_DEAD("army_of_the_dead", "Army of the Dead", 20, 3, PlayerClass.NECROMANCER, 60, false, false,
-            80, 40, 1200, 600,
+            65, 45, 1200, 600,
             "Summon an undead horde zone that damages enemies.", "AD"),
     DEATH_MARK("death_mark", "Death Mark", 20, 3, PlayerClass.NECROMANCER, 60, false, false,
-            50, 25, 600, 300,
+            40, 30, 600, 300,
             "Mark an enemy for death. DoT + AoE explosion on death.", "DkM"),
     UNDYING_WILL("undying_will", "Undying Will", 20, 3, PlayerClass.NECROMANCER, 60, false, true,
             0, 0, 0, 0,
             "Passive. Revive on fatal damage. +2% minion HP per level.", "UW"),
     SOUL_LINK("soul_link", "Soul Link", 20, 3, PlayerClass.NECROMANCER, 60, true, false,
-            12, 6, 0, 0,
+            30, 15, 0, 0,
             "Toggle. Redirect damage to nearest minion. Minions deal bonus damage.", "SL"),
     ENHANCE_UNDEAD("enhance_undead", "Enhance Undead", 20, 3, PlayerClass.NECROMANCER, 60, false, true,
             0, 0, 0, 0,
@@ -327,7 +333,7 @@ public enum SkillType {
     // Hidden — Reserved / Legacy
     // =====================================================
     VITAL_SURGE("vital_surge", "Vital Surge", 15, 99, null, 999, false, false,
-            50, 25, 700, 300,
+            38, 28, 700, 300,
             "Heal yourself and cleanse poison and wither effects.", "VS");
 
     private static final Map<String, SkillType> BY_ID = new HashMap<>();
@@ -401,9 +407,14 @@ public enum SkillType {
         return baseCooldown - (level - 1) * (baseCooldown - minCooldown) / (maxLevel - 1);
     }
 
-    /** MP cost per second for toggle skills. Uses same formula as getMpCost. */
-    public int getToggleMpPerSecond(int level) {
-        return getMpCost(level);
+    /** Toggle drain % per second (e.g. 3.0 means 3% of max MP). baseMpCost stores tenths of percent. */
+    public double getToggleDrainPercent(int level) {
+        return getMpCost(level) / 10.0;
+    }
+
+    /** Actual MP drain per second for toggle skills, based on % of max MP. Minimum 1. */
+    public int getToggleMpPerSecond(int level, int maxMp) {
+        return Math.max(1, maxMp * getMpCost(level) / 1000);
     }
 
     public static SkillType fromId(String id) {

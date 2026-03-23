@@ -9,5 +9,40 @@
   "key.projectleveling.skill_slot_4": "Skill Slot 4 (V)",
   "key.projectleveling.skill_slot_5": "Skill Slot 5 (Y)",
   "key.projectleveling.skill_slot_6": "Skill Slot 6 (H)",
-  "key.projectleveling.skill_slot_7": "Skill Slot 7 (~)"
+  "key.projectleveling.skill_slot_7": "Skill Slot 7 (~)",
+
+  "attribute.projectleveling.magic_attack": "Magic Attack",
+  "attribute.projectleveling.crit_rate": "Crit Rate",
+  "attribute.projectleveling.crit_damage": "Crit Damage",
+  "attribute.projectleveling.attack_percent": "Attack %",
+  "attribute.projectleveling.magic_attack_percent": "Magic Attack %",
+  "attribute.projectleveling.final_damage": "Final Damage %",
+
+  "item.projectleveling.wood_staff": "Wooden Staff",
+  "item.projectleveling.stone_staff": "Stone Staff",
+  "item.projectleveling.iron_staff": "Iron Staff",
+  "item.projectleveling.gold_staff": "Golden Staff",
+  "item.projectleveling.diamond_staff": "Diamond Staff",
+  "item.projectleveling.netherite_staff": "Netherite Staff",
+
+  "item.projectleveling.wood_kunai": "Wooden Kunai",
+  "item.projectleveling.stone_kunai": "Stone Kunai",
+  "item.projectleveling.iron_kunai": "Iron Kunai",
+  "item.projectleveling.gold_kunai": "Golden Kunai",
+  "item.projectleveling.diamond_kunai": "Diamond Kunai",
+  "item.projectleveling.netherite_kunai": "Netherite Kunai",
+
+  "item.projectleveling.wood_dagger": "Wooden Dagger",
+  "item.projectleveling.stone_dagger": "Stone Dagger",
+  "item.projectleveling.iron_dagger": "Iron Dagger",
+  "item.projectleveling.gold_dagger": "Golden Dagger",
+  "item.projectleveling.diamond_dagger": "Diamond Dagger",
+  "item.projectleveling.netherite_dagger": "Netherite Dagger",
+
+  "item.projectleveling.wood_shuriken": "Wooden Shuriken",
+  "item.projectleveling.stone_shuriken": "Stone Shuriken",
+  "item.projectleveling.iron_shuriken": "Iron Shuriken",
+  "item.projectleveling.gold_shuriken": "Golden Shuriken",
+  "item.projectleveling.diamond_shuriken": "Diamond Shuriken",
+  "item.projectleveling.netherite_shuriken": "Netherite Shuriken"
 }

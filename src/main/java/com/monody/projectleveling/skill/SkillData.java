@@ -31,6 +31,7 @@ public class SkillData {
     private int phoenixTicks = 0;
     // Infinity buff
     private int infinityTicks = 0;
+    private int infinityStacks = 0;
     // Poison Mist zone
     private boolean mistActive = false;
     private int mistTicks = 0;
@@ -71,6 +72,7 @@ public class SkillData {
     private int frgPhase = 0; // 0 = ready to place, 1 = kunai placed
     private double frgX, frgY, frgZ;
     private int frgTicks = 0; // remaining lifetime ticks
+    private int frgKunaiId = -1; // ground kunai entity ID (-1 = none)
     // Ninja: Rasengan buff
     private boolean rasenganBuffActive = false;
     private int rasenganBuffTicks = 0;
@@ -167,6 +169,8 @@ public class SkillData {
     // Infinity
     public int getInfinityTicks() { return infinityTicks; }
     public void setInfinityTicks(int ticks) { this.infinityTicks = ticks; }
+    public int getInfinityStacks() { return infinityStacks; }
+    public void setInfinityStacks(int stacks) { this.infinityStacks = stacks; }
 
     // Poison Mist
     public boolean isMistActive() { return mistActive; }
@@ -267,6 +271,8 @@ public class SkillData {
     public void setFrgPos(double x, double y, double z) { this.frgX = x; this.frgY = y; this.frgZ = z; }
     public int getFrgTicks() { return frgTicks; }
     public void setFrgTicks(int ticks) { this.frgTicks = ticks; }
+    public int getFrgKunaiId() { return frgKunaiId; }
+    public void setFrgKunaiId(int id) { this.frgKunaiId = id; }
 
     // Ninja: Rasengan buff
     public boolean isRasenganBuffActive() { return rasenganBuffActive; }
@@ -458,6 +464,7 @@ public class SkillData {
         venomTicks = 0;
         phoenixTicks = 0;
         infinityTicks = 0;
+        infinityStacks = 0;
         mistActive = false;
         mistTicks = 0;
         benedictionTicks = 0;
@@ -478,6 +485,7 @@ public class SkillData {
         flyingRaijinKunaiId = -1;
         frgPhase = 0;
         frgTicks = 0;
+        frgKunaiId = -1;
         rasenganBuffActive = false;
         rasenganBuffTicks = 0;
         bmActiveBuff = null;

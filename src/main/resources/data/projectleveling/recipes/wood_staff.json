@@ -1,0 +1,17 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "pattern": [
+    "M",
+    "A",
+    "S"
+  ],
+  "key": {
+    "M": {"tag": "minecraft:planks"},
+    "A": {"item": "minecraft:amethyst_shard"},
+    "S": {"item": "minecraft:stick"}
+  },
+  "result": {
+    "item": "projectleveling:wood_staff",
+    "count": 1
+  }
+}

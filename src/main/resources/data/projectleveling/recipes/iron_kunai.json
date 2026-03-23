@@ -1,0 +1,17 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "pattern": [
+    "M",
+    "S",
+    "R"
+  ],
+  "key": {
+    "M": {"item": "minecraft:iron_ingot"},
+    "S": {"item": "minecraft:stick"},
+    "R": {"item": "minecraft:string"}
+  },
+  "result": {
+    "item": "projectleveling:iron_kunai",
+    "count": 1
+  }
+}

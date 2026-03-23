@@ -1,0 +1,17 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "pattern": [
+    "M",
+    "A",
+    "S"
+  ],
+  "key": {
+    "M": {"item": "minecraft:iron_ingot"},
+    "A": {"item": "minecraft:amethyst_shard"},
+    "S": {"item": "minecraft:stick"}
+  },
+  "result": {
+    "item": "projectleveling:iron_staff",
+    "count": 1
+  }
+}

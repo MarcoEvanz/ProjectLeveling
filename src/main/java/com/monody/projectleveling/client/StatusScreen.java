@@ -7,10 +7,15 @@ import com.monody.projectleveling.network.ModNetwork;
 import com.monody.projectleveling.skill.SkillData;
 import com.monody.projectleveling.skill.SkillExecutor;
 import com.monody.projectleveling.skill.SkillType;
+import com.monody.projectleveling.item.ModAttributes;
+import com.monody.projectleveling.skill.classes.MageSkills;
+import com.monody.projectleveling.skill.classes.NecromancerSkills;
+import com.monody.projectleveling.skill.classes.WarriorSkills;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
+import net.minecraft.world.entity.ai.attributes.AttributeInstance;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.player.Player;
 
@@ -249,6 +254,15 @@ public class StatusScreen extends Screen {
         int bsLv = sd.getLevel(SkillType.BERSERKER_SPIRIT);
         int ccLv = sd.getLevel(SkillType.CHAKRA_CONTROL);
         int lukStat = stats.getLuck();
+        int evLv = sd.getLevel(SkillType.EVASION);
+        int ebLv = sd.getLevel(SkillType.EVASION_BOOST);
+        int wmLv = sd.getLevel(SkillType.WARRIOR_MASTERY);
+        int bshdLv = sd.getLevel(SkillType.BONE_SHIELD);
+        int mgLv = sd.getLevel(SkillType.MAGIC_GUARD);
+        int endLv = sd.getLevel(SkillType.ENDURANCE);
+        int edLv = sd.getLevel(SkillType.ELEMENTAL_DRAIN);
+        int beLv = sd.getLevel(SkillType.BLESSED_ENSEMBLE);
+        int sbLv = sd.getLevel(SkillType.SPIRIT_BLADE);
 
         // --- Damage ---
         // ATK
@@ -261,13 +275,52 @@ public class StatusScreen extends Screen {
             if (atkTag.length() > 0) atkTag.append(" ");
             atkTag.append("KM+").append(String.format("%.1f", stats.getAgility() * 0.08f * kmLv / 10.0f));
         }
+        if (sd.getWarCryTicks() > 0) {
+            if (atkTag.length() > 0) atkTag.append(" ");
+            atkTag.append("WC+").append(String.format("%.1f", sd.getWarCryAtkBonus()));
+        }
+        if (sd.getSpiritBladeTicks() > 0) {
+            if (atkTag.length() > 0) atkTag.append(" ");
+            atkTag.append("SB+").append(String.format("%.1f", sd.getSpiritBladeAtk()));
+        }
+        // ATK% from equipment
+        double atkPct = 0;
+        if (player != null) {
+            AttributeInstance atkPctInst = player.getAttribute(ModAttributes.ATTACK_PERCENT.get());
+            if (atkPctInst != null) atkPct = atkPctInst.getValue();
+        }
+        double totalAtk = dmg + weaponDmg;
+        if (atkPct > 0) totalAtk *= 1 + atkPct / 100.0;
+        if (atkPct > 0) {
+            if (atkTag.length() > 0) atkTag.append(" ");
+            atkTag.append("ATK+").append(String.format("%.0f", atkPct)).append("%");
+        }
         String atkSkill = atkTag.length() > 0 ? " (" + atkTag + ")" : "";
-        drawStat(g, "ATK:", String.format("+%.2f", dmg + weaponDmg) + atkSkill, left, rowY);
+        drawStat(g, "ATK:", String.format("+%.2f", totalAtk) + atkSkill, left, rowY);
 
         // MATK
         rowY += lineH;
         float matk = stats.getIntelligence() * 0.1f;
-        drawStat(g, "MATK:", String.format("+%.2f", matk), left, rowY);
+        float equipMatk = 0;
+        if (player != null) {
+            AttributeInstance matkInst = player.getAttribute(ModAttributes.MAGIC_ATTACK.get());
+            if (matkInst != null) equipMatk = (float) matkInst.getValue();
+        }
+        double matkPct = 0;
+        if (player != null) {
+            AttributeInstance matkPctInst = player.getAttribute(ModAttributes.MAGIC_ATTACK_PERCENT.get());
+            if (matkPctInst != null) matkPct = matkPctInst.getValue();
+        }
+        double totalMatk = matk + equipMatk;
+        if (matkPct > 0) totalMatk *= 1 + matkPct / 100.0;
+        StringBuilder matkTagB = new StringBuilder();
+        if (equipMatk > 0) matkTagB.append("Staff+").append(String.format("%.0f", equipMatk));
+        if (matkPct > 0) {
+            if (matkTagB.length() > 0) matkTagB.append(" ");
+            matkTagB.append("MATK+").append(String.format("%.0f", matkPct)).append("%");
+        }
+        String matkTag = matkTagB.length() > 0 ? " (" + matkTagB + ")" : "";
+        drawStat(g, "MATK:", String.format("+%.2f", totalMatk) + matkTag, left, rowY);
 
         // HEAL
         rowY += lineH;
@@ -282,36 +335,95 @@ public class StatusScreen extends Screen {
         if (kmLv > 0) projPct += kmLv * 1.5;
         drawStat(g, "PROJ:", String.format("+%.1f%%", projPct), left, rowY);
 
+        // MELEE
+        rowY += lineH;
+        double meleePct = 0;
+        drawStat(g, "MELEE:", String.format("+%.1f%%", meleePct), left, rowY);
+
         // --- Critical (Sight-based) ---
         rowY += lineH;
         int sightStat = stats.getSight();
-        double critRate = (sightStat - 1) * 0.1;
+        double critRate = 15 + (sightStat - 1) * 0.1;
         if (ceLv > 0) critRate += ceLv;
         if (seLv > 0) critRate += seLv * 1.5;
         if (aoLv > 0) critRate += aoLv * 1.5;
         if (bsLv > 0) critRate += bsLv;
-        if (kmLv > 0) critRate += sightStat * 0.05f * kmLv / 10.0f;
-        drawStat(g, "CRIT:", String.format("%.1f%%", critRate), left, rowY);
+        if (kmLv > 0) critRate += lukStat * 0.05f * kmLv / 10.0f;
+        double equipCrit = 0;
+        if (player != null) {
+            AttributeInstance critInst = player.getAttribute(ModAttributes.CRIT_RATE.get());
+            if (critInst != null) equipCrit = critInst.getValue();
+        }
+        critRate += equipCrit;
+        String critTag = equipCrit > 0 ? " (WPN+" + String.format("%.0f", equipCrit) + "%)" : "";
+        drawStat(g, "CRIT:", String.format("%.1f%%", critRate) + critTag, left, rowY);
 
         rowY += lineH;
         double critDmg = 150 + (sightStat - 1) * 0.2;
         if (ceLv > 0) critDmg += ceLv * 2;
         if (seLv > 0) critDmg += seLv * 5;
         if (aoLv > 0) critDmg += aoLv;
-        drawStat(g, "CDMG:", String.format("%.0f%%", critDmg), left, rowY);
+        double equipCritDmg = 0;
+        if (player != null) {
+            AttributeInstance cdInst = player.getAttribute(ModAttributes.CRIT_DAMAGE.get());
+            if (cdInst != null) equipCritDmg = cdInst.getValue();
+        }
+        critDmg += equipCritDmg;
+        String cdTag = equipCritDmg > 0 ? " (WPN+" + String.format("%.0f", equipCritDmg) + "%)" : "";
+        drawStat(g, "CDMG:", String.format("%.0f%%", critDmg) + cdTag, left, rowY);
 
         // --- Combat ---
         rowY += lineH;
-        double atkSpd = (stats.getAgility() - 1) * 0.01;
-        drawStat(g, "ATK SPD:", String.format("+%.2f", atkSpd), left, rowY);
+        double atkSpd = player != null ? player.getAttributeValue(Attributes.ATTACK_SPEED) : 4.0;
+        double agiBonus = (stats.getAgility() - 1) * 0.01;
+        String spdTag = agiBonus > 0 ? " (AGI+" + String.format("%.2f", agiBonus) + ")" : "";
+        drawStat(g, "ATK SPD:", String.format("%.2f", atkSpd) + spdTag, left, rowY);
 
         rowY += lineH;
         int armor = player != null ? player.getArmorValue() : 0;
         drawStat(g, "DEF:", String.valueOf(armor), left, rowY);
 
+        // DODGE
         rowY += lineH;
-        double meleePct = 0;
-        drawStat(g, "MELEE:", String.format("+%.1f%%", meleePct), left, rowY);
+        double dodgePct = evLv * 2.0 + ebLv * 2.0;
+        StringBuilder dodgeTag = new StringBuilder();
+        if (evLv > 0) dodgeTag.append("Ev").append(evLv * 2).append("%");
+        if (ebLv > 0) {
+            if (dodgeTag.length() > 0) dodgeTag.append(" ");
+            dodgeTag.append("EB").append(ebLv * 2).append("%");
+        }
+        String dodgeExtra = dodgeTag.length() > 0 ? " (" + dodgeTag + ")" : "";
+        drawStat(g, "DODGE:", String.format("%.0f%%", dodgePct) + dodgeExtra, left, rowY);
+
+        // DMG RED
+        rowY += lineH;
+        double dmgRedTotal = 0;
+        StringBuilder drTag = new StringBuilder();
+        if (wmLv > 0) {
+            double wmRed = wmLv * 1.0;
+            dmgRedTotal += wmRed;
+            drTag.append("WM").append(String.format("%.0f", wmRed)).append("%");
+        }
+        if (sd.isSpiritBladeDefActive() && sd.getSpiritBladeTicks() > 0) {
+            float sbDefPct = WarriorSkills.getSpiritBladeDefPct(sbLv) * 100;
+            dmgRedTotal += sbDefPct;
+            if (drTag.length() > 0) drTag.append(" ");
+            drTag.append("SB").append(String.format("%.0f", sbDefPct)).append("%");
+        }
+        if (sd.isToggleActive(SkillType.BONE_SHIELD) && bshdLv > 0) {
+            int bsRed = NecromancerSkills.getBoneShieldReduction(bshdLv);
+            dmgRedTotal += bsRed;
+            if (drTag.length() > 0) drTag.append(" ");
+            drTag.append("BS").append(bsRed).append("%");
+        }
+        if (sd.isToggleActive(SkillType.MAGIC_GUARD) && mgLv > 0) {
+            float mgRed = MageSkills.getMagicGuardRedirectRatio(mgLv) * 100;
+            dmgRedTotal += mgRed;
+            if (drTag.length() > 0) drTag.append(" ");
+            drTag.append("MG").append(String.format("%.0f", mgRed)).append("%>MP");
+        }
+        String drExtra = drTag.length() > 0 ? " (" + drTag + ")" : "";
+        drawStat(g, "DMG RED:", String.format("%.0f%%", dmgRedTotal) + drExtra, left, rowY);
 
         rowY += lineH;
         double moveSpd = player != null ? player.getAttributeValue(Attributes.MOVEMENT_SPEED) : 0;
@@ -351,8 +463,44 @@ public class StatusScreen extends Screen {
             if (dmgTag.length() > 0) dmgTag.append(" ");
             dmgTag.append("MB+").append(mbLv * 2).append("%");
         }
+        if (edLv > 0) {
+            if (dmgTag.length() > 0) dmgTag.append(" ");
+            dmgTag.append("ED+").append(edLv * 2).append("%/deb");
+        }
+        if (beLv > 0) {
+            if (dmgTag.length() > 0) dmgTag.append(" ");
+            dmgTag.append("BE+").append(beLv * 3).append("%/plr");
+        }
         String dmgExtra = dmgTag.length() > 0 ? " (" + dmgTag + ")" : "";
         drawStat(g, "DMG:", String.format("+%.1f%%", dmgBonus) + dmgExtra, left, rowY);
+
+        // FINAL DMG%
+        rowY += lineH;
+        double finalDmgPct = 0;
+        if (player != null) {
+            AttributeInstance fdInst = player.getAttribute(ModAttributes.FINAL_DAMAGE.get());
+            if (fdInst != null) finalDmgPct = fdInst.getValue();
+        }
+        String fdTag = finalDmgPct > 0 ? " (WPN+" + String.format("%.0f", finalDmgPct) + "%)" : "";
+        drawStat(g, "FINAL DMG:", String.format("+%.1f%%", finalDmgPct) + fdTag, left, rowY);
+
+        // --- HP ---
+        rowY += lineH;
+        double hpBonusPct = 0;
+        StringBuilder hpTag = new StringBuilder();
+        if (endLv > 0) {
+            double endPct = endLv * 2.0;
+            hpBonusPct += endPct;
+            hpTag.append("End+").append(String.format("%.0f", endPct)).append("%");
+        }
+        if (wmLv > 0) {
+            double wmPct = wmLv * 2.0;
+            hpBonusPct += wmPct;
+            if (hpTag.length() > 0) hpTag.append(" ");
+            hpTag.append("WM+").append(String.format("%.0f", wmPct)).append("%");
+        }
+        String hpExtra = hpTag.length() > 0 ? " (+" + String.format("%.0f", hpBonusPct) + "% " + hpTag + ")" : "";
+        drawStat(g, "MAX HP:", String.format("%.0f", player != null ? player.getMaxHealth() : 20f) + hpExtra, left, rowY);
 
         // --- MP ---
         rowY += lineH;
@@ -370,10 +518,16 @@ public class StatusScreen extends Screen {
         double mpRegenPct = 1.0 + (stats.getMind() - 1) * 0.01;
         int mpRecovLv = sd.getLevel(SkillType.MP_RECOVERY);
         StringBuilder regenTag = new StringBuilder();
-        if (mpRecovLv > 0) regenTag.append("+").append(String.format("%.1f", mpRecovLv * 0.2)).append("%");
+        if (mpRecovLv > 0) {
+            double mrBonus = mpRecovLv * 0.2;
+            mpRegenPct += mrBonus;
+            regenTag.append("+").append(String.format("%.1f", mrBonus)).append("%");
+        }
         if (ccLv > 0) {
+            double ccBonus = ccLv * 0.15;
+            mpRegenPct += ccBonus;
             if (regenTag.length() > 0) regenTag.append(" ");
-            regenTag.append("CC+").append(String.format("%.1f", ccLv * 0.15f)).append("%");
+            regenTag.append("CC+").append(String.format("%.1f", ccBonus)).append("%");
         }
         String mpSkill = regenTag.length() > 0 ? " (" + regenTag + ")" : "";
         drawStat(g, "MP REGEN:", String.format("%.1f%%/s", mpRegenPct) + mpSkill, left, rowY);

@@ -1,0 +1,10 @@
+{
+  "flying_raijin_teleport": {
+    "sounds": [
+      {
+        "name": "projectleveling:flying_raijin_teleport",
+        "stream": false
+      }
+    ]
+  }
+}

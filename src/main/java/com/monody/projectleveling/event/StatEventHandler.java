@@ -295,6 +295,7 @@ public class StatEventHandler {
             if (sd.getInfinityTicks() > 0) {
                 sd.setInfinityTicks(sd.getInfinityTicks() - 1);
                 if (sd.getInfinityTicks() <= 0) {
+                    sd.setInfinityStacks(0);
                     player.sendSystemMessage(Component.literal("\u00a7b[System]\u00a7r \u00a77Infinity ended."));
                     syncToClient(player);
                 } else if (player.tickCount % 80 == 0) {
@@ -366,6 +367,10 @@ public class StatEventHandler {
             if (sd.getFrgPhase() == 1) {
                 sd.setFrgTicks(sd.getFrgTicks() - 1);
                 if (sd.getFrgTicks() <= 0) {
+                    // Remove the ground kunai entity
+                    if (player.level() instanceof ServerLevel sl) {
+                        NinjaSkills.removeFrgKunai(sl, sd);
+                    }
                     sd.setFrgPhase(0);
                     int frgLv = sd.getLevel(SkillType.FLYING_RAIJIN_GROUND);
                     sd.startCooldown(SkillType.FLYING_RAIJIN_GROUND, frgLv);
@@ -478,7 +483,7 @@ public class StatEventHandler {
                 // Stealth drain
                 if (sd.isToggleActive(SkillType.STEALTH)) {
                     int level = sd.getLevel(SkillType.STEALTH);
-                    int drain = SkillType.STEALTH.getToggleMpPerSecond(level);
+                    int drain = SkillType.STEALTH.getToggleMpPerSecond(level, stats.getMaxMp());
                     if (stats.getCurrentMp() >= drain) {
                         stats.setCurrentMp(stats.getCurrentMp() - drain);
                         AssassinSkills.applyStealthEffects(player, level);
@@ -492,7 +497,7 @@ public class StatEventHandler {
                 // Soul Arrow drain
                 if (sd.isToggleActive(SkillType.SOUL_ARROW)) {
                     int level = sd.getLevel(SkillType.SOUL_ARROW);
-                    int drain = SkillType.SOUL_ARROW.getToggleMpPerSecond(level);
+                    int drain = SkillType.SOUL_ARROW.getToggleMpPerSecond(level, stats.getMaxMp());
                     if (stats.getCurrentMp() >= drain) {
                         stats.setCurrentMp(stats.getCurrentMp() - drain);
                         // Ensure player always has at least 1 arrow
@@ -520,10 +525,26 @@ public class StatEventHandler {
                 // Shadow Partner drain
                 if (sd.isToggleActive(SkillType.SHADOW_PARTNER)) {
                     int level = sd.getLevel(SkillType.SHADOW_PARTNER);
-                    int drain = SkillType.SHADOW_PARTNER.getToggleMpPerSecond(level);
+                    int drain = SkillType.SHADOW_PARTNER.getToggleMpPerSecond(level, stats.getMaxMp());
                     if (stats.getCurrentMp() >= drain) {
                         stats.setCurrentMp(stats.getCurrentMp() - drain);
                         changed = true;
+                        // Shadow Legion auto-attack: partners attack every 2 seconds
+                        int slLv = sd.getLevel(SkillType.SHADOW_LEGION);
+                        if (slLv > 0 && player.tickCount % 40 == 0 && player.level() instanceof ServerLevel sl) {
+                            float autoAtkDmg = (float) player.getAttributeValue(
+                                    net.minecraft.world.entity.ai.attributes.Attributes.ATTACK_DAMAGE) * 0.2f;
+                            List<ShadowPartnerEntity> partners = AssassinSkills.findAllShadowPartners(player, sl);
+                            for (ShadowPartnerEntity partner : partners) {
+                                List<Monster> nearby = sl.getEntitiesOfClass(Monster.class,
+                                        partner.getBoundingBox().inflate(4));
+                                if (!nearby.isEmpty()) {
+                                    Monster target = nearby.get(0);
+                                    target.hurt(player.damageSources().mobAttack(partner), autoAtkDmg);
+                                    partner.swing(net.minecraft.world.InteractionHand.MAIN_HAND);
+                                }
+                            }
+                        }
                     } else {
                         sd.setToggleActive(SkillType.SHADOW_PARTNER, false);
                         if (player.level() instanceof ServerLevel sl) {
@@ -537,7 +558,7 @@ public class StatEventHandler {
                 // Magic Guard drain
                 if (sd.isToggleActive(SkillType.MAGIC_GUARD)) {
                     int level = sd.getLevel(SkillType.MAGIC_GUARD);
-                    int drain = SkillType.MAGIC_GUARD.getToggleMpPerSecond(level);
+                    int drain = SkillType.MAGIC_GUARD.getToggleMpPerSecond(level, stats.getMaxMp());
                     if (stats.getCurrentMp() >= drain) {
                         stats.setCurrentMp(stats.getCurrentMp() - drain);
                         if (player.tickCount % 40 == 0) {
@@ -554,7 +575,7 @@ public class StatEventHandler {
                 // Hurricane drain + tick
                 if (sd.isToggleActive(SkillType.HURRICANE)) {
                     int level = sd.getLevel(SkillType.HURRICANE);
-                    int drain = SkillType.HURRICANE.getToggleMpPerSecond(level);
+                    int drain = SkillType.HURRICANE.getToggleMpPerSecond(level, stats.getMaxMp());
                     if (stats.getCurrentMp() >= drain) {
                         stats.setCurrentMp(stats.getCurrentMp() - drain);
                         ArcherSkills.tickHurricane(player, stats, sd);
@@ -570,7 +591,7 @@ public class StatEventHandler {
                 // Raise Skeleton drain
                 if (sd.isToggleActive(SkillType.RAISE_SKELETON)) {
                     int level = sd.getLevel(SkillType.RAISE_SKELETON);
-                    int drain = SkillType.RAISE_SKELETON.getToggleMpPerSecond(level);
+                    int drain = SkillType.RAISE_SKELETON.getToggleMpPerSecond(level, stats.getMaxMp());
                     if (stats.getCurrentMp() >= drain) {
                         stats.setCurrentMp(stats.getCurrentMp() - drain);
                         changed = true;
@@ -587,7 +608,7 @@ public class StatEventHandler {
                 // Bone Shield drain
                 if (sd.isToggleActive(SkillType.BONE_SHIELD)) {
                     int level = sd.getLevel(SkillType.BONE_SHIELD);
-                    int drain = SkillType.BONE_SHIELD.getToggleMpPerSecond(level);
+                    int drain = SkillType.BONE_SHIELD.getToggleMpPerSecond(level, stats.getMaxMp());
                     if (stats.getCurrentMp() >= drain) {
                         stats.setCurrentMp(stats.getCurrentMp() - drain);
                         if (player.tickCount % 40 == 0 && player.level() instanceof ServerLevel sl) {
@@ -604,7 +625,7 @@ public class StatEventHandler {
                 // Soul Link drain
                 if (sd.isToggleActive(SkillType.SOUL_LINK)) {
                     int level = sd.getLevel(SkillType.SOUL_LINK);
-                    int drain = SkillType.SOUL_LINK.getToggleMpPerSecond(level);
+                    int drain = SkillType.SOUL_LINK.getToggleMpPerSecond(level, stats.getMaxMp());
                     if (stats.getCurrentMp() >= drain) {
                         stats.setCurrentMp(stats.getCurrentMp() - drain);
                         if (player.tickCount % 40 == 0 && player.level() instanceof ServerLevel sl) {
@@ -621,7 +642,7 @@ public class StatEventHandler {
                 // Shadow Clone drain
                 if (sd.isToggleActive(SkillType.SHADOW_CLONE)) {
                     int level = sd.getLevel(SkillType.SHADOW_CLONE);
-                    int drain = SkillType.SHADOW_CLONE.getToggleMpPerSecond(level);
+                    int drain = SkillType.SHADOW_CLONE.getToggleMpPerSecond(level, stats.getMaxMp());
                     if (stats.getCurrentMp() >= drain) {
                         stats.setCurrentMp(stats.getCurrentMp() - drain);
                         changed = true;
@@ -635,10 +656,10 @@ public class StatEventHandler {
                     }
                 }
 
-                // Sage Mode drain + effects (3% of max MP per second)
+                // Sage Mode drain + effects
                 if (sd.isToggleActive(SkillType.SAGE_MODE)) {
                     int level = sd.getLevel(SkillType.SAGE_MODE);
-                    int drain = Math.max(1, (int) (stats.getMaxMp() * 0.03));
+                    int drain = SkillType.SAGE_MODE.getToggleMpPerSecond(level, stats.getMaxMp());
                     if (stats.getCurrentMp() >= drain) {
                         stats.setCurrentMp(stats.getCurrentMp() - drain);
                         player.addEffect(new MobEffectInstance(MobEffects.MOVEMENT_SPEED, 25, 0, false, false));
@@ -1030,7 +1051,8 @@ public class StatEventHandler {
                 int bpm2Lv = sd.getLevel(SkillType.BEAR_PAW_MASTERY_2);
                 int bpmTotal = bpmLv + bpm2Lv;
                 if (bpmTotal > 0) stunSec += bpmTotal * 0.1f;
-                if (enhanced) stunSec *= 2;
+                stunSec = Math.min(stunSec, 3.0f); // Hard cap before PoN
+                if (enhanced) stunSec = Math.min(stunSec * 2, 4.0f); // Cap at 4s with PoN
                 int stunTicks = (int) (stunSec * 20);
                 target.addEffect(new MobEffectInstance(MobEffects.MOVEMENT_SLOWDOWN, stunTicks, 99, false, true));
                 target.addEffect(new MobEffectInstance(MobEffects.WEAKNESS, stunTicks, 0, false, true));
@@ -1122,8 +1144,13 @@ public class StatEventHandler {
                 for (MobEffectInstance effect : target.getActiveEffects()) {
                     if (!effect.getEffect().isBeneficial()) debuffCount++;
                 }
-                float debuffBonus = Math.min(debuffCount * 0.05f * edLv, 0.25f);
+                float debuffBonus = Math.min(debuffCount * 0.02f * edLv, 0.50f);
                 amount *= 1.0f + debuffBonus;
+            }
+
+            // Infinity: +5% damage per stack (stacks every 4s)
+            if (sd.getInfinityTicks() > 0 && sd.getInfinityStacks() > 0) {
+                amount *= 1.0f + sd.getInfinityStacks() * 0.05f;
             }
 
             // Passive: Element Amplification — +3% skill damage per level (magic damage sources)
@@ -1139,7 +1166,7 @@ public class StatEventHandler {
                 if (target.getHealth() < target.getMaxHealth() * 0.3f) {
                     amount *= 1.0f + fbLv * 0.02f;
                     if (player.getRandom().nextFloat() < fbLv * 0.005f) {
-                        amount = target.getHealth() + 100; // Execute
+                        amount *= 2.0f; // Execute: 2x damage
                     }
                 }
             }
@@ -1151,13 +1178,13 @@ public class StatEventHandler {
                 if (target.getHealth() < target.getMaxHealth() * 0.3f) {
                     amount *= 1.0f + mbLv * 0.02f;
                     if (player.getRandom().nextFloat() < mbLv * 0.005f) {
-                        amount = target.getHealth() + 100;
+                        amount *= 2.0f; // Execute: 2x damage
                     }
                 }
             }
 
             // Crit calculation: Sight-based + Critical Edge + Sharp Eyes + Arcane Overdrive + Evasion crit ready + Berserker Spirit
-            double critRate = 0;
+            double critRate = 0.15;
             double critDmgBonus = 1.5;
 
             int sig = stats.getSight();
@@ -1199,6 +1226,18 @@ public class StatEventHandler {
                 critRate += kmCrit / 100.0;
             }
 
+            // Equipment crit rate (Dagger, etc.)
+            var critInst = player.getAttribute(com.monody.projectleveling.item.ModAttributes.CRIT_RATE.get());
+            if (critInst != null && critInst.getValue() > 0) {
+                critRate += critInst.getValue() / 100.0;
+            }
+
+            // Equipment crit damage
+            var cdInst = player.getAttribute(com.monody.projectleveling.item.ModAttributes.CRIT_DAMAGE.get());
+            if (cdInst != null && cdInst.getValue() > 0) {
+                critDmgBonus += cdInst.getValue() / 100.0;
+            }
+
             // Evasion crit ready (guaranteed crit on next hit after dodge)
             if (sd.isEvasionCritReady()) {
                 critRate = 1.0;
@@ -1207,6 +1246,12 @@ public class StatEventHandler {
 
             if (critRate > 0 && player.getRandom().nextDouble() < critRate) {
                 amount = (float) (amount * critDmgBonus);
+                // Critical Edge lifesteal on crit: 0.5% per level
+                if (ceLv > 0) {
+                    float ceHeal = amount * ceLv * 0.005f;
+                    player.heal(ceHeal);
+                    CombatLog.heal(player, "Critical Edge", ceHeal);
+                }
                 if (player.level() instanceof ServerLevel sl) {
                     net.minecraft.world.entity.LivingEntity target = (net.minecraft.world.entity.LivingEntity) event.getEntity();
                     SkillParticles.burst(sl, target.getX(), target.getY() + 1.5, target.getZ(), 12, 0.4, ParticleTypes.CRIT);
@@ -1247,6 +1292,22 @@ public class StatEventHandler {
                         SkillParticles.burst(sl, mob.getX(), mob.getY() + 1, mob.getZ(), 6, 0.3, ParticleTypes.PORTAL);
                     }
                 }
+            }
+
+            // Equipment ATK% — multiplies physical (non-indirect) damage
+            if (!event.getSource().isIndirect()) {
+                var atkPctInst = player.getAttribute(com.monody.projectleveling.item.ModAttributes.ATTACK_PERCENT.get());
+                if (atkPctInst != null && atkPctInst.getValue() > 0) {
+                    amount *= 1.0f + (float) (atkPctInst.getValue() / 100.0);
+                }
+            }
+
+            // MATK% is applied in PlayerStats.getMagicAttack(Player) — all magic skills use the boosted value naturally
+
+            // Equipment Final Damage% — multiplies ALL damage as the very last step
+            var fdInst = player.getAttribute(com.monody.projectleveling.item.ModAttributes.FINAL_DAMAGE.get());
+            if (fdInst != null && fdInst.getValue() > 0) {
+                amount *= 1.0f + (float) (fdInst.getValue() / 100.0);
             }
 
             event.setAmount(amount);
@@ -1484,6 +1545,19 @@ public class StatEventHandler {
             if (evLv > 0 && player.getRandom().nextFloat() < evLv * 0.02f) {
                 event.setCanceled(true);
                 sd.setEvasionCritReady(true);
+                // Shadow Legion: partners counter-attack the attacker on dodge
+                int slLv = sd.getLevel(SkillType.SHADOW_LEGION);
+                if (slLv > 0 && sd.isToggleActive(SkillType.SHADOW_PARTNER)
+                        && event.getSource().getEntity() instanceof net.minecraft.world.entity.LivingEntity attacker
+                        && player.level() instanceof ServerLevel sl) {
+                    float counterDmg = (float) player.getAttributeValue(
+                            net.minecraft.world.entity.ai.attributes.Attributes.ATTACK_DAMAGE) * 0.5f;
+                    List<ShadowPartnerEntity> partners = AssassinSkills.findAllShadowPartners(player, sl);
+                    for (ShadowPartnerEntity partner : partners) {
+                        attacker.hurt(player.damageSources().mobAttack(partner), counterDmg);
+                        partner.swing(net.minecraft.world.InteractionHand.MAIN_HAND);
+                    }
+                }
                 if (player.level() instanceof ServerLevel sl) {
                     SkillParticles.burst(sl, player.getX(), player.getY() + 1, player.getZ(), 8, 0.4, ParticleTypes.CLOUD);
                     SkillParticles.burst(sl, player.getX(), player.getY() + 1, player.getZ(), 5, 0.3, ParticleTypes.POOF);

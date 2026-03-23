@@ -1,0 +1,17 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "pattern": [
+    "M",
+    "S",
+    "R"
+  ],
+  "key": {
+    "M": {"tag": "minecraft:planks"},
+    "S": {"item": "minecraft:stick"},
+    "R": {"item": "minecraft:string"}
+  },
+  "result": {
+    "item": "projectleveling:wood_kunai",
+    "count": 1
+  }
+}

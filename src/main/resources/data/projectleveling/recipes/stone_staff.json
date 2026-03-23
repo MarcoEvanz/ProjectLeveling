@@ -1,0 +1,17 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "pattern": [
+    "M",
+    "A",
+    "S"
+  ],
+  "key": {
+    "M": {"item": "minecraft:cobblestone"},
+    "A": {"item": "minecraft:amethyst_shard"},
+    "S": {"item": "minecraft:stick"}
+  },
+  "result": {
+    "item": "projectleveling:stone_staff",
+    "count": 1
+  }
+}

@@ -41,7 +41,7 @@ public final class ArcherSkills {
         switch (skill) {
             // === T1 ===
             case ARROW_RAIN -> {
-                float dmg = 0.3f + level * 0.1f + stats.getDexterity() * 0.02f;
+                float dmg = 0.15f + level * 0.05f + stats.getDexterity() * 0.01f;
                 double dur = 20 + (level - 1) * (40.0 / 9.0);
                 texts.add("Dmg/arrow: " + String.format("%.1f", dmg) + " (DEX scales)");
                 lines.add(new int[]{TEXT_VALUE});
@@ -53,7 +53,7 @@ public final class ArcherSkills {
                 lines.add(new int[]{TEXT_DIM});
             }
             case SOUL_ARROW -> {
-                texts.add("MP drain: " + skill.getToggleMpPerSecond(level) + "/sec");
+                texts.add("MP drain: " + String.format("%.1f", skill.getToggleDrainPercent(level)) + "% MP/sec");
                 lines.add(new int[]{TEXT_VALUE});
                 texts.add("Infinite arrows (no ammo consumed)");
                 lines.add(new int[]{TEXT_VALUE});
@@ -115,13 +115,13 @@ public final class ArcherSkills {
                 lines.add(new int[]{TEXT_DIM});
             }
             case HURRICANE -> {
-                float dmg = 1.5f + level * 0.4f + stats.getDexterity() * 0.1f;
+                float dmg = 1.0f + level * 0.3f + stats.getDexterity() * 0.08f;
                 double range = 8 + stats.getDexterity() * 0.1;
                 texts.add("Dmg/arrow: " + String.format("%.1f", dmg) + " (DEX scales)");
                 lines.add(new int[]{TEXT_VALUE});
                 texts.add("Range: " + String.format("%.1f", range) + " blocks (DEX scales)");
                 lines.add(new int[]{TEXT_VALUE});
-                texts.add("MP drain: " + skill.getToggleMpPerSecond(level) + "/sec");
+                texts.add("MP drain: " + String.format("%.1f", skill.getToggleDrainPercent(level)) + "% MP/sec");
                 lines.add(new int[]{TEXT_VALUE});
                 texts.add("Auto-fires at nearest enemy, slows self");
                 lines.add(new int[]{TEXT_DIM});
@@ -158,7 +158,7 @@ public final class ArcherSkills {
 
     private static void executeArrowRain(ServerPlayer player, PlayerStats stats, SkillData sd, int level) {
         stats.setCurrentMp(stats.getCurrentMp() - SkillType.ARROW_RAIN.getMpCost(level));
-        float damage = 0.3f + level * 0.1f + stats.getDexterity() * 0.02f + SkillExecutor.getWeaponDamage(player) * 0.2f; // Low per-arrow damage
+        float damage = 0.15f + level * 0.05f + stats.getDexterity() * 0.01f + SkillExecutor.getWeaponDamage(player) * 0.1f; // Halved per-arrow damage
         float radius = 3.0f;
         int durationTicks = (int) (20 + (level - 1) * (40.0 / 9.0)); // 1s at lv1, 3s at lv10
 
@@ -175,7 +175,7 @@ public final class ArcherSkills {
     }
 
     private static void executeSoulArrow(ServerPlayer player, PlayerStats stats, SkillData sd, int level) {
-        if (stats.getCurrentMp() < SkillType.SOUL_ARROW.getToggleMpPerSecond(level)) {
+        if (stats.getCurrentMp() < SkillType.SOUL_ARROW.getToggleMpPerSecond(level, stats.getMaxMp())) {
             player.sendSystemMessage(Component.literal("\u00a7cNot enough MP!"));
             return;
         }
@@ -246,7 +246,7 @@ public final class ArcherSkills {
     }
 
     private static void executeHurricane(ServerPlayer player, PlayerStats stats, SkillData sd, int level) {
-        if (stats.getCurrentMp() < SkillType.HURRICANE.getToggleMpPerSecond(level)) {
+        if (stats.getCurrentMp() < SkillType.HURRICANE.getToggleMpPerSecond(level, stats.getMaxMp())) {
             player.sendSystemMessage(Component.literal("\u00a7cNot enough MP!"));
             return;
         }
@@ -333,22 +333,23 @@ public final class ArcherSkills {
         }
     }
 
-    /** Called every second while Hurricane is active. Shoots actual arrows at targets. */
+    /** Called every second while Hurricane is active. Fires 3 arrows at targets. */
     public static void tickHurricane(ServerPlayer player, PlayerStats stats, SkillData sd) {
         int level = sd.getLevel(SkillType.HURRICANE);
         double range = 8 + stats.getDexterity() * 0.1;
-        float damage = 1.5f + level * 0.4f + stats.getDexterity() * 0.1f + SkillExecutor.getWeaponDamage(player) * 0.2f;
+        float damage = 1.0f + level * 0.3f + stats.getDexterity() * 0.08f + SkillExecutor.getWeaponDamage(player) * 0.15f;
         AABB area = player.getBoundingBox().inflate(range);
         List<Monster> mobs = player.level().getEntitiesOfClass(Monster.class, area);
         if (!mobs.isEmpty()) {
-            Monster target = mobs.get(0);
-            // Shoot actual arrow projectile at target
-            SkillArrowEntity arrow = new SkillArrowEntity(
-                    player.level(), player, SkillArrowEntity.ArrowType.HURRICANE, damage, 0, 0);
-            Vec3 dir = target.position().add(0, target.getBbHeight() * 0.5, 0)
-                    .subtract(player.getEyePosition());
-            arrow.shoot(dir.x, dir.y, dir.z, 2.5f, 1.0f);
-            player.level().addFreshEntity(arrow);
+            for (int i = 0; i < 3; i++) {
+                Monster target = mobs.get(i % mobs.size());
+                SkillArrowEntity arrow = new SkillArrowEntity(
+                        player.level(), player, SkillArrowEntity.ArrowType.HURRICANE, damage, 0, 0);
+                Vec3 dir = target.position().add(0, target.getBbHeight() * 0.5, 0)
+                        .subtract(player.getEyePosition());
+                arrow.shoot(dir.x, dir.y, dir.z, 2.5f, 1.0f + i * 0.3f);
+                player.level().addFreshEntity(arrow);
+            }
             if (player.level() instanceof ServerLevel sl) {
                 SkillSounds.playAt(sl, player.getX(), player.getY(), player.getZ(),
                         SoundEvents.CROSSBOW_SHOOT, 0.4f, 1.2f);

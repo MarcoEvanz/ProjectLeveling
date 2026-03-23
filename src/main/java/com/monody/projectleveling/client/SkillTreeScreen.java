@@ -397,7 +397,7 @@ public class SkillTreeScreen extends Screen {
             } else {
                 int displayLevel = Math.max(level, 1);
                 String mpText = skill.isToggle()
-                        ? "MP: " + skill.getToggleMpPerSecond(displayLevel) + "/sec"
+                        ? "MP: " + String.format("%.1f", skill.getToggleDrainPercent(displayLevel)) + "%/sec"
                         : "MP: " + skill.getMpCost(displayLevel);
                 g.drawString(font, mpText, textX, textY2, TEXT_DIM, false);
 
@@ -544,7 +544,7 @@ public class SkillTreeScreen extends Screen {
         } else {
             String mpLine;
             if (skill.isToggle()) {
-                mpLine = "MP: " + skill.getToggleMpPerSecond(displayLevel) + "/sec";
+                mpLine = "MP: " + String.format("%.1f", skill.getToggleDrainPercent(displayLevel)) + "%/sec";
             } else {
                 mpLine = "MP: " + skill.getMpCost(displayLevel) + "  CD: "
                         + String.format("%.1f", skill.getCooldownTicks(displayLevel) / 20.0) + "s";

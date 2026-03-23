@@ -3,9 +3,12 @@ package com.monody.projectleveling.skill.classes;
 import com.monody.projectleveling.capability.PlayerStats;
 import com.monody.projectleveling.capability.PlayerStatsCapability;
 import com.monody.projectleveling.entity.assassin.ShadowPartnerEntity;
+import com.monody.projectleveling.entity.kunai.ThrownShurikenEntity;
 import com.monody.projectleveling.entity.ninja.FlyingRaijinKunaiEntity;
 import com.monody.projectleveling.entity.ninja.ShadowCloneEntity;
+import com.monody.projectleveling.item.ModItems;
 import com.monody.projectleveling.skill.*;
+import com.monody.projectleveling.sound.ModSounds;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
@@ -13,6 +16,7 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.monster.Monster;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 
@@ -39,13 +43,13 @@ public final class NinjaSkills {
         switch (skill) {
             // === T1 ===
             case SHURIKEN_JUTSU -> {
-                float dmg = 2 + level * 0.5f + stats.getAgility() * 0.1f + stats.getLuck() * 0.05f;
-                float range = 5 + level * 0.3f;
-                texts.add("Damage: " + String.format("%.1f", dmg) + " (AGI+LUK scale)");
+                float dmg = 1 + level * 0.3f + stats.getAgility() * 0.05f + stats.getLuck() * 0.03f;
+                int count = 5 + level / 3;
+                texts.add("Damage per shuriken: " + String.format("%.1f", dmg) + " (AGI+LUK scale)");
                 lines.add(new int[]{TEXT_VALUE});
-                texts.add("Range: " + String.format("%.1f", range) + " blocks (cone)");
+                texts.add("Shurikens: " + count);
                 lines.add(new int[]{TEXT_VALUE});
-                texts.add("Hits all enemies in front");
+                texts.add("Throws shurikens in a wide cone");
                 lines.add(new int[]{TEXT_DIM});
             }
             case SUBSTITUTION_JUTSU -> {
@@ -79,7 +83,9 @@ public final class NinjaSkills {
                 lines.add(new int[]{TEXT_VALUE});
                 texts.add("Clone stats: " + String.format("%.0f", statPct) + "% of owner");
                 lines.add(new int[]{TEXT_VALUE});
-                texts.add("MP drain: " + skill.getToggleMpPerSecond(level) + "/sec");
+                texts.add("Cast cost: 20% max MP");
+                lines.add(new int[]{TEXT_VALUE});
+                texts.add("MP drain: " + String.format("%.1f", skill.getToggleDrainPercent(level)) + "% MP/sec");
                 lines.add(new int[]{TEXT_VALUE});
                 texts.add("Clones use Shuriken & Rasengan on their own");
                 lines.add(new int[]{TEXT_DIM});
@@ -133,7 +139,7 @@ public final class NinjaSkills {
                 lines.add(new int[]{TEXT_VALUE});
                 texts.add("Splash damage: 30% of total hit damage");
                 lines.add(new int[]{TEXT_VALUE});
-                texts.add("Buff lasts 10s or until next attack");
+                texts.add("Buff lasts 8s or until next attack");
                 lines.add(new int[]{TEXT_DIM});
             }
             case SAGE_MODE -> {
@@ -142,7 +148,7 @@ public final class NinjaSkills {
                 lines.add(new int[]{TEXT_VALUE});
                 texts.add("Speed: +15%  |  Knockback resist");
                 lines.add(new int[]{TEXT_VALUE});
-                texts.add("MP drain: 3% of max MP/sec");
+                texts.add("MP drain: " + String.format("%.1f", skill.getToggleDrainPercent(level)) + "% MP/sec");
                 lines.add(new int[]{TEXT_VALUE});
                 texts.add("Enhanced particle aura while active");
                 lines.add(new int[]{TEXT_DIM});
@@ -195,37 +201,24 @@ public final class NinjaSkills {
 
     private static void executeShurikenJutsu(ServerPlayer player, PlayerStats stats, SkillData sd, int level) {
         stats.setCurrentMp(stats.getCurrentMp() - SkillType.SHURIKEN_JUTSU.getMpCost(level));
-        float damage = 2 + level * 0.5f + stats.getAgility() * 0.1f + stats.getLuck() * 0.05f + SkillExecutor.getWeaponDamage(player);
-        float range = 5 + level * 0.3f;
-        Vec3 look = player.getLookAngle();
-        Vec3 eye = player.getEyePosition();
-        AABB area = player.getBoundingBox().inflate(range);
-        List<Monster> mobs = player.level().getEntitiesOfClass(Monster.class, area);
-        List<Monster> hitMobs = new java.util.ArrayList<>();
-        CombatLog.suppressDamageLog = true;
-        CombatLog.pendingAoeSplashDmg = 0;
-        CombatLog.pendingAoeSplashCount = 0;
-        for (Monster mob : mobs) {
-            Vec3 toMob = mob.position().add(0, mob.getBbHeight() / 2, 0).subtract(eye).normalize();
-            if (look.dot(toMob) < 0.5) continue; // ~60 degree cone
-            mob.hurt(player.damageSources().playerAttack(player), damage);
-            hitMobs.add(mob);
-        }
-        CombatLog.suppressDamageLog = false;
-        CombatLog.flushAoe(player, "Shuriken Jutsu");
+        float damage = 1 + level * 0.3f + stats.getAgility() * 0.05f + stats.getLuck() * 0.03f + SkillExecutor.getWeaponDamage(player);
+        int shurikenCount = 5 + level / 3;
+
         if (player.level() instanceof ServerLevel sl) {
-            for (int i = 0; i < 12; i++) {
-                double spread = (player.getRandom().nextDouble() - 0.5) * 0.6;
-                Vec3 dir = look.add(look.yRot((float) spread)).normalize();
-                Vec3 end = eye.add(dir.scale(range));
-                SkillParticles.line(sl, eye.add(dir.scale(1.5)), end, 0.8, ParticleTypes.CRIT);
+            ItemStack visualStack = new ItemStack(ModItems.IRON_SHURIKEN.get());
+            for (int i = 0; i < shurikenCount; i++) {
+                ThrownShurikenEntity shuriken = new ThrownShurikenEntity(sl, player, visualStack);
+                shuriken.setBaseDamage(damage);
+                shuriken.setSkillProjectile(true);
+                shuriken.shootFromRotation(player, player.getXRot(), player.getYRot(), 0.0f, 2.5f, 20.0f);
+                sl.addFreshEntity(shuriken);
             }
-            SkillSounds.playAt(player, SoundEvents.ARROW_SHOOT, 0.8f, 1.5f);
+            SkillSounds.playAt(player, SoundEvents.TRIDENT_THROW, 0.8f, 1.5f);
             SkillSounds.playAt(player, SoundEvents.PLAYER_ATTACK_SWEEP, 0.6f, 1.2f);
         }
         sd.startCooldown(SkillType.SHURIKEN_JUTSU, level);
         player.sendSystemMessage(Component.literal(
-                "\u00a7b[System]\u00a7r \u00a76Shuriken Jutsu! " + hitMobs.size() + " enemies hit."));
+                "\u00a7b[System]\u00a7r \u00a76Shuriken Jutsu!"));
     }
 
     private static void executeSubstitutionJutsu(ServerPlayer player, PlayerStats stats, SkillData sd, int level) {
@@ -243,10 +236,12 @@ public final class NinjaSkills {
     }
 
     private static void executeShadowClone(ServerPlayer player, PlayerStats stats, SkillData sd, int level) {
-        if (stats.getCurrentMp() < SkillType.SHADOW_CLONE.getToggleMpPerSecond(level)) {
-            player.sendSystemMessage(Component.literal("\u00a7cNot enough MP!"));
+        int castCost = (int) (stats.getMaxMp() * 0.20f);
+        if (stats.getCurrentMp() < castCost) {
+            player.sendSystemMessage(Component.literal("\u00a7cNot enough MP! (Need 20% max MP)"));
             return;
         }
+        stats.setCurrentMp(stats.getCurrentMp() - castCost);
         sd.setToggleActive(SkillType.SHADOW_CLONE, true);
         if (player.level() instanceof ServerLevel sl) {
             // Despawn any existing clones
@@ -283,11 +278,11 @@ public final class NinjaSkills {
 
             if (player.level() instanceof ServerLevel sl) {
                 float dmg = 3 + level * 0.5f + stats.getAgility() * 0.08f + SkillExecutor.getWeaponDamage(player);
-                FlyingRaijinKunaiEntity kunai = new FlyingRaijinKunaiEntity(sl, player, dmg);
+                FlyingRaijinKunaiEntity kunai = new FlyingRaijinKunaiEntity(sl, player, dmg, player.getMainHandItem());
                 kunai.shootFromRotation(player, player.getXRot(), player.getYRot(), 0.0f, 2.5f, 0.5f);
                 sl.addFreshEntity(kunai);
                 sd.setFlyingRaijinKunaiId(kunai.getId());
-                SkillSounds.playAt(player, SoundEvents.ARROW_SHOOT, 0.8f, 1.2f);
+                SkillSounds.playAt(player, SoundEvents.TRIDENT_THROW, 1.0f, 1.5f);
             }
             player.sendSystemMessage(Component.literal(
                     "\u00a7b[System]\u00a7r \u00a76Flying Raijin kunai thrown!"));
@@ -328,7 +323,7 @@ public final class NinjaSkills {
                 // Departure particles
                 SkillParticles.burst(sl, player.getX(), player.getY() + 1, player.getZ(), 20, 0.5, ParticleTypes.END_ROD);
                 SkillSounds.playAt(sl, player.getX(), player.getY(), player.getZ(),
-                        SoundEvents.ENDERMAN_TELEPORT, 0.6f, 1.8f);
+                        ModSounds.FLYING_RAIJIN_TELEPORT.get(), 0.03f, 1.0f);
             }
 
             player.teleportTo(tx, ty, tz);
@@ -377,14 +372,14 @@ public final class NinjaSkills {
                     SkillParticles.burst(sl, tx, ty + 1, tz, 30, 0.8, ParticleTypes.FIREWORK);
                     SkillParticles.spiral(sl, tx, ty, tz, 2.0, 3.0, 3, 20, ParticleTypes.END_ROD);
                     SkillParticles.burst(sl, tx, ty + 1, tz, 20, 1.0, ParticleTypes.EXPLOSION);
-                    SkillSounds.playAt(sl, tx, ty, tz, SoundEvents.ENDERMAN_TELEPORT, 1.0f, 1.5f);
+                    SkillSounds.playAt(sl, tx, ty, tz, ModSounds.FLYING_RAIJIN_TELEPORT.get(), 0.05f, 1.0f);
                     SkillSounds.playAt(sl, tx, ty, tz, SoundEvents.GENERIC_EXPLODE, 0.8f, 1.2f);
                     SkillSounds.playAt(sl, tx, ty, tz, SoundEvents.FIREWORK_ROCKET_BLAST, 0.7f, 0.8f);
                 } else {
                     // Normal arrival: yellow flash
                     SkillParticles.burst(sl, tx, ty + 1, tz, 30, 0.8, ParticleTypes.END_ROD);
                     SkillParticles.burst(sl, tx, ty + 1, tz, 15, 0.5, ParticleTypes.FIREWORK);
-                    SkillSounds.playAt(sl, tx, ty, tz, SoundEvents.ENDERMAN_TELEPORT, 0.8f, 1.5f);
+                    SkillSounds.playAt(sl, tx, ty, tz, ModSounds.FLYING_RAIJIN_TELEPORT.get(), 0.05f, 1.0f);
                     SkillSounds.playAt(sl, tx, ty, tz, SoundEvents.FIREWORK_ROCKET_BLAST, 0.5f, 1.2f);
                 }
             }
@@ -408,6 +403,13 @@ public final class NinjaSkills {
             sd.setFrgTicks(200); // 10 seconds
 
             if (player.level() instanceof ServerLevel sl) {
+                // Spawn a visible kunai stuck in the ground
+                FlyingRaijinKunaiEntity kunai = FlyingRaijinKunaiEntity.placeOnGround(
+                        sl, player, player.getX(), player.getY(), player.getZ(),
+                        player.getMainHandItem());
+                sl.addFreshEntity(kunai);
+                sd.setFrgKunaiId(kunai.getId());
+
                 SkillParticles.burst(sl, player.getX(), player.getY() + 0.2, player.getZ(),
                         10, 0.3, ParticleTypes.END_ROD);
                 SkillSounds.playAt(player, SoundEvents.ITEM_PICKUP, 0.8f, 0.6f);
@@ -421,11 +423,14 @@ public final class NinjaSkills {
             double tz = sd.getFrgZ();
 
             if (player.level() instanceof ServerLevel sl) {
+                // Remove the ground kunai entity
+                removeFrgKunai(sl, sd);
+
                 // Departure particles
                 SkillParticles.burst(sl, player.getX(), player.getY() + 1, player.getZ(),
                         20, 0.5, ParticleTypes.END_ROD);
                 SkillSounds.playAt(sl, player.getX(), player.getY(), player.getZ(),
-                        SoundEvents.ENDERMAN_TELEPORT, 0.6f, 1.8f);
+                        ModSounds.FLYING_RAIJIN_TELEPORT.get(), 0.03f, 1.0f);
             }
 
             player.teleportTo(tx, ty, tz);
@@ -434,21 +439,34 @@ public final class NinjaSkills {
                 // Arrival: yellow flash
                 SkillParticles.burst(sl, tx, ty + 1, tz, 30, 0.8, ParticleTypes.END_ROD);
                 SkillParticles.burst(sl, tx, ty + 1, tz, 15, 0.5, ParticleTypes.FIREWORK);
-                SkillSounds.playAt(sl, tx, ty, tz, SoundEvents.ENDERMAN_TELEPORT, 0.8f, 1.5f);
+                SkillSounds.playAt(sl, tx, ty, tz, ModSounds.FLYING_RAIJIN_TELEPORT.get(), 0.02f, 1.0f);
             }
 
             sd.setFrgPhase(0);
             sd.setFrgTicks(0);
+            sd.setFrgKunaiId(-1);
             sd.startCooldown(SkillType.FLYING_RAIJIN_GROUND, level);
             player.sendSystemMessage(Component.literal(
                     "\u00a7b[System]\u00a7r \u00a76Flying Raijin: Ground!"));
         }
     }
 
+    /** Remove the FRG ground kunai entity if it exists. */
+    public static void removeFrgKunai(ServerLevel level, SkillData sd) {
+        int kunaiId = sd.getFrgKunaiId();
+        if (kunaiId != -1) {
+            net.minecraft.world.entity.Entity entity = level.getEntity(kunaiId);
+            if (entity instanceof FlyingRaijinKunaiEntity) {
+                entity.discard();
+            }
+            sd.setFrgKunaiId(-1);
+        }
+    }
+
     private static void executeRasengan(ServerPlayer player, PlayerStats stats, SkillData sd, int level) {
         stats.setCurrentMp(stats.getCurrentMp() - SkillType.RASENGAN.getMpCost(level));
         sd.setRasenganBuffActive(true);
-        sd.setRasenganBuffTicks(200); // 10 seconds to use
+        sd.setRasenganBuffTicks(160); // 8 seconds to use
 
         if (player.level() instanceof ServerLevel sl) {
             SkillParticles.spiral(sl, player.getX(), player.getY() + 0.8, player.getZ(),
@@ -461,7 +479,7 @@ public final class NinjaSkills {
     }
 
     private static void executeSageMode(ServerPlayer player, PlayerStats stats, SkillData sd, int level) {
-        int drain = Math.max(1, (int) (stats.getMaxMp() * 0.03));
+        int drain = SkillType.SAGE_MODE.getToggleMpPerSecond(level, stats.getMaxMp());
         if (stats.getCurrentMp() < drain) {
             player.sendSystemMessage(Component.literal("\u00a7cNot enough MP!"));
             return;
@@ -500,20 +518,16 @@ public final class NinjaSkills {
         Vec3 pos = clone.position();
         switch (skill) {
             case SHURIKEN_JUTSU -> {
-                float dmg = (2 + level * 0.5f + stats.getAgility() * 0.1f + SkillExecutor.getWeaponDamage(player)) * statMult;
-                float range = 5 + level * 0.3f;
-                Vec3 look = clone.getLookAngle();
-                List<Monster> mobs = sl.getEntitiesOfClass(Monster.class,
-                        clone.getBoundingBox().inflate(range));
-                for (Monster mob : mobs) {
-                    Vec3 toMob = mob.position().subtract(pos).normalize();
-                    if (look.dot(toMob) < 0.3) continue;
-                    mob.hurt(SkillDamageSource.get(player.level()), dmg);
+                float dmg = (1 + level * 0.3f + stats.getAgility() * 0.05f + SkillExecutor.getWeaponDamage(player)) * statMult;
+                ItemStack visualStack = new ItemStack(ModItems.IRON_SHURIKEN.get());
+                for (int i = 0; i < 3; i++) {
+                    ThrownShurikenEntity shuriken = new ThrownShurikenEntity(sl, clone, visualStack);
+                    shuriken.setBaseDamage(dmg);
+                    shuriken.setSkillProjectile(true);
+                    shuriken.shootFromRotation(clone, clone.getXRot(), clone.getYRot(), 0.0f, 2.5f, 20.0f);
+                    sl.addFreshEntity(shuriken);
                 }
-                for (int i = 0; i < 8; i++) {
-                    SkillParticles.burst(sl, pos.x, pos.y + 1, pos.z, 3, range * 0.3, ParticleTypes.CRIT);
-                }
-                SkillSounds.playAt(sl, pos.x, pos.y, pos.z, SoundEvents.ARROW_SHOOT, 0.5f, 1.5f);
+                SkillSounds.playAt(sl, pos.x, pos.y, pos.z, SoundEvents.TRIDENT_THROW, 0.5f, 1.5f);
             }
             case RASENGAN -> {
                 // Clones also get Rasengan buff — AoE on next melee hit
@@ -562,7 +576,7 @@ public final class NinjaSkills {
 
         // Arrival particles
         SkillParticles.burst(sl, cx, player.getY() + 1, cz, 10, 0.4, ParticleTypes.END_ROD);
-        SkillSounds.playAt(sl, cx, player.getY(), cz, SoundEvents.ENDERMAN_TELEPORT, 0.4f, 1.8f);
+        SkillSounds.playAt(sl, cx, player.getY(), cz, ModSounds.FLYING_RAIJIN_TELEPORT.get(), 0.02f, 1.0f);
 
         // Flying Raijin Lv2: if clone has Rasengan ready, deal AoE at destination
         if (clone.isRasenganReady()) {
@@ -642,7 +656,7 @@ public final class NinjaSkills {
     public static float getKunaiMasteryCritBonus(PlayerStats stats) {
         int level = stats.getSkillData().getLevel(SkillType.KUNAI_MASTERY);
         if (level <= 0) return 0;
-        return stats.getSight() * 0.05f * level / 10.0f;
+        return stats.getLuck() * 0.05f * level / 10.0f;
     }
 
     /** Chakra Control MP cost reduction multiplier (e.g., 0.85 = 15% reduction). */
@@ -733,20 +747,16 @@ public final class NinjaSkills {
         Vec3 pos = partner.position();
         switch (skill) {
             case SHURIKEN_JUTSU -> {
-                float dmg = (2 + level * 0.5f + stats.getAgility() * 0.1f + SkillExecutor.getWeaponDamage(player)) * multiplier;
-                float range = 5 + level * 0.3f;
-                Vec3 look = partner.getLookAngle();
-                List<Monster> mobs = sl.getEntitiesOfClass(Monster.class,
-                        partner.getBoundingBox().inflate(range));
-                for (Monster mob : mobs) {
-                    Vec3 toMob = mob.position().subtract(pos).normalize();
-                    if (look.dot(toMob) < 0.3) continue;
-                    mob.hurt(SkillDamageSource.get(player.level()), dmg);
+                float dmg = (1 + level * 0.3f + stats.getAgility() * 0.05f + SkillExecutor.getWeaponDamage(player)) * multiplier;
+                ItemStack visualStack = new ItemStack(ModItems.IRON_SHURIKEN.get());
+                for (int i = 0; i < 3; i++) {
+                    ThrownShurikenEntity shuriken = new ThrownShurikenEntity(sl, partner, visualStack);
+                    shuriken.setBaseDamage(dmg);
+                    shuriken.setSkillProjectile(true);
+                    shuriken.shootFromRotation(partner, partner.getXRot(), partner.getYRot(), 0.0f, 2.5f, 20.0f);
+                    sl.addFreshEntity(shuriken);
                 }
-                for (int i = 0; i < 8; i++) {
-                    SkillParticles.burst(sl, pos.x, pos.y + 1, pos.z, 3, range * 0.3, ParticleTypes.CRIT);
-                }
-                SkillSounds.playAt(sl, pos.x, pos.y, pos.z, SoundEvents.ARROW_SHOOT, 0.5f, 1.5f);
+                SkillSounds.playAt(sl, pos.x, pos.y, pos.z, SoundEvents.TRIDENT_THROW, 0.5f, 1.5f);
             }
             case FLYING_RAIJIN -> {
                 SkillParticles.burst(sl, pos.x, pos.y + 1, pos.z, 10, 0.4, ParticleTypes.END_ROD);

@@ -11,6 +11,7 @@ import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.ai.attributes.AttributeModifier;
 import net.minecraft.world.entity.ai.attributes.Attributes;
+import net.minecraft.world.item.BowItem;
 import net.minecraft.world.item.ItemStack;
 
 public class SkillExecutor {
@@ -78,6 +79,14 @@ public class SkillExecutor {
         }
         if (!skill.isToggle() && stats.getCurrentMp() < mpCost) {
             player.sendSystemMessage(Component.literal("\u00a7cNot enough MP!"));
+            return;
+        }
+
+        // Archer skills require holding a bow
+        if (skill.getRequiredClass() == PlayerClass.ARCHER
+                && !(player.getMainHandItem().getItem() instanceof BowItem)) {
+            player.sendSystemMessage(Component.literal(
+                    "\u00a7cYou must hold a bow to use Archer skills!"));
             return;
         }
 

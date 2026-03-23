@@ -1,9 +1,12 @@
 package com.monody.projectleveling.capability;
 
+import com.monody.projectleveling.item.ModAttributes;
 import com.monody.projectleveling.skill.PlayerClass;
 import com.monody.projectleveling.skill.SkillData;
 import com.monody.projectleveling.skill.SkillType;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.world.entity.ai.attributes.AttributeInstance;
+import net.minecraft.world.entity.player.Player;
 
 public class PlayerStats {
     private final SkillData skillData = new SkillData();
@@ -60,8 +63,23 @@ public class PlayerStats {
     public boolean isQuestRewardClaimed() { return questRewardClaimed; }
     public long getQuestDay() { return questDay; }
 
-    /** Magic Attack: derived from INT. 0.1 MATK per INT point. */
+    /** Magic Attack: derived from INT. 0.1 MATK per INT point. Used in tooltips (no player context). */
     public float getMagicAttack() { return intelligence * 0.1f; }
+
+    /** Magic Attack including equipment bonuses (e.g. Staff) and MATK%. Use in execution where player is available. */
+    public float getMagicAttack(Player player) {
+        float base = intelligence * 0.1f;
+        if (player != null) {
+            AttributeInstance inst = player.getAttribute(ModAttributes.MAGIC_ATTACK.get());
+            if (inst != null) base += (float) inst.getValue();
+            // MATK% multiplier from equipment
+            AttributeInstance matkPctInst = player.getAttribute(ModAttributes.MAGIC_ATTACK_PERCENT.get());
+            if (matkPctInst != null && matkPctInst.getValue() > 0) {
+                base *= 1.0f + (float) (matkPctInst.getValue() / 100.0);
+            }
+        }
+        return base;
+    }
 
     /** Healing Power: derived from Faith. 0.1 per Faith point. */
     public float getHealingPower() { return faith * 0.1f; }
@@ -73,7 +91,9 @@ public class PlayerStats {
             base = (int) (base * (1 + dpLv * 0.02));
         }
         if (skillData.isToggleActive(SkillType.SHADOW_PARTNER)) {
-            base /= 2;
+            int slLv = skillData.getLevel(SkillType.SHADOW_LEGION);
+            int penalty = com.monody.projectleveling.skill.classes.AssassinSkills.getShadowPartnerMpPenalty(slLv);
+            base = base * (100 - penalty) / 100;
         }
         // Multi Shadow Clone: -4% max MP per level when Shadow Clone is active
         if (skillData.isToggleActive(SkillType.SHADOW_CLONE)) {

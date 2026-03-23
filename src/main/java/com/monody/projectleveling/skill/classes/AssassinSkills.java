@@ -26,6 +26,7 @@ public final class AssassinSkills {
             SkillType.SHADOW_STRIKE, SkillType.VENOM, SkillType.CRITICAL_EDGE,
             SkillType.STEALTH, SkillType.BLADE_FURY, SkillType.EVASION,
             SkillType.RULERS_AUTHORITY, SkillType.SHADOW_PARTNER, SkillType.FATAL_BLOW,
+            SkillType.SHADOW_LEGION,
     };
 
     private AssassinSkills() {}
@@ -64,6 +65,8 @@ public final class AssassinSkills {
                 lines.add(new int[]{TEXT_VALUE});
                 texts.add("Crit damage: +" + (level * 2) + "%");
                 lines.add(new int[]{TEXT_VALUE});
+                texts.add("Crit lifesteal: " + String.format("%.1f", level * 0.5f) + "%");
+                lines.add(new int[]{TEXT_VALUE});
             }
 
             // === T2 ===
@@ -71,7 +74,7 @@ public final class AssassinSkills {
                 double detect = Math.max(5.0 - level * 0.27, 1.0);
                 texts.add("Detection range: " + String.format("%.1f", detect) + " blocks");
                 lines.add(new int[]{TEXT_VALUE});
-                texts.add("MP drain: " + skill.getToggleMpPerSecond(level) + "/sec");
+                texts.add("MP drain: " + String.format("%.1f", skill.getToggleDrainPercent(level)) + "% MP/sec");
                 lines.add(new int[]{TEXT_VALUE});
                 texts.add("Grants: Invisibility, clears mob aggro");
                 lines.add(new int[]{TEXT_DIM});
@@ -111,11 +114,13 @@ public final class AssassinSkills {
             }
             case SHADOW_PARTNER -> {
                 float mult = 0.3f + (level - 1) * (0.1f / 19.0f);
+                int slLv = stats.getSkillData().getLevel(SkillType.SHADOW_LEGION);
+                int mpPenalty = slLv > 0 ? getShadowPartnerMpPenalty(slLv) : 50;
                 texts.add("Mirror damage: " + String.format("%.0f", mult * 100) + "%");
                 lines.add(new int[]{TEXT_VALUE});
-                texts.add("MP drain: " + skill.getToggleMpPerSecond(level) + "/sec");
+                texts.add("MP drain: " + String.format("%.1f", skill.getToggleDrainPercent(level)) + "% MP/sec");
                 lines.add(new int[]{TEXT_VALUE});
-                texts.add("Max MP halved while active");
+                texts.add("Max MP -" + mpPenalty + "% while active");
                 lines.add(new int[]{TEXT_DIM});
                 texts.add("Mirrors all skills + melee + ranged");
                 lines.add(new int[]{TEXT_DIM});
@@ -125,6 +130,17 @@ public final class AssassinSkills {
                 lines.add(new int[]{TEXT_VALUE});
                 texts.add("Execute chance: " + String.format("%.1f", level * 0.5) + "%");
                 lines.add(new int[]{TEXT_VALUE});
+            }
+            case SHADOW_LEGION -> {
+                int mpPenalty = getShadowPartnerMpPenalty(level);
+                texts.add("Unlocks 2nd Shadow Partner");
+                lines.add(new int[]{TEXT_VALUE});
+                texts.add("Partners auto-attack nearby mobs (2s, 20% ATK)");
+                lines.add(new int[]{TEXT_VALUE});
+                texts.add("On dodge: partners counter-attack (50% ATK)");
+                lines.add(new int[]{TEXT_VALUE});
+                texts.add("Shadow Partner MP penalty: -" + mpPenalty + "% (was -50%)");
+                lines.add(new int[]{TEXT_DIM});
             }
             default -> {}
         }
@@ -176,7 +192,7 @@ public final class AssassinSkills {
     }
 
     private static void executeStealth(ServerPlayer player, PlayerStats stats, SkillData sd, int level) {
-        if (stats.getCurrentMp() < SkillType.STEALTH.getToggleMpPerSecond(level)) {
+        if (stats.getCurrentMp() < SkillType.STEALTH.getToggleMpPerSecond(level, stats.getMaxMp())) {
             player.sendSystemMessage(Component.literal("\u00a7cNot enough MP!"));
             return;
         }
@@ -264,27 +280,40 @@ public final class AssassinSkills {
     }
 
     private static void executeShadowPartner(ServerPlayer player, PlayerStats stats, SkillData sd, int level) {
-        if (stats.getCurrentMp() < SkillType.SHADOW_PARTNER.getToggleMpPerSecond(level)) {
+        if (stats.getCurrentMp() < SkillType.SHADOW_PARTNER.getToggleMpPerSecond(level, stats.getMaxMp())) {
             player.sendSystemMessage(Component.literal("\u00a7cNot enough MP!"));
             return;
         }
         sd.setToggleActive(SkillType.SHADOW_PARTNER, true);
-        // Clamp MP to new halved max
+        // Clamp MP to new reduced max
         stats.setCurrentMp(Math.min(stats.getCurrentMp(), stats.getMaxMp()));
+        int slLv = sd.getLevel(SkillType.SHADOW_LEGION);
+        int maxPartners = getMaxShadowPartners(slLv);
+        int mpPenalty = getShadowPartnerMpPenalty(slLv);
         if (player.level() instanceof ServerLevel sl) {
-            // Despawn any existing shadow partner first
+            // Despawn any existing shadow partners first
             despawnShadowPartner(player, sl);
-            // Spawn new Shadow Partner entity behind player
-            Vec3 behind = player.position().subtract(player.getLookAngle().scale(2.0));
-            ShadowPartnerEntity partner = new ShadowPartnerEntity(sl, player);
-            partner.moveTo(behind.x, player.getY(), behind.z, player.getYRot(), 0);
-            sl.addFreshEntity(partner);
-            SkillParticles.burst(sl, behind.x, behind.y + 1, behind.z, 15, 0.5, ParticleTypes.SMOKE);
-            SkillParticles.burst(sl, behind.x, behind.y + 1, behind.z, 10, 0.4, ParticleTypes.PORTAL);
+            // Spawn Shadow Partners
+            for (int i = 0; i < maxPartners; i++) {
+                double offset = (i == 0) ? -2.0 : -3.5; // stagger positions
+                Vec3 behind = player.position().subtract(player.getLookAngle().scale(-offset));
+                if (i == 1) {
+                    // Second partner offset to the side
+                    Vec3 right = player.getLookAngle().cross(new Vec3(0, 1, 0)).normalize().scale(1.5);
+                    behind = player.position().subtract(player.getLookAngle().scale(2.0)).add(right);
+                }
+                ShadowPartnerEntity partner = new ShadowPartnerEntity(sl, player);
+                partner.moveTo(behind.x, player.getY(), behind.z, player.getYRot(), 0);
+                sl.addFreshEntity(partner);
+                SkillParticles.burst(sl, behind.x, behind.y + 1, behind.z, 15, 0.5, ParticleTypes.SMOKE);
+                SkillParticles.burst(sl, behind.x, behind.y + 1, behind.z, 10, 0.4, ParticleTypes.PORTAL);
+            }
             SkillSounds.playAt(player, SoundEvents.ILLUSIONER_CAST_SPELL, 0.4f, 1.0f);
         }
-        player.sendSystemMessage(Component.literal(
-                "\u00a7b[System]\u00a7r \u00a78Shadow Partner activated. Max MP halved."));
+        String msg = maxPartners > 1
+                ? "\u00a7b[System]\u00a7r \u00a78Shadow Legion activated! " + maxPartners + " partners. Max MP -" + mpPenalty + "%."
+                : "\u00a7b[System]\u00a7r \u00a78Shadow Partner activated. Max MP -" + mpPenalty + "%.";
+        player.sendSystemMessage(Component.literal(msg));
     }
 
     // ── Public helper methods ────────────────────────────────────────────
@@ -324,12 +353,29 @@ public final class AssassinSkills {
         return 0.3f + (level - 1) * (0.1f / 19.0f);
     }
 
+    /** Shadow Partner MP penalty with Shadow Legion: 50% default, scales to 40% at max Shadow Legion. */
+    public static int getShadowPartnerMpPenalty(int shadowLegionLevel) {
+        if (shadowLegionLevel <= 0) return 50;
+        return Math.max(40, 50 - shadowLegionLevel / 2);
+    }
+
+    /** Get number of Shadow Partners allowed (1 default, 2 with Shadow Legion). */
+    public static int getMaxShadowPartners(int shadowLegionLevel) {
+        return shadowLegionLevel > 0 ? 2 : 1;
+    }
+
     // ── Entity utilities ─────────────────────────────────────────────────
 
     public static ShadowPartnerEntity findShadowPartner(ServerPlayer player, ServerLevel level) {
         List<ShadowPartnerEntity> partners = level.getEntitiesOfClass(ShadowPartnerEntity.class,
                 player.getBoundingBox().inflate(32), e -> player.getUUID().equals(e.getOwnerUUID()));
         return partners.isEmpty() ? null : partners.get(0);
+    }
+
+    /** Find ALL Shadow Partners owned by the player. */
+    public static List<ShadowPartnerEntity> findAllShadowPartners(ServerPlayer player, ServerLevel level) {
+        return level.getEntitiesOfClass(ShadowPartnerEntity.class,
+                player.getBoundingBox().inflate(32), e -> player.getUUID().equals(e.getOwnerUUID()));
     }
 
     /** Despawn the player's Shadow Partner with smoke effect. */

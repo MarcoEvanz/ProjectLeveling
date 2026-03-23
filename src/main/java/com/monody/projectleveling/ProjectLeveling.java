@@ -6,10 +6,15 @@ import com.monody.projectleveling.entity.ModEntities;
 import com.monody.projectleveling.entity.assassin.ShadowPartnerEntity;
 import com.monody.projectleveling.entity.necromancer.SkeletonMinionEntity;
 import com.monody.projectleveling.entity.ninja.ShadowCloneEntity;
+import com.monody.projectleveling.item.ModAttributes;
+import com.monody.projectleveling.item.ModItems;
 import com.monody.projectleveling.network.ModNetwork;
+import com.monody.projectleveling.sound.ModSounds;
+import net.minecraft.world.entity.EntityType;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.event.RegisterCommandsEvent;
 import net.minecraftforge.event.entity.EntityAttributeCreationEvent;
+import net.minecraftforge.event.entity.EntityAttributeModificationEvent;
 import net.minecraftforge.event.server.ServerStartingEvent;
 import net.minecraftforge.eventbus.api.IEventBus;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
@@ -32,8 +37,19 @@ public class ProjectLeveling {
         // Register entities
         ModEntities.ENTITIES.register(modEventBus);
 
+        // Register items and creative tabs
+        ModItems.ITEMS.register(modEventBus);
+        ModItems.CREATIVE_TABS.register(modEventBus);
+
+        // Register custom attributes
+        ModAttributes.ATTRIBUTES.register(modEventBus);
+
+        // Register custom sounds
+        ModSounds.SOUNDS.register(modEventBus);
+
         modEventBus.addListener(this::commonSetup);
         modEventBus.addListener(this::onEntityAttributeCreation);
+        modEventBus.addListener(this::onEntityAttributeModification);
 
         MinecraftForge.EVENT_BUS.register(this);
     }
@@ -46,6 +62,16 @@ public class ProjectLeveling {
         event.put(ModEntities.SHADOW_PARTNER.get(), ShadowPartnerEntity.createAttributes().build());
         event.put(ModEntities.SKELETON_MINION.get(), SkeletonMinionEntity.createAttributes().build());
         event.put(ModEntities.SHADOW_CLONE.get(), ShadowCloneEntity.createAttributes().build());
+    }
+
+    private void onEntityAttributeModification(EntityAttributeModificationEvent event) {
+        // Add custom attributes to players so equipment modifiers work
+        event.add(EntityType.PLAYER, ModAttributes.MAGIC_ATTACK.get());
+        event.add(EntityType.PLAYER, ModAttributes.CRIT_RATE.get());
+        event.add(EntityType.PLAYER, ModAttributes.CRIT_DAMAGE.get());
+        event.add(EntityType.PLAYER, ModAttributes.ATTACK_PERCENT.get());
+        event.add(EntityType.PLAYER, ModAttributes.MAGIC_ATTACK_PERCENT.get());
+        event.add(EntityType.PLAYER, ModAttributes.FINAL_DAMAGE.get());
     }
 
     @SubscribeEvent

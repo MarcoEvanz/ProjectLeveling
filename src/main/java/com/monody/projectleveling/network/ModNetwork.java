@@ -62,6 +62,12 @@ public class ModNetwork {
                 .consumerMainThread(C2SSelectClassPacket::handle)
                 .add();
 
+        CHANNEL.messageBuilder(C2SSkillHoldPacket.class, packetId++, NetworkDirection.PLAY_TO_SERVER)
+                .encoder(C2SSkillHoldPacket::encode)
+                .decoder(C2SSkillHoldPacket::new)
+                .consumerMainThread(C2SSkillHoldPacket::handle)
+                .add();
+
         CHANNEL.messageBuilder(S2CSyncStatsPacket.class, packetId++, NetworkDirection.PLAY_TO_CLIENT)
                 .encoder(S2CSyncStatsPacket::encode)
                 .decoder(S2CSyncStatsPacket::new)

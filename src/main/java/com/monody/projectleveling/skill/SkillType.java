@@ -1,5 +1,10 @@
 package com.monody.projectleveling.skill;
 
+import com.monody.projectleveling.skill.StatContribRegistry.StatDef;
+import static com.monody.projectleveling.skill.StatContribRegistry.StatLine.*;
+import static com.monody.projectleveling.skill.StatContribRegistry.stat;
+import static com.monody.projectleveling.skill.StatContribRegistry.statTag;
+
 import java.util.HashMap;
 import java.util.Map;
 
@@ -12,7 +17,8 @@ public enum SkillType {
             "Burst forward with a speed boost.", "DSH"),
     ENDURANCE("endurance", "Endurance", 5, 0, null, 0, false, true,
             0, 0, 0, 0,
-            "Passive. +2% max HP and +5% HP regen per level.", "END"),
+            "Passive. +2% max HP and +5% HP regen per level.", "END",
+            stat(HP_PCT, 2.0)),
 
     // =====================================================
     // Tier 1 — Class skills, requires player level 10
@@ -27,7 +33,8 @@ public enum SkillType {
             "Buff ATK by %. Pull aggro from nearby mobs. Range scales with VIT.", "WC"),
     WARRIOR_MASTERY("warrior_mastery", "Warrior Mastery", 10, 1, PlayerClass.WARRIOR, 10, false, true,
             0, 0, 0, 0,
-            "Passive. +Max HP, -Damage Taken, +Knockback Resist per level.", "WM"),
+            "Passive. +2% max HP, -1% damage taken, +Knockback Resist per level.", "WM",
+            stat(HP_PCT, 2.0), stat(DMG_RED, 1.0)),
 
     // --- Assassin (LUK) ---
     SHADOW_STRIKE("shadow_strike", "Shadow Strike", 10, 1, PlayerClass.ASSASSIN, 10, false, false,
@@ -38,7 +45,8 @@ public enum SkillType {
             "Coat weapon in poison. Attacks apply stacking poison DoT.", "VN"),
     CRITICAL_EDGE("critical_edge", "Critical Edge", 10, 1, PlayerClass.ASSASSIN, 10, false, true,
             0, 0, 0, 0,
-            "Passive. +1.5% crit rate and +3% crit damage per level.", "CE"),
+            "Passive. +1% crit rate and +2% crit damage per level.", "CE",
+            stat(CRIT, 1.0), stat(CDMG, 2.0)),
 
     // --- Archer (DEX) ---
     ARROW_RAIN("arrow_rain", "Arrow Rain", 10, 1, PlayerClass.ARCHER, 10, false, false,
@@ -49,7 +57,8 @@ public enum SkillType {
             "Toggle. Bow attacks don't consume arrows. +5-15% projectile damage.", "SA"),
     SHARP_EYES("sharp_eyes", "Sharp Eyes", 10, 1, PlayerClass.ARCHER, 10, false, true,
             0, 0, 0, 0,
-            "Passive. +1.5% crit rate, +5% crit dmg per level. +1 proj range per 2 levels.", "SE"),
+            "Passive. +1.5% crit rate, +5% crit dmg per level. +1 proj range per 2 levels.", "SE",
+            stat(CRIT, 1.5), stat(CDMG, 5.0)),
 
     // --- Healer (INT) ---
     HOLY_LIGHT("holy_light", "Holy Light", 10, 1, PlayerClass.HEALER, 10, false, false,
@@ -82,7 +91,8 @@ public enum SkillType {
             "Dodge buffer. First damage is negated; teleport behind attacker.", "SUB"),
     KUNAI_MASTERY("kunai_mastery", "Kunai Mastery", 10, 1, PlayerClass.NINJA, 10, false, true,
             0, 0, 0, 0,
-            "Passive. +AGI melee damage, +LUK crit rate, +projectile damage per level.", "KM"),
+            "Passive. +AGI melee damage, +LUK crit rate, +1.5% projectile damage per level.", "KM",
+            stat(PROJ, 1.5)),
 
     // --- Necromancer (INT + Mind) ---
     LIFE_DRAIN("life_drain", "Life Drain", 10, 1, PlayerClass.NECROMANCER, 10, false, false,
@@ -156,7 +166,8 @@ public enum SkillType {
             "360 degree spin attack hitting all nearby mobs.", "BF"),
     EVASION("evasion", "Evasion", 15, 2, PlayerClass.ASSASSIN, 30, false, true,
             0, 0, 0, 0,
-            "Passive. 2% dodge per level. Dodge guarantees next crit.", "EV"),
+            "Passive. 2% dodge per level. Dodge guarantees next crit.", "EV",
+            stat(DODGE, 2.0)),
 
     // --- Archer ---
     ARROW_BOMB("arrow_bomb", "Arrow Bomb", 15, 2, PlayerClass.ARCHER, 30, false, false,
@@ -167,7 +178,8 @@ public enum SkillType {
             "Leap backward while firing arrows forward.", "CF"),
     EVASION_BOOST("evasion_boost", "Evasion Boost", 15, 2, PlayerClass.ARCHER, 30, false, true,
             0, 0, 0, 0,
-            "Passive. 2% dodge per level. Dodge guarantees next arrow crits.", "EB"),
+            "Passive. 2% dodge per level. Dodge guarantees next arrow crits.", "EB",
+            stat(DODGE, 2.0)),
 
     // --- Healer ---
     HOLY_SHELL("holy_shell", "Holy Shell", 15, 2, PlayerClass.HEALER, 30, false, false,
@@ -192,7 +204,8 @@ public enum SkillType {
             "Place a poison cloud zone. Can be detonated by Mist Eruption.", "PM"),
     ELEMENT_AMPLIFICATION("element_amplification", "Element Amplification", 15, 2, PlayerClass.MAGE, 30, false, true,
             0, 0, 0, 0,
-            "Passive. +2% skill damage per level. +20% MP cost for all skills.", "EA"),
+            "Passive. +3% damage per level. +20% MP cost for all skills.", "EA",
+            stat(DMG, 3.0)),
 
     // --- Ninja T2 ---
     SHADOW_CLONE("shadow_clone", "Shadow Clone", 15, 2, PlayerClass.NINJA, 30, true, false,
@@ -238,7 +251,8 @@ public enum SkillType {
             "Passive. Revive on fatal damage. 5 minute cooldown.", "UB"),
     BERSERKER_SPIRIT("berserker_spirit", "Berserker Spirit", 20, 3, PlayerClass.WARRIOR, 60, false, true,
             0, 0, 0, 0,
-            "Passive. +Crit rate. +Crit damage. +Lifesteal. +Final Attack trigger chance.", "BS"),
+            "Passive. +1% crit rate per level. +Crit damage. +Lifesteal. +Final Attack trigger chance.", "BS",
+            stat(CRIT, 1.0)),
 
     // --- Assassin ---
     RULERS_AUTHORITY("rulers_authority", "Ruler's Authority", 20, 3, PlayerClass.ASSASSIN, 60, false, false,
@@ -249,7 +263,8 @@ public enum SkillType {
             "Toggle. Shadow clone mirrors attacks at 30-40% damage.", "SP"),
     FATAL_BLOW("fatal_blow", "Fatal Blow", 20, 3, PlayerClass.ASSASSIN, 60, false, true,
             0, 0, 0, 0,
-            "Passive. +2% damage per level vs low HP mobs. Execute chance.", "FB"),
+            "Passive. +2% damage per level vs low HP mobs. Execute chance.", "FB",
+            statTag(DMG, 2.0)),
     SHADOW_LEGION("shadow_legion", "Shadow Legion", 20, 3, PlayerClass.ASSASSIN, 60, false, true,
             0, 0, 0, 0,
             "Passive. 2nd Shadow Partner, auto-attacks, counter on dodge, reduced MP penalty.", "SL"),
@@ -263,7 +278,8 @@ public enum SkillType {
             "Toggle. Rapid-fire arrow stream at nearest mob. Slows movement.", "HC"),
     MORTAL_BLOW("mortal_blow", "Mortal Blow", 20, 3, PlayerClass.ARCHER, 60, false, true,
             0, 0, 0, 0,
-            "Passive. +2% damage vs low HP mobs. Execute chance on projectiles.", "MB"),
+            "Passive. +2% damage vs low HP mobs. Execute chance on projectiles.", "MB",
+            statTag(DMG, 2.0)),
 
     // --- Healer ---
     BENEDICTION("benediction", "Benediction", 20, 3, PlayerClass.HEALER, 60, false, false,
@@ -280,12 +296,13 @@ public enum SkillType {
     MIST_ERUPTION("mist_eruption", "Mist Eruption", 20, 3, PlayerClass.MAGE, 60, false, false,
             48, 35, 900, 350,
             "Detonate Poison Mist for massive burst damage.", "ME"),
-    INFINITY("infinity", "Infinity", 20, 3, PlayerClass.MAGE, 60, false, false,
+    ARCANE_INFINITY("arcane_infinity", "Arcane Infinity", 20, 3, PlayerClass.MAGE, 60, false, false,
             65, 45, 2400, 1200,
-            "All skills cost 0 MP. +5% damage every 4s. Lasts 20-40s.", "INF"),
+            "All skills cost 0 MP. +5% damage every 4s. Lasts 20-40s.", "AI"),
     ARCANE_OVERDRIVE("arcane_overdrive", "Arcane Overdrive", 20, 3, PlayerClass.MAGE, 60, false, true,
             0, 0, 0, 0,
-            "Passive. +1.5% crit rate, +1% crit damage, +1% armor pen per level.", "AO"),
+            "Passive. +1.5% crit rate, +1% crit damage, +1% armor pen per level.", "AO",
+            stat(CRIT, 1.5), stat(CDMG, 1.0)),
 
     // --- Ninja T3 ---
     RASENGAN("rasengan", "Rasengan", 20, 3, PlayerClass.NINJA, 60, false, false,
@@ -336,6 +353,32 @@ public enum SkillType {
             "Passive. +1% enhanced skill damage per level.", "MoN"),
 
     // =====================================================
+    // Limitless — Tier 1 (requires level 10, max 10)
+    // =====================================================
+    BLACK_FLASH("black_flash", "Black Flash", 10, 1, PlayerClass.LIMITLESS, 10, false, false,
+            0, 0, 120, 60, // MP: manual 5% max MP. CD: 6s→3s
+            "MATK-scaled strike. Empowers next melee attack. 5% MP cost.", "BF"),
+    SIX_EYES_NEWBORN("six_eyes_newborn", "Six Eyes - New Born", 10, 1, PlayerClass.LIMITLESS, 10, false, true,
+            0, 0, 0, 0,
+            "Passive. +1% MP regen, -5% all skill MP cost per level.", "SEN",
+            stat(MP_REGEN, 1.0)),
+    INFINITY("limitless_infinity", "Infinity", 10, 1, PlayerClass.LIMITLESS, 10, true, false,
+            50, 25, 0, 0, // Toggle drain: 5%→2.5% MP/sec
+            "Toggle. All damage redirected to MP. Deflects projectiles.", "INF"),
+
+    // Limitless — Tier 2 (requires level 30, max 15)
+    CURSED_TECHNIQUE_BLUE("cursed_technique_blue", "Cursed Technique: Blue", 15, 2, PlayerClass.LIMITLESS, 30, false, false,
+            0, 0, 200, 100, // MP: manual 10%. CD: 10s→5s
+            "Tap: push enemies forward. Hold: pull to cursor. 10% MP.", "BLU"),
+    SIX_EYES_JUNIOR("six_eyes_junior", "Six Eyes - Junior", 15, 2, PlayerClass.LIMITLESS, 30, false, true,
+            0, 0, 0, 0,
+            "Passive. Total MP cost reduction up to 60%. Flight during Infinity (5% MP/s).", "SEJ"),
+    SIX_EYES_SEE_THROUGH("six_eyes_see_through", "Six Eyes - See Through", 15, 2, PlayerClass.LIMITLESS, 30, false, true,
+            0, 0, 0, 0,
+            "Passive. +1.33% crit rate, +3.33% crit damage per level.", "SET",
+            stat(CRIT, 1.33), stat(CDMG, 3.33)),
+
+    // =====================================================
     // Hidden — Reserved / Legacy
     // =====================================================
     VITAL_SURGE("vital_surge", "Vital Surge", 15, 99, null, 999, false, false,
@@ -348,6 +391,8 @@ public enum SkillType {
         for (SkillType type : values()) {
             BY_ID.put(type.id, type);
         }
+        // NBT migration: old "infinity" id → renamed Mage skill
+        BY_ID.put("infinity", ARCANE_INFINITY);
     }
 
     private final String id;
@@ -364,11 +409,12 @@ public enum SkillType {
     private final int minCooldown;
     private final String description;
     private final String abbreviation;
+    private final StatDef[] statDefs;
 
     SkillType(String id, String displayName, int maxLevel, int tier,
               PlayerClass requiredClass, int requiredPlayerLevel, boolean toggle, boolean passive,
               int baseMpCost, int minMpCost, int baseCooldown, int minCooldown,
-              String description, String abbreviation) {
+              String description, String abbreviation, StatDef... statDefs) {
         this.id = id;
         this.displayName = displayName;
         this.maxLevel = maxLevel;
@@ -383,6 +429,7 @@ public enum SkillType {
         this.minCooldown = minCooldown;
         this.description = description;
         this.abbreviation = abbreviation;
+        this.statDefs = statDefs;
     }
 
     public String getId() { return id; }
@@ -395,6 +442,7 @@ public enum SkillType {
     public boolean isPassive() { return passive; }
     public String getDescription() { return description; }
     public String getAbbreviation() { return abbreviation; }
+    public StatDef[] getStatDefs() { return statDefs; }
 
     /** Whether this skill is visible (not hidden/reserved). */
     public boolean isAvailable() { return tier <= 3; }

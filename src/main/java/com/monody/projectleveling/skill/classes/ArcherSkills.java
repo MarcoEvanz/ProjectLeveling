@@ -4,6 +4,7 @@ import com.monody.projectleveling.capability.PlayerStats;
 import com.monody.projectleveling.entity.archer.SkillArrowEntity;
 import com.monody.projectleveling.entity.assassin.ShadowPartnerEntity;
 import com.monody.projectleveling.skill.*;
+import static com.monody.projectleveling.skill.StatContribRegistry.*;
 
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.network.chat.Component;
@@ -451,5 +452,17 @@ public final class ArcherSkills {
                 partner.swing(InteractionHand.MAIN_HAND);
             }
         }
+    }
+
+    // === Stat contributions ===
+    public static void registerStats() {
+        reg(StatLine.PROJ, (sd, p, s, tags) -> {
+            int lv = sd.getLevel(SkillType.SOUL_ARROW);
+            if (lv <= 0 || !sd.isToggleActive(SkillType.SOUL_ARROW)) return 0;
+            double val = 5 + lv;
+            tags.pct(SkillType.SOUL_ARROW.getAbbreviation() + "+", val);
+            return val;
+        });
+        // Simple contributions (SE, EB, MB) defined in SkillType enum
     }
 }

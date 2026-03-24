@@ -9,6 +9,7 @@ import com.monody.projectleveling.entity.ninja.ShadowCloneEntity;
 import com.monody.projectleveling.item.ModAttributes;
 import com.monody.projectleveling.item.ModItems;
 import com.monody.projectleveling.network.ModNetwork;
+import com.monody.projectleveling.skill.StatContribRegistry;
 import com.monody.projectleveling.sound.ModSounds;
 import net.minecraft.world.entity.EntityType;
 import net.minecraftforge.common.MinecraftForge;
@@ -55,6 +56,7 @@ public class ProjectLeveling {
     }
 
     private void commonSetup(final FMLCommonSetupEvent event) {
+        StatContribRegistry.init();
         LOGGER.info("Project Leveling common setup");
     }
 

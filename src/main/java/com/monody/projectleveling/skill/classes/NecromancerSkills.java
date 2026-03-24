@@ -4,6 +4,7 @@ import com.monody.projectleveling.capability.PlayerStats;
 import com.monody.projectleveling.entity.assassin.ShadowPartnerEntity;
 import com.monody.projectleveling.entity.necromancer.SkeletonMinionEntity;
 import com.monody.projectleveling.skill.*;
+import static com.monody.projectleveling.skill.StatContribRegistry.*;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
@@ -607,5 +608,23 @@ public final class NecromancerSkills {
                 partner.swing(net.minecraft.world.InteractionHand.MAIN_HAND);
             }
         }
+    }
+
+    // === Stat contributions ===
+    public static void registerStats() {
+        reg(StatLine.DMG, (sd, p, s, tags) -> {
+            int lv = sd.getLevel(SkillType.UNHOLY_FERVOR);
+            if (lv <= 0) return 0;
+            double val = 15.0 + lv * 1.5;
+            tags.add(SkillType.UNHOLY_FERVOR.getAbbreviation() + "+" + String.format("%.1f", val) + "%");
+            return val;
+        });
+        reg(StatLine.DMG_RED, (sd, p, s, tags) -> {
+            int lv = sd.getLevel(SkillType.BONE_SHIELD);
+            if (!sd.isToggleActive(SkillType.BONE_SHIELD) || lv <= 0) return 0;
+            int val = getBoneShieldReduction(lv);
+            tags.pct(SkillType.BONE_SHIELD.getAbbreviation(), val);
+            return val;
+        });
     }
 }

@@ -23,6 +23,24 @@ public class SkillHud implements IGuiOverlay {
     private static final int TEXT_KEY = 0xFF405868;
     private static final int TEXT_CD = 0xFFFF6060;
     private static final int TEXT_NAME = 0xFFC0D8F0;
+    // Channeling bar
+    private static final int CHANNEL_BAR_WIDTH = 140;
+    private static final int CHANNEL_BAR_HEIGHT = 10;
+    private static final int CHANNEL_BG = 0xB0000000;
+    private static final int CHANNEL_BORDER_COLOR = 0xFF404060;
+    private static final int CHANNEL_FILL = 0xFF4090FF;
+    private static final int CHANNEL_FILL_END = 0xFFFF4040;
+    private static final int CHANNEL_LABEL_COLOR = 0xFFA0C0FF;
+    // MP bar
+    private static final int MP_BAR_WIDTH = 81;
+    private static final int MP_BAR_HEIGHT = 11;
+    private static final int MP_BG = 0xC0000000;
+    private static final int MP_BORDER = 0xFF202040;
+    private static final int MP_FILL = 0xFF3060D0;
+    private static final int MP_FILL_LOW = 0xFFD04040;
+    // Client-side time tracking for smooth animation
+    private static long channelStartMs = 0;
+    private static boolean wasChanneling = false;
 
     @Override
     public void render(ForgeGui gui, GuiGraphics g, float partialTick, int screenWidth, int screenHeight) {
@@ -33,6 +51,9 @@ public class SkillHud implements IGuiOverlay {
         PlayerStats stats = player.getCapability(PlayerStatsCapability.PLAYER_STATS).orElse(null);
         if (stats == null) return;
         SkillData sd = stats.getSkillData();
+
+        // MP bar (always visible)
+        renderMpBar(g, mc.font, stats, screenWidth, screenHeight);
 
         // Check if any skills are equipped
         boolean hasAny = false;
@@ -104,6 +125,102 @@ public class SkillHud implements IGuiOverlay {
                         sy + (SLOT_SIZE - font.lineHeight) / 2, TEXT_CD, false);
             }
         }
+
+        // === Universal channeling bar (anchored above MP bar) ===
+        int mpBarX = screenWidth / 2 + 91 + 4;
+        int mpBarY = screenHeight - 36;
+        renderChannelBar(g, font, sd, mpBarX, mpBarY);
+    }
+
+    private static void renderChannelBar(GuiGraphics g, Font font, SkillData sd,
+                                         int mpBarX, int mpBarY) {
+        int maxTicks = sd.getChannelMaxTicks();
+        boolean channeling = maxTicks > 0;
+
+        // Track channel start/end using real time
+        if (channeling && !wasChanneling) {
+            channelStartMs = System.currentTimeMillis();
+        }
+        wasChanneling = channeling;
+        if (!channeling) return;
+
+        // Millisecond-precise progress from real elapsed time
+        float maxMs = maxTicks * 50.0f; // ticks to milliseconds (1 tick = 50ms)
+        long elapsedMs = System.currentTimeMillis() - channelStartMs;
+        float progress = Math.min(1.0f, elapsedMs / maxMs);
+
+        // Position: right above the MP bar, left-aligned
+        int barX = mpBarX;
+        int barY = mpBarY - CHANNEL_BAR_HEIGHT - 3;
+
+        // Skill name label above the bar
+        String skillName = sd.getChannelSkillName();
+        if (!skillName.isEmpty()) {
+            g.drawString(font, skillName,
+                    barX + (CHANNEL_BAR_WIDTH - font.width(skillName)) / 2,
+                    barY - font.lineHeight - 2, CHANNEL_LABEL_COLOR, true);
+        }
+
+        // Background + border
+        g.fill(barX - 1, barY - 1,
+                barX + CHANNEL_BAR_WIDTH + 1, barY + CHANNEL_BAR_HEIGHT + 1, CHANNEL_BORDER_COLOR);
+        g.fill(barX, barY,
+                barX + CHANNEL_BAR_WIDTH, barY + CHANNEL_BAR_HEIGHT, CHANNEL_BG);
+
+        // Fill bar (color shifts from blue to red as it fills)
+        int fillWidth = (int) (CHANNEL_BAR_WIDTH * progress);
+        if (fillWidth > 0) {
+            int color = lerpColor(CHANNEL_FILL, CHANNEL_FILL_END, progress);
+            g.fill(barX, barY, barX + fillWidth, barY + CHANNEL_BAR_HEIGHT, color);
+        }
+
+        // Time remaining text centered inside the bar
+        float secondsLeft = Math.max(0, (maxMs - elapsedMs) / 1000.0f);
+        String timeText = String.format("%.1fs", secondsLeft);
+        g.drawString(font, timeText,
+                barX + (CHANNEL_BAR_WIDTH - font.width(timeText)) / 2,
+                barY + (CHANNEL_BAR_HEIGHT - font.lineHeight) / 2 + 1, 0xFFFFFFFF, true);
+    }
+
+    private static void renderMpBar(GuiGraphics g, Font font, PlayerStats stats,
+                                     int screenWidth, int screenHeight) {
+        int maxMp = stats.getMaxMp();
+        if (maxMp <= 0) return;
+        int curMp = stats.getCurrentMp();
+        float ratio = (float) curMp / maxMp;
+
+        // Position: right of hunger bar row
+        int barX = screenWidth / 2 + 91 + 4;
+        int barY = screenHeight - 36;
+
+        // Border
+        g.fill(barX - 1, barY - 1,
+                barX + MP_BAR_WIDTH + 1, barY + MP_BAR_HEIGHT + 1, MP_BORDER);
+        // Background
+        g.fill(barX, barY, barX + MP_BAR_WIDTH, barY + MP_BAR_HEIGHT, MP_BG);
+
+        // Fill (blue, turns red when low <20%)
+        int fillWidth = (int) (MP_BAR_WIDTH * ratio);
+        if (fillWidth > 0) {
+            int color = ratio < 0.2f ? MP_FILL_LOW : MP_FILL;
+            g.fill(barX, barY, barX + fillWidth, barY + MP_BAR_HEIGHT, color);
+        }
+
+        // Text: "currentMP / maxMP" centered inside the bar
+        String mpText = curMp + " / " + maxMp;
+        g.drawString(font, mpText,
+                barX + (MP_BAR_WIDTH - font.width(mpText)) / 2,
+                barY + (MP_BAR_HEIGHT - font.lineHeight) / 2 + 1, 0xFFFFFFFF, true);
+    }
+
+    private static int lerpColor(int from, int to, float t) {
+        int fa = (from >> 24) & 0xFF, fr = (from >> 16) & 0xFF, fg = (from >> 8) & 0xFF, fb = from & 0xFF;
+        int ta = (to >> 24) & 0xFF, tr = (to >> 16) & 0xFF, tg = (to >> 8) & 0xFF, tb = to & 0xFF;
+        int a = (int) (fa + (ta - fa) * t);
+        int r = (int) (fr + (tr - fr) * t);
+        int gr = (int) (fg + (tg - fg) * t);
+        int b = (int) (fb + (tb - fb) * t);
+        return (a << 24) | (r << 16) | (gr << 8) | b;
     }
 
     private static String[] getKeyLabels() {

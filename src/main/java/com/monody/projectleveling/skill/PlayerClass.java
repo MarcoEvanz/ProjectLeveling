@@ -12,7 +12,8 @@ public enum PlayerClass {
     MAGE("mage", "Mage", new int[]{0, 0, 0, 0}),
     NINJA("ninja", "Ninja", new int[]{0, 0, 1, 1}), // T2=60, T3=80
     NECROMANCER("necromancer", "Necromancer", new int[]{0, 1, 1, 2}), // T1=40, T2=60, T3=100
-    BEAST_MASTER("beast_master", "Beast Master", new int[]{0, 2, 0, 2}); // T1=50, T2=45, T3=100
+    BEAST_MASTER("beast_master", "Beast Master", new int[]{0, 2, 0, 2}), // T1=50, T2=45, T3=100
+    LIMITLESS("limitless", "Limitless", new int[]{0, 0, 0, 0});
 
     private final String id;
     private final String displayName;

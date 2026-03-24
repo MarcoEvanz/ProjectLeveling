@@ -14,7 +14,9 @@ import com.monody.projectleveling.entity.ninja.ShadowCloneRenderer;
 import com.monody.projectleveling.item.ModItems;
 import com.monody.projectleveling.network.C2SActivateSkillPacket;
 import com.monody.projectleveling.network.C2SRequestSyncPacket;
+import com.monody.projectleveling.network.C2SSkillHoldPacket;
 import com.monody.projectleveling.network.ModNetwork;
+import com.monody.projectleveling.skill.SkillData;
 import com.monody.projectleveling.skill.SkillType;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.item.ItemProperties;
@@ -99,6 +101,12 @@ public class ClientEvents {
         };
         private static final Map<UUID, ItemStack[]> stealthArmorCache = new HashMap<>();
 
+        // Hold detection for Cursed Technique: Blue
+        private static final int HOLD_THRESHOLD = 5; // ticks before hold activates
+        private static int holdSlot = -1;
+        private static int holdTicks = 0;
+        private static boolean holdSent = false;
+
         @SubscribeEvent
         public static void onRenderPlayerPre(RenderPlayerEvent.Pre event) {
             Player player = event.getEntity();
@@ -146,28 +154,77 @@ public class ClientEvents {
 
             // Skill activation (only when no screen is open)
             if (mc.screen == null) {
-                if (KeyBindings.SKILL_SLOT_1.consumeClick()) {
-                    ModNetwork.sendToServer(new C2SActivateSkillPacket(0));
-                }
-                if (KeyBindings.SKILL_SLOT_2.consumeClick()) {
-                    ModNetwork.sendToServer(new C2SActivateSkillPacket(1));
-                }
-                if (KeyBindings.SKILL_SLOT_3.consumeClick()) {
-                    ModNetwork.sendToServer(new C2SActivateSkillPacket(2));
-                }
-                if (KeyBindings.SKILL_SLOT_4.consumeClick()) {
-                    ModNetwork.sendToServer(new C2SActivateSkillPacket(3));
-                }
-                if (KeyBindings.SKILL_SLOT_5.consumeClick()) {
-                    ModNetwork.sendToServer(new C2SActivateSkillPacket(4));
-                }
-                if (KeyBindings.SKILL_SLOT_6.consumeClick()) {
-                    ModNetwork.sendToServer(new C2SActivateSkillPacket(5));
-                }
-                if (KeyBindings.SKILL_SLOT_7.consumeClick()) {
-                    ModNetwork.sendToServer(new C2SActivateSkillPacket(6));
+                // Hold tracking: if currently tracking a hold, count ticks
+                if (holdSlot >= 0) {
+                    boolean stillDown = com.mojang.blaze3d.platform.InputConstants.isKeyDown(
+                            mc.getWindow().getWindow(), getSlotKey(holdSlot).getKey().getValue());
+                    if (stillDown) {
+                        holdTicks++;
+                        if (holdTicks == HOLD_THRESHOLD && !holdSent) {
+                            // Threshold reached: send hold-start
+                            ModNetwork.sendToServer(new C2SSkillHoldPacket(holdSlot, true));
+                            holdSent = true;
+                        }
+                        // Drain ALL pending clicks so they don't fire as tap after release
+                        for (int i = 0; i < 7; i++) {
+                            while (getSlotKey(i).consumeClick()) { /* drain */ }
+                        }
+                    } else {
+                        // Released
+                        if (holdSent) {
+                            // Was holding: send hold-end
+                            ModNetwork.sendToServer(new C2SSkillHoldPacket(holdSlot, false));
+                        } else {
+                            // Released before threshold: send normal tap
+                            ModNetwork.sendToServer(new C2SActivateSkillPacket(holdSlot));
+                        }
+                        holdSlot = -1;
+                        holdTicks = 0;
+                        holdSent = false;
+                        // Drain ALL leftover clicks from auto-repeat during hold
+                        for (int i = 0; i < 7; i++) {
+                            while (getSlotKey(i).consumeClick()) { /* drain */ }
+                        }
+                    }
+                } else {
+                    // Check for new skill key presses
+                    for (int i = 0; i < 7; i++) {
+                        if (getSlotKey(i).consumeClick()) {
+                            if (isHoldableSlot(mc.player, i)) {
+                                // Start tracking hold
+                                holdSlot = i;
+                                holdTicks = 0;
+                                holdSent = false;
+                            } else {
+                                ModNetwork.sendToServer(new C2SActivateSkillPacket(i));
+                            }
+                            break;
+                        }
+                    }
                 }
             }
+        }
+
+        private static net.minecraft.client.KeyMapping getSlotKey(int index) {
+            return switch (index) {
+                case 0 -> KeyBindings.SKILL_SLOT_1;
+                case 1 -> KeyBindings.SKILL_SLOT_2;
+                case 2 -> KeyBindings.SKILL_SLOT_3;
+                case 3 -> KeyBindings.SKILL_SLOT_4;
+                case 4 -> KeyBindings.SKILL_SLOT_5;
+                case 5 -> KeyBindings.SKILL_SLOT_6;
+                case 6 -> KeyBindings.SKILL_SLOT_7;
+                default -> KeyBindings.SKILL_SLOT_1;
+            };
+        }
+
+        private static boolean isHoldableSlot(Player player, int slotIndex) {
+            return player.getCapability(PlayerStatsCapability.PLAYER_STATS)
+                    .map(stats -> {
+                        SkillType skill = stats.getSkillData().getEquipped(slotIndex);
+                        return skill == SkillType.CURSED_TECHNIQUE_BLUE;
+                    })
+                    .orElse(false);
         }
     }
 }

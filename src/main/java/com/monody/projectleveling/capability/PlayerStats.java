@@ -65,12 +65,12 @@ public class PlayerStats {
 
     /** Physical Attack: derived from STR, LUK, DEX, AGI. Used in tooltips (no player context). */
     public float getAttack() {
-        return (strength - 1) * 0.1f + (luck - 1) * 0.07f + (dexterity - 1) * 0.07f + (agility - 1) * 0.05f;
+        return 1 + (strength - 1) * 0.1f + (luck - 1) * 0.07f + (dexterity - 1) * 0.07f + (agility - 1) * 0.05f;
     }
 
     /** Physical Attack including weapon + ATK%. Use in execution where player is available. */
     public float getAttack(Player player) {
-        float base = (strength - 1) * 0.1f + (luck - 1) * 0.07f + (dexterity - 1) * 0.07f + (agility - 1) * 0.05f;
+        float base = 1 + (strength - 1) * 0.1f + (luck - 1) * 0.07f + (dexterity - 1) * 0.07f + (agility - 1) * 0.05f;
         if (player != null) {
             base += com.monody.projectleveling.skill.SkillExecutor.getWeaponDamage(player);
             AttributeInstance atkPctInst = player.getAttribute(ModAttributes.ATTACK_PERCENT.get());

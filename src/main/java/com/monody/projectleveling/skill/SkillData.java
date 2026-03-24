@@ -97,13 +97,25 @@ public class SkillData {
     private int slashBlastTicks = 0;             // Buff expiry countdown
     // Warrior: War Cry attack buff
     private int warCryTicks = 0;
-    private float warCryAtkBonus = 0;            // Flat attack bonus from % calc
+    private float warCryAtkBonus = 0;            // ATK% bonus (e.g. 10 = +10%)
     // Warrior: Spirit Blade party buff
     private int spiritBladeTicks = 0;
     private float spiritBladeAtk = 0;            // Flat attack bonus (added after %)
     private boolean spiritBladeDefActive = false; // -Damage Taken (caster only)
     // Warrior: Unbreakable passive cooldown
     private int unbreakableCooldown = 0;
+    // Limitless: Black Flash next-melee buff
+    private boolean blackFlashActive = false;
+    private float blackFlashMultiplier = 0;
+    private int blackFlashTicks = 0;
+    // Limitless: Blue channel state
+    private boolean blueChanneling = false;
+    private int blueChannelTicks = 0;
+    private int blueDrainTimer = 0;
+    // Generic channeling bar (reusable for any skill)
+    private int channelTicks = 0;
+    private int channelMaxTicks = 0;
+    private String channelSkillName = "";
 
     // === Getters ===
 
@@ -333,6 +345,28 @@ public class SkillData {
     public int getUnbreakableCooldown() { return unbreakableCooldown; }
     public void setUnbreakableCooldown(int ticks) { this.unbreakableCooldown = ticks; }
 
+    // Limitless: Black Flash
+    public boolean isBlackFlashActive() { return blackFlashActive; }
+    public void setBlackFlashActive(boolean active) { this.blackFlashActive = active; }
+    public float getBlackFlashMultiplier() { return blackFlashMultiplier; }
+    public void setBlackFlashMultiplier(float mult) { this.blackFlashMultiplier = mult; }
+    public int getBlackFlashTicks() { return blackFlashTicks; }
+    public void setBlackFlashTicks(int ticks) { this.blackFlashTicks = ticks; }
+    // Limitless: Blue channel
+    public boolean isBlueChanneling() { return blueChanneling; }
+    public void setBlueChanneling(boolean active) { this.blueChanneling = active; }
+    public int getBlueChannelTicks() { return blueChannelTicks; }
+    public void setBlueChannelTicks(int ticks) { this.blueChannelTicks = ticks; }
+    public int getBlueDrainTimer() { return blueDrainTimer; }
+    public void setBlueDrainTimer(int ticks) { this.blueDrainTimer = ticks; }
+    // Generic channeling bar
+    public int getChannelTicks() { return channelTicks; }
+    public void setChannelTicks(int ticks) { this.channelTicks = ticks; }
+    public int getChannelMaxTicks() { return channelMaxTicks; }
+    public void setChannelMaxTicks(int ticks) { this.channelMaxTicks = ticks; }
+    public String getChannelSkillName() { return channelSkillName; }
+    public void setChannelSkillName(String name) { this.channelSkillName = name != null ? name : ""; }
+
     public Map<SkillType, Integer> getSkillLevels() { return skillLevels; }
     public Map<SkillType, Integer> getCooldowns() { return cooldowns; }
     public Map<SkillType, Boolean> getToggleStates() { return toggleStates; }
@@ -510,6 +544,15 @@ public class SkillData {
         spiritBladeAtk = 0;
         spiritBladeDefActive = false;
         unbreakableCooldown = 0;
+        blackFlashActive = false;
+        blackFlashMultiplier = 0;
+        blackFlashTicks = 0;
+        blueChanneling = false;
+        blueChannelTicks = 0;
+        blueDrainTimer = 0;
+        channelTicks = 0;
+        channelMaxTicks = 0;
+        channelSkillName = "";
     }
 
     // === NBT (only persistent data) ===

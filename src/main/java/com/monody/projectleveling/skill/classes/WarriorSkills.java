@@ -5,6 +5,7 @@ import com.monody.projectleveling.capability.PlayerStatsCapability;
 import com.monody.projectleveling.entity.assassin.ShadowPartnerEntity;
 import com.monody.projectleveling.event.StatEventHandler;
 import com.monody.projectleveling.skill.*;
+import static com.monody.projectleveling.skill.StatContribRegistry.*;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
@@ -213,15 +214,10 @@ public final class WarriorSkills {
     private static void executeWarCry(ServerPlayer player, PlayerStats stats, SkillData sd, int level) {
         stats.setCurrentMp(stats.getCurrentMp() - SkillType.WAR_CRY.getMpCost(level));
         int durationTicks = (10 + level) * 20;
-        float atkPct = getWarCryAtkPct(level) / 100.0f;
-
-        // Calculate flat ATK bonus from % of current attack (base + weapon)
-        float baseAtk = (stats.getStrength() - 1) * 0.1f;
-        float weaponAtk = SkillExecutor.getWeaponDamage(player);
-        float atkBonus = (baseAtk + weaponAtk) * atkPct;
+        float atkPct = getWarCryAtkPct(level);
 
         sd.setWarCryTicks(durationTicks);
-        sd.setWarCryAtkBonus(atkBonus);
+        sd.setWarCryAtkBonus(atkPct);
 
         // Pull aggro from nearby mobs
         double range = getWarCryRange(stats.getVitality());
@@ -238,7 +234,7 @@ public final class WarriorSkills {
         }
         sd.startCooldown(SkillType.WAR_CRY, level);
         player.sendSystemMessage(Component.literal(
-                "\u00a7b[System]\u00a7r \u00a7eWar Cry! ATK +" + String.format("%.1f", atkBonus) + ". " + mobs.size() + " mobs aggro'd."));
+                "\u00a7b[System]\u00a7r \u00a7eWar Cry! ATK +" + String.format("%.0f", atkPct) + "%. " + mobs.size() + " mobs aggro'd."));
     }
 
     private static void executeSpiritBlade(ServerPlayer player, PlayerStats stats, SkillData sd, int level) {
@@ -413,5 +409,17 @@ public final class WarriorSkills {
                 partner.swing(net.minecraft.world.InteractionHand.MAIN_HAND);
             }
         }
+    }
+
+    // === Stat contributions ===
+    public static void registerStats() {
+        // Simple contributions (WM, BS) defined in SkillType enum
+        reg(StatLine.DMG_RED, (sd, p, s, tags) -> {
+            int lv = sd.getLevel(SkillType.SPIRIT_BLADE);
+            if (!sd.isSpiritBladeDefActive() || sd.getSpiritBladeTicks() <= 0) return 0;
+            float val = getSpiritBladeDefPct(lv) * 100;
+            tags.pct(SkillType.SPIRIT_BLADE.getAbbreviation(), val);
+            return val;
+        });
     }
 }

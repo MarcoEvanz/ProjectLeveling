@@ -4,6 +4,7 @@ import com.monody.projectleveling.capability.PlayerStats;
 import com.monody.projectleveling.entity.assassin.ShadowPartnerEntity;
 import com.monody.projectleveling.entity.mage.SkillFireballEntity;
 import com.monody.projectleveling.skill.*;
+import static com.monody.projectleveling.skill.StatContribRegistry.*;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
@@ -25,7 +26,7 @@ public final class MageSkills {
     public static final SkillType[] ALL = {
             SkillType.FLAME_ORB, SkillType.MAGIC_GUARD, SkillType.ELEMENTAL_DRAIN,
             SkillType.FROST_BIND, SkillType.POISON_MIST, SkillType.ELEMENT_AMPLIFICATION,
-            SkillType.MIST_ERUPTION, SkillType.INFINITY, SkillType.ARCANE_OVERDRIVE,
+            SkillType.MIST_ERUPTION, SkillType.ARCANE_INFINITY, SkillType.ARCANE_OVERDRIVE,
     };
 
     private MageSkills() {}
@@ -312,7 +313,7 @@ public final class MageSkills {
     }
 
     private static void executeInfinity(ServerPlayer player, PlayerStats stats, SkillData sd, int level) {
-        stats.setCurrentMp(stats.getCurrentMp() - SkillType.INFINITY.getMpCost(level));
+        stats.setCurrentMp(stats.getCurrentMp() - SkillType.ARCANE_INFINITY.getMpCost(level));
         int duration = (20 + level) * 20; // 21-40 seconds
         sd.setInfinityTicks(duration);
         sd.setInfinityStacks(0);
@@ -321,9 +322,9 @@ public final class MageSkills {
             SkillParticles.sphere(sl, player.getX(), player.getY() + 1, player.getZ(), 1.5, 15, ParticleTypes.END_ROD);
             SkillSounds.playAt(player, SoundEvents.ENDER_DRAGON_GROWL, 0.3f, 1.5f);
         }
-        sd.startCooldown(SkillType.INFINITY, level);
+        sd.startCooldown(SkillType.ARCANE_INFINITY, level);
         player.sendSystemMessage(Component.literal(
-                "\u00a7b[System]\u00a7r \u00a75Infinity activated! All skills cost 0 MP."));
+                "\u00a7b[System]\u00a7r \u00a75Arcane Infinity activated! All skills cost 0 MP."));
     }
 
     /** Called every 4 seconds while Infinity is active to ramp damage buff. */
@@ -401,5 +402,22 @@ public final class MageSkills {
                 partner.swing(net.minecraft.world.InteractionHand.MAIN_HAND);
             }
         }
+    }
+
+    // === Stat contributions ===
+    public static void registerStats() {
+        reg(StatLine.DMG_RED, (sd, p, s, tags) -> {
+            int lv = sd.getLevel(SkillType.MAGIC_GUARD);
+            if (!sd.isToggleActive(SkillType.MAGIC_GUARD) || lv <= 0) return 0;
+            float val = getMagicGuardRedirectRatio(lv) * 100;
+            tags.add(SkillType.MAGIC_GUARD.getAbbreviation() + String.format("%.0f", val) + "%>MP");
+            return val;
+        });
+        // Simple contributions (AO, EA) defined in SkillType enum
+        reg(StatLine.DMG, (sd, p, s, tags) -> {
+            int lv = sd.getLevel(SkillType.ELEMENTAL_DRAIN);
+            if (lv > 0) tags.add(SkillType.ELEMENTAL_DRAIN.getAbbreviation() + "+" + lv * 2 + "%/deb");
+            return 0;
+        });
     }
 }

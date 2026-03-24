@@ -60,7 +60,7 @@ public class SkillExecutor {
 
         int mpCost = skill.getMpCost(level);
         // Infinity: all skills cost 0 MP
-        if (sd.getInfinityTicks() > 0 && skill != SkillType.INFINITY) {
+        if (sd.getInfinityTicks() > 0 && skill != SkillType.ARCANE_INFINITY) {
             mpCost = 0;
         }
         // Element Amplification: +20% MP cost
@@ -72,6 +72,11 @@ public class SkillExecutor {
         float ccMult = NinjaSkills.getChakraControlCostMultiplier(stats);
         if (ccMult < 1.0f && mpCost > 0) {
             mpCost = Math.max(1, (int) (mpCost * ccMult));
+        }
+        // Six Eyes: reduce MP cost
+        float seMult = LimitlessSkills.getSixEyesCostMultiplier(stats);
+        if (seMult < 1.0f && mpCost > 0) {
+            mpCost = Math.max(1, (int) (mpCost * seMult));
         }
         // Flying Raijin phase 2 (teleport): no MP cost
         if (skill == SkillType.FLYING_RAIJIN && sd.getFlyingRaijinPhase() == 1) {
@@ -109,6 +114,7 @@ public class SkillExecutor {
                     case NINJA -> NinjaSkills.execute(player, stats, sd, skill, level);
                     case NECROMANCER -> NecromancerSkills.execute(player, stats, sd, skill, level);
                     case BEAST_MASTER -> BeastMasterSkills.execute(player, stats, sd, skill, level);
+                    case LIMITLESS -> LimitlessSkills.execute(player, stats, sd, skill, level);
                     default -> { /* passives handled elsewhere */ }
                 }
             }
@@ -174,6 +180,10 @@ public class SkillExecutor {
                     yield null;
                 yield "You must hold a kunai, shuriken, or bare hand to use Ninja skills!";
             }
+            case LIMITLESS -> {
+                if (bareHand) yield null;
+                yield "You must use bare hand to use Limitless skills!";
+            }
             // Mage, Necromancer, Healer — no restriction
             case MAGE, NECROMANCER, HEALER -> null;
             default -> null;
@@ -200,9 +210,34 @@ public class SkillExecutor {
                 case NINJA -> NinjaSkills.deactivateToggle(player, sd, skill);
                 case NECROMANCER -> NecromancerSkills.deactivateToggle(player, sd, skill);
                 case BEAST_MASTER -> BeastMasterSkills.deactivateToggle(player, sd, skill);
+                case LIMITLESS -> LimitlessSkills.deactivateToggle(player, sd, skill);
                 default -> player.sendSystemMessage(Component.literal(
                         "\u00a7b[System]\u00a7r \u00a77" + skill.getDisplayName() + " deactivated."));
             }
+        }
+    }
+
+    // ================================================================
+    // Shadow Partner mirror
+    // ================================================================
+
+    // ================================================================
+    // Hold-to-cast handler (called from C2SSkillHoldPacket)
+    // ================================================================
+
+    public static void handleHold(ServerPlayer player, PlayerStats stats, int slotIndex, boolean start) {
+        if (slotIndex < 0 || slotIndex >= SkillData.MAX_SLOTS) return;
+        SkillData sd = stats.getSkillData();
+        SkillType skill = sd.getEquipped(slotIndex);
+        if (skill == null) return;
+
+        if (skill == SkillType.CURSED_TECHNIQUE_BLUE) {
+            if (start) {
+                LimitlessSkills.startBlueChannel(player, stats, sd);
+            } else {
+                LimitlessSkills.endBlueChannel(player, stats, sd);
+            }
+            StatEventHandler.syncToClient(player);
         }
     }
 
@@ -234,6 +269,7 @@ public class SkillExecutor {
                 case NINJA -> NinjaSkills.mirrorSkill(sl, partner, player, stats, skill, level, multiplier);
                 case NECROMANCER -> NecromancerSkills.mirrorSkill(sl, partner, player, stats, skill, level, multiplier);
                 case BEAST_MASTER -> BeastMasterSkills.mirrorSkill(sl, partner, player, stats, skill, level, multiplier);
+                case LIMITLESS -> { /* Limitless skills cannot be mirrored */ }
                 default -> { /* no mirror */ }
             }
         }

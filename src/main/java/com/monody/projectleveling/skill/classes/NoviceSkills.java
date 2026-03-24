@@ -2,6 +2,7 @@ package com.monody.projectleveling.skill.classes;
 
 import com.monody.projectleveling.capability.PlayerStats;
 import com.monody.projectleveling.skill.*;
+import static com.monody.projectleveling.skill.StatContribRegistry.*;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
@@ -124,5 +125,10 @@ public final class NoviceSkills {
                 partner.swing(net.minecraft.world.InteractionHand.MAIN_HAND);
             }
         }
+    }
+
+    // === Stat contributions ===
+    public static void registerStats() {
+        // Simple contributions defined in SkillType enum
     }
 }

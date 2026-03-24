@@ -67,6 +67,13 @@ public class S2CSyncStatsPacket {
     private final float spiritBladeAtk;
     private final boolean spiritBladeDefActive;
     private final int unbreakableCooldown;
+    // Limitless state
+    private final boolean blueChanneling;
+    private final int blueChannelTicks;
+    // Generic channeling bar
+    private final int channelTicks;
+    private final int channelMaxTicks;
+    private final String channelSkillName;
 
     public S2CSyncStatsPacket(PlayerStats stats) {
         this.level = stats.getLevel();
@@ -135,6 +142,11 @@ public class S2CSyncStatsPacket {
         this.spiritBladeAtk = sd.getSpiritBladeAtk();
         this.spiritBladeDefActive = sd.isSpiritBladeDefActive();
         this.unbreakableCooldown = sd.getUnbreakableCooldown();
+        this.blueChanneling = sd.isBlueChanneling();
+        this.blueChannelTicks = sd.getBlueChannelTicks();
+        this.channelTicks = sd.getChannelTicks();
+        this.channelMaxTicks = sd.getChannelMaxTicks();
+        this.channelSkillName = sd.getChannelSkillName();
     }
 
     public S2CSyncStatsPacket(FriendlyByteBuf buf) {
@@ -222,6 +234,11 @@ public class S2CSyncStatsPacket {
         this.spiritBladeAtk = buf.readFloat();
         this.spiritBladeDefActive = buf.readBoolean();
         this.unbreakableCooldown = buf.readInt();
+        this.blueChanneling = buf.readBoolean();
+        this.blueChannelTicks = buf.readInt();
+        this.channelTicks = buf.readInt();
+        this.channelMaxTicks = buf.readInt();
+        this.channelSkillName = buf.readUtf(64);
     }
 
     public void encode(FriendlyByteBuf buf) {
@@ -301,6 +318,11 @@ public class S2CSyncStatsPacket {
         buf.writeFloat(spiritBladeAtk);
         buf.writeBoolean(spiritBladeDefActive);
         buf.writeInt(unbreakableCooldown);
+        buf.writeBoolean(blueChanneling);
+        buf.writeInt(blueChannelTicks);
+        buf.writeInt(channelTicks);
+        buf.writeInt(channelMaxTicks);
+        buf.writeUtf(channelSkillName, 64);
     }
 
     public void handle(Supplier<NetworkEvent.Context> ctx) {
@@ -376,6 +398,11 @@ public class S2CSyncStatsPacket {
             sd.setSpiritBladeAtk(spiritBladeAtk);
             sd.setSpiritBladeDefActive(spiritBladeDefActive);
             sd.setUnbreakableCooldown(unbreakableCooldown);
+            sd.setBlueChanneling(blueChanneling);
+            sd.setBlueChannelTicks(blueChannelTicks);
+            sd.setChannelTicks(channelTicks);
+            sd.setChannelMaxTicks(channelMaxTicks);
+            sd.setChannelSkillName(channelSkillName);
         });
 
         ctx.get().setPacketHandled(true);

@@ -8,6 +8,7 @@ import com.monody.projectleveling.entity.ninja.FlyingRaijinKunaiEntity;
 import com.monody.projectleveling.entity.ninja.ShadowCloneEntity;
 import com.monody.projectleveling.item.ModItems;
 import com.monody.projectleveling.skill.*;
+import static com.monody.projectleveling.skill.StatContribRegistry.*;
 import com.monody.projectleveling.sound.ModSounds;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.network.chat.Component;
@@ -780,5 +781,31 @@ public final class NinjaSkills {
                 partner.swing(InteractionHand.MAIN_HAND);
             }
         }
+    }
+
+    // === Stat contributions ===
+    public static void registerStats() {
+        // Simple contribution (KM PROJ) defined in SkillType enum
+        reg(StatLine.CRIT, (sd, p, s, tags) -> {
+            int km = sd.getLevel(SkillType.KUNAI_MASTERY);
+            if (km <= 0) return 0;
+            double val = s.getLuck() * 0.05 * km / 10.0;
+            if (val > 0) tags.add(SkillType.KUNAI_MASTERY.getAbbreviation() + "+" + String.format("%.1f", val) + "%");
+            return val;
+        });
+        reg(StatLine.DMG, (sd, p, s, tags) -> {
+            int lv = sd.getLevel(SkillType.SAGE_MODE);
+            if (lv <= 0 || !sd.isToggleActive(SkillType.SAGE_MODE)) return 0;
+            double val = 20 + lv;
+            tags.pct(SkillType.SAGE_MODE.getAbbreviation() + "+", val);
+            return val;
+        });
+        reg(StatLine.MP_REGEN, (sd, p, s, tags) -> {
+            int lv = sd.getLevel(SkillType.CHAKRA_CONTROL);
+            if (lv <= 0) return 0;
+            double val = lv * 0.15;
+            tags.add(SkillType.CHAKRA_CONTROL.getAbbreviation() + "+" + String.format("%.1f", val) + "%");
+            return val;
+        });
     }
 }

@@ -4,6 +4,7 @@ import com.monody.projectleveling.capability.PlayerStats;
 import com.monody.projectleveling.entity.assassin.ShadowPartnerEntity;
 import com.monody.projectleveling.entity.mage.SkillFireballEntity;
 import com.monody.projectleveling.skill.*;
+import static com.monody.projectleveling.skill.StatContribRegistry.*;
 
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.network.chat.Component;
@@ -420,5 +421,21 @@ public final class HealerSkills {
                 partner.swing(InteractionHand.MAIN_HAND);
             }
         }
+    }
+
+    // === Stat contributions ===
+    public static void registerStats() {
+        reg(StatLine.MP_REGEN, (sd, p, s, tags) -> {
+            int lv = sd.getLevel(SkillType.MP_RECOVERY);
+            if (lv <= 0) return 0;
+            double val = lv * 0.2;
+            tags.add("+" + String.format("%.1f", val) + "%");
+            return val;
+        });
+        reg(StatLine.DMG, (sd, p, s, tags) -> {
+            int lv = sd.getLevel(SkillType.BLESSED_ENSEMBLE);
+            if (lv > 0) tags.add(SkillType.BLESSED_ENSEMBLE.getAbbreviation() + "+" + lv * 3 + "%/plr");
+            return 0;
+        });
     }
 }

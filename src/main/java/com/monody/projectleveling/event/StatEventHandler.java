@@ -37,6 +37,7 @@ import net.minecraftforge.event.TickEvent;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraftforge.event.entity.EntityJoinLevelEvent;
+import net.minecraftforge.event.entity.living.LivingAttackEvent;
 import net.minecraftforge.event.entity.living.LivingChangeTargetEvent;
 import net.minecraftforge.event.entity.living.LivingDamageEvent;
 import net.minecraftforge.event.entity.living.LivingDeathEvent;
@@ -292,12 +293,12 @@ public class StatEventHandler {
                 }
             }
 
-            // Infinity buff tick (damage ramp every 4 seconds)
+            // Arcane Infinity buff tick (damage ramp every 4 seconds)
             if (sd.getInfinityTicks() > 0) {
                 sd.setInfinityTicks(sd.getInfinityTicks() - 1);
                 if (sd.getInfinityTicks() <= 0) {
                     sd.setInfinityStacks(0);
-                    player.sendSystemMessage(Component.literal("\u00a7b[System]\u00a7r \u00a77Infinity ended."));
+                    player.sendSystemMessage(Component.literal("\u00a7b[System]\u00a7r \u00a77Arcane Infinity ended."));
                     syncToClient(player);
                 } else if (player.tickCount % 80 == 0) {
                     MageSkills.tickInfinity(player, sd);
@@ -411,6 +412,22 @@ public class StatEventHandler {
                             "\u00a7b[System]\u00a7r \u00a77" + expiredName + " expired."));
                     syncToClient(player);
                 }
+            }
+
+            // Limitless: Black Flash buff expiry (3s)
+            if (sd.isBlackFlashActive() && sd.getBlackFlashTicks() > 0) {
+                sd.setBlackFlashTicks(sd.getBlackFlashTicks() - 1);
+                if (sd.getBlackFlashTicks() <= 0) {
+                    sd.setBlackFlashActive(false);
+                    sd.setBlackFlashMultiplier(0);
+                    player.sendSystemMessage(Component.literal("\u00a7b[System]\u00a7r \u00a77Black Flash expired."));
+                    syncToClient(player);
+                }
+            }
+
+            // Limitless: Blue channel tick
+            if (sd.isBlueChanneling()) {
+                LimitlessSkills.tickBlueChannel(player, stats, sd);
             }
 
             // Beast Master: Turtle Shell absorption expiry (5s)
@@ -672,6 +689,42 @@ public class StatEventHandler {
                     } else {
                         sd.setToggleActive(SkillType.SAGE_MODE, false);
                         player.sendSystemMessage(Component.literal("\u00a7b[System]\u00a7r \u00a77Sage Mode deactivated (no MP)."));
+                        changed = true;
+                    }
+                }
+
+                // Limitless: Infinity drain (reduced by Six Eyes)
+                if (sd.isToggleActive(SkillType.INFINITY)) {
+                    int level = sd.getLevel(SkillType.INFINITY);
+                    float seMult = LimitlessSkills.getSixEyesCostMultiplier(stats);
+                    int drain = Math.max(1, (int) (SkillType.INFINITY.getToggleMpPerSecond(level, stats.getMaxMp()) * seMult));
+                    // Six Eyes Junior: flight during Infinity costs extra 5% MP/s
+                    int sejLv = sd.getLevel(SkillType.SIX_EYES_JUNIOR);
+                    if (sejLv > 0 && player.getAbilities().flying) {
+                        drain += Math.max(1, (int) (stats.getMaxMp() * 0.05f * seMult));
+                    }
+                    if (stats.getCurrentMp() >= drain) {
+                        stats.setCurrentMp(stats.getCurrentMp() - drain);
+                        if (player.tickCount % 40 == 0) {
+                            SkillParticles.playerAura(player, 8, 1.0, ParticleTypes.END_ROD);
+                        }
+                        // Six Eyes Junior: grant/maintain creative flight
+                        if (sejLv > 0) {
+                            if (!player.getAbilities().mayfly) {
+                                player.getAbilities().mayfly = true;
+                                player.onUpdateAbilities();
+                            }
+                        }
+                        changed = true;
+                    } else {
+                        sd.setToggleActive(SkillType.INFINITY, false);
+                        // Remove flight if granted by Junior
+                        if (player.getAbilities().mayfly && !player.isCreative() && !player.isSpectator()) {
+                            player.getAbilities().mayfly = false;
+                            player.getAbilities().flying = false;
+                            player.onUpdateAbilities();
+                        }
+                        player.sendSystemMessage(Component.literal("\u00a7b[System]\u00a7r \u00a77Infinity deactivated (no MP)."));
                         changed = true;
                     }
                 }
@@ -938,9 +991,32 @@ public class StatEventHandler {
                 syncToClient(player);
             }
 
-            // War Cry: flat ATK bonus during buff
+            // Black Flash: consume on next melee, add MATK bonus damage
+            if (sd.isBlackFlashActive() && !event.getSource().isIndirect()
+                    && !SkillExecutor.executingSkill) {
+                float bfBonus = sd.getBlackFlashMultiplier();
+                amount += bfBonus;
+                sd.setBlackFlashActive(false);
+                sd.setBlackFlashMultiplier(0);
+                sd.setBlackFlashTicks(0);
+                CombatLog.nextSource = "Black Flash";
+                if (player.level() instanceof ServerLevel sl) {
+                    LivingEntity target = event.getEntity();
+                    SkillParticles.burst(sl, target.getX(), target.getY() + 1, target.getZ(),
+                            15, 0.5, ParticleTypes.END_ROD);
+                    SkillParticles.burst(sl, target.getX(), target.getY() + 1, target.getZ(),
+                            10, 0.4, ParticleTypes.ENCHANTED_HIT);
+                    SkillSounds.playAt(sl, target.getX(), target.getY(), target.getZ(),
+                            SoundEvents.GENERIC_EXPLODE, 0.5f, 1.5f);
+                }
+                player.sendSystemMessage(Component.literal(
+                        "\u00a7b[System]\u00a7r \u00a76Black Flash! +" + String.format("%.1f", bfBonus) + " damage"));
+                syncToClient(player);
+            }
+
+            // War Cry: ATK% bonus during buff
             if (sd.getWarCryTicks() > 0 && !event.getSource().isIndirect()) {
-                amount += sd.getWarCryAtkBonus();
+                amount *= 1.0f + sd.getWarCryAtkBonus() / 100.0f;
             }
 
             // Spirit Blade: flat ATK bonus (applied after % buffs)
@@ -1149,7 +1225,7 @@ public class StatEventHandler {
                 amount *= 1.0f + debuffBonus;
             }
 
-            // Infinity: +5% damage per stack (stacks every 4s)
+            // Arcane Infinity: +5% damage per stack (stacks every 4s)
             if (sd.getInfinityTicks() > 0 && sd.getInfinityStacks() > 0) {
                 amount *= 1.0f + sd.getInfinityStacks() * 0.05f;
             }
@@ -1533,6 +1609,62 @@ public class StatEventHandler {
                     || sd.getPhoenixTicks() > 0;
             if (relevant) {
                 CombatLog.damage(player, dot, event.getAmount(), mob);
+            }
+        });
+    }
+
+    // === Limitless Infinity: block attacks before knockback/hit (LivingAttackEvent) ===
+
+    @SubscribeEvent(priority = net.minecraftforge.eventbus.api.EventPriority.HIGHEST)
+    public static void onPlayerAttacked(LivingAttackEvent event) {
+        if (!(event.getEntity() instanceof ServerPlayer player)) return;
+
+        player.getCapability(PlayerStatsCapability.PLAYER_STATS).ifPresent(stats -> {
+            SkillData sd = stats.getSkillData();
+            if (!sd.isToggleActive(SkillType.INFINITY)) return;
+
+            // Deflect projectiles
+            if (event.getSource().isIndirect()
+                    && event.getSource().getDirectEntity() instanceof net.minecraft.world.entity.projectile.Projectile proj) {
+                event.setCanceled(true);
+                Vec3 bounceDir = proj.getDeltaMovement().reverse();
+                proj.setDeltaMovement(bounceDir);
+                proj.hurtMarked = true;
+                if (player.level() instanceof ServerLevel sl) {
+                    SkillParticles.burst(sl, player.getX(), player.getY() + 1, player.getZ(),
+                            8, 0.5, ParticleTypes.END_ROD);
+                    SkillSounds.playAt(player, SoundEvents.SHIELD_BLOCK, 0.6f, 1.5f);
+                }
+                return;
+            }
+
+            // Redirect all damage to MP (reduced by Six Eyes)
+            // Base: 2 MP per 1 damage + flat 2% max MP per hit
+            float dmg = event.getAmount();
+            float seMult = LimitlessSkills.getSixEyesCostMultiplier(stats);
+            int damageCost = Math.max(1, (int) (dmg * 2 * seMult));
+            int hitCost = Math.max(1, (int) (stats.getMaxMp() * 0.02f * seMult));
+            int mpCost = damageCost + hitCost;
+            if (stats.getCurrentMp() >= mpCost) {
+                stats.setCurrentMp(stats.getCurrentMp() - mpCost);
+                event.setCanceled(true);
+                if (player.level() instanceof ServerLevel sl) {
+                    SkillParticles.playerAura(player, 6, 0.8, ParticleTypes.END_ROD);
+                }
+                syncToClient(player);
+            } else {
+                // Not enough MP: Infinity breaks, let damage through normally
+                stats.setCurrentMp(0);
+                sd.setToggleActive(SkillType.INFINITY, false);
+                if (player.getAbilities().mayfly && !player.isCreative() && !player.isSpectator()) {
+                    player.getAbilities().mayfly = false;
+                    player.getAbilities().flying = false;
+                    player.onUpdateAbilities();
+                }
+                player.sendSystemMessage(Component.literal(
+                        "\u00a7b[System]\u00a7r \u00a77Infinity broken! Not enough MP."));
+                syncToClient(player);
+                // Don't cancel — let the full hit go through
             }
         });
     }

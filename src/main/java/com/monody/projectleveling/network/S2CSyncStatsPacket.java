@@ -70,6 +70,12 @@ public class S2CSyncStatsPacket {
     // Limitless state
     private final boolean blueChanneling;
     private final int blueChannelTicks;
+    // Limitless: Red state
+    private final boolean redChanneling;
+    private final int redChannelTicks;
+    // Limitless: Purple state
+    private final boolean purpleChanneling;
+    private final int purpleChannelTicks;
     // Generic channeling bar
     private final int channelTicks;
     private final int channelMaxTicks;
@@ -100,7 +106,7 @@ public class S2CSyncStatsPacket {
 
         SkillData sd = stats.getSkillData();
         this.selectedClassId = sd.getSelectedClass().getId();
-        this.tierSP = new int[]{sd.getTierSP(0), sd.getTierSP(1), sd.getTierSP(2), sd.getTierSP(3)};
+        this.tierSP = new int[]{sd.getTierSP(0), sd.getTierSP(1), sd.getTierSP(2), sd.getTierSP(3), sd.getTierSP(4)};
         this.skillLevels = new EnumMap<>(sd.getSkillLevels());
         this.equippedSlots = new String[SkillData.MAX_SLOTS];
         for (int i = 0; i < SkillData.MAX_SLOTS; i++) {
@@ -144,6 +150,10 @@ public class S2CSyncStatsPacket {
         this.unbreakableCooldown = sd.getUnbreakableCooldown();
         this.blueChanneling = sd.isBlueChanneling();
         this.blueChannelTicks = sd.getBlueChannelTicks();
+        this.redChanneling = sd.isRedChanneling();
+        this.redChannelTicks = sd.getRedChannelTicks();
+        this.purpleChanneling = sd.isPurpleChanneling();
+        this.purpleChannelTicks = sd.getPurpleChannelTicks();
         this.channelTicks = sd.getChannelTicks();
         this.channelMaxTicks = sd.getChannelMaxTicks();
         this.channelSkillName = sd.getChannelSkillName();
@@ -174,8 +184,8 @@ public class S2CSyncStatsPacket {
 
         // Skills
         this.selectedClassId = buf.readUtf(32);
-        this.tierSP = new int[4];
-        for (int i = 0; i < 4; i++) tierSP[i] = buf.readInt();
+        this.tierSP = new int[5];
+        for (int i = 0; i < 5; i++) tierSP[i] = buf.readInt();
         int levelCount = buf.readInt();
         this.skillLevels = new EnumMap<>(SkillType.class);
         for (int i = 0; i < levelCount; i++) {
@@ -236,6 +246,10 @@ public class S2CSyncStatsPacket {
         this.unbreakableCooldown = buf.readInt();
         this.blueChanneling = buf.readBoolean();
         this.blueChannelTicks = buf.readInt();
+        this.redChanneling = buf.readBoolean();
+        this.redChannelTicks = buf.readInt();
+        this.purpleChanneling = buf.readBoolean();
+        this.purpleChannelTicks = buf.readInt();
         this.channelTicks = buf.readInt();
         this.channelMaxTicks = buf.readInt();
         this.channelSkillName = buf.readUtf(64);
@@ -266,7 +280,7 @@ public class S2CSyncStatsPacket {
 
         // Skills
         buf.writeUtf(selectedClassId, 32);
-        for (int i = 0; i < 4; i++) buf.writeInt(tierSP[i]);
+        for (int i = 0; i < 5; i++) buf.writeInt(tierSP[i]);
         buf.writeInt(skillLevels.size());
         for (Map.Entry<SkillType, Integer> e : skillLevels.entrySet()) {
             buf.writeUtf(e.getKey().getId(), 32);
@@ -320,6 +334,10 @@ public class S2CSyncStatsPacket {
         buf.writeInt(unbreakableCooldown);
         buf.writeBoolean(blueChanneling);
         buf.writeInt(blueChannelTicks);
+        buf.writeBoolean(redChanneling);
+        buf.writeInt(redChannelTicks);
+        buf.writeBoolean(purpleChanneling);
+        buf.writeInt(purpleChannelTicks);
         buf.writeInt(channelTicks);
         buf.writeInt(channelMaxTicks);
         buf.writeUtf(channelSkillName, 64);
@@ -355,7 +373,7 @@ public class S2CSyncStatsPacket {
             // Skills
             SkillData sd = stats.getSkillData();
             sd.setSelectedClass(PlayerClass.fromId(selectedClassId));
-            for (int i = 0; i < 4; i++) sd.setTierSP(i, tierSP[i]);
+            for (int i = 0; i < 5; i++) sd.setTierSP(i, tierSP[i]);
             sd.getSkillLevels().clear();
             sd.getSkillLevels().putAll(skillLevels);
             for (int i = 0; i < SkillData.MAX_SLOTS; i++) {
@@ -400,6 +418,10 @@ public class S2CSyncStatsPacket {
             sd.setUnbreakableCooldown(unbreakableCooldown);
             sd.setBlueChanneling(blueChanneling);
             sd.setBlueChannelTicks(blueChannelTicks);
+            sd.setRedChanneling(redChanneling);
+            sd.setRedChannelTicks(redChannelTicks);
+            sd.setPurpleChanneling(purpleChanneling);
+            sd.setPurpleChannelTicks(purpleChannelTicks);
             sd.setChannelTicks(channelTicks);
             sd.setChannelMaxTicks(channelMaxTicks);
             sd.setChannelSkillName(channelSkillName);

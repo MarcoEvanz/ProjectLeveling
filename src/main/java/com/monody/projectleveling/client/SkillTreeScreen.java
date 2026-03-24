@@ -72,15 +72,15 @@ public class SkillTreeScreen extends Screen {
     private static final int PASSIVE_COLOR = 0xFF60A0C0;
 
     // Tier definitions
-    private static final int[] TIER_NUMBERS = {0, 1, 2, 3};
-    private static final String[] TAB_LABELS = {"NOVICE", "TIER 1", "TIER 2", "TIER 3"};
-    private static final int[] TIER_REQ_LEVELS = {0, 10, 30, 60};
+    private static final int[] TIER_NUMBERS = {0, 1, 2, 3, 4};
+    private static final String[] TAB_LABELS = {"NOVICE", "TIER 1", "TIER 2", "TIER 3", "TIER 4"};
+    private static final int[] TIER_REQ_LEVELS = {0, 10, 30, 60, 100};
 
     private int activeTab = 0;
     private int panelW, panelH, panelX, panelY;
     private int pad, lineH;
 
-    private final int[][] tabBounds = new int[4][4];
+    private final int[][] tabBounds = new int[5][4];
     private final int[][] skillRowBounds = new int[8][4];
     private final int[][] iconBounds = new int[8][4];
     private final int[][] plusBtnBounds = new int[8][4];
@@ -216,7 +216,7 @@ public class SkillTreeScreen extends Screen {
 
         // Row 3: Limitless
         renderClassBox(g, limitlessBtnBounds, left, rowY, colW4, boxH,
-                "LIMITLESS", "INT", CLASS_LIMITLESS, new String[]{"Black Flash", "Infinity", "C.T. Blue"}, mx, my);
+                "LIMITLESS", "INT", CLASS_LIMITLESS, new String[]{"Infinity", "C.T. Red", "RCT"}, mx, my);
     }
 
     private void renderClassBox(GuiGraphics g, int[] bounds, int bx, int by, int bw, int bh,
@@ -271,7 +271,7 @@ public class SkillTreeScreen extends Screen {
 
         // 4 Tier tabs
         int tabGap = 3;
-        int tabCount = 4;
+        int tabCount = 5;
         int totalGap = tabGap * (tabCount - 1);
         int tabW = (innerW - totalGap) / tabCount;
         int tabH = lineH + 2;
@@ -651,7 +651,7 @@ public class SkillTreeScreen extends Screen {
             }
             int playerLevel = stats != null ? stats.getLevel() : 0;
 
-            for (int i = 0; i < 4; i++) {
+            for (int i = 0; i < tabBounds.length; i++) {
                 if (isInside((int) mx, (int) my, tabBounds[i])) {
                     if (playerLevel >= TIER_REQ_LEVELS[i]) {
                         activeTab = i;

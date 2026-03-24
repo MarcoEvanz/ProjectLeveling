@@ -33,6 +33,7 @@ public final class NinjaSkills {
             SkillType.SHADOW_CLONE, SkillType.FLYING_RAIJIN, SkillType.FLYING_RAIJIN_GROUND, SkillType.CHAKRA_CONTROL,
             SkillType.RASENGAN, SkillType.SAGE_MODE, SkillType.EIGHT_INNER_GATES,
             SkillType.MULTI_SHADOW_CLONE,
+            SkillType.FLYING_RAIJIN_SSRZ,
     };
 
     private NinjaSkills() {}
@@ -178,6 +179,28 @@ public final class NinjaSkills {
                 texts.add("Requires Shadow Clone to be active");
                 lines.add(new int[]{TEXT_DIM});
             }
+
+            // === T4 ===
+            case FLYING_RAIJIN_SSRZ -> {
+                float strikeMult = getSSRZMultiplier(level, stats.getAgility()) * 100;
+                float finisherMult = strikeMult * 3;
+                texts.add("Strike 1-8 damage: ATK x " + String.format("%.0f", strikeMult) + "%");
+                lines.add(new int[]{TEXT_VALUE});
+                texts.add("9th strike (finisher): ATK x " + String.format("%.0f", finisherMult) + "%");
+                lines.add(new int[]{TEXT_VALUE});
+                texts.add("Throw kunai \u2192 mark on hit (10s)");
+                lines.add(new int[]{TEXT_VALUE});
+                texts.add("Miss = no cooldown. Mark/target lost = full CD");
+                lines.add(new int[]{TEXT_DIM});
+                texts.add("0.5s invincibility per teleport strike");
+                lines.add(new int[]{TEXT_DIM});
+                int rsgLv = stats.getSkillData().getLevel(SkillType.RASENGAN);
+                if (rsgLv > 0) {
+                    float rsgMult = getRasenganMultiplier(rsgLv, stats.getAgility()) * 100;
+                    texts.add("\u00a76Rasengan Combo:\u00a7f 9th strike + Rasengan x " + String.format("%.0f", rsgMult * 2) + "%");
+                    lines.add(new int[]{TEXT_VALUE});
+                }
+            }
             default -> {}
         }
     }
@@ -194,6 +217,7 @@ public final class NinjaSkills {
             case FLYING_RAIJIN_GROUND -> executeFlyingRaijinGround(player, stats, sd, level);
             case RASENGAN -> executeRasengan(player, stats, sd, level);
             case SAGE_MODE -> executeSageMode(player, stats, sd, level);
+            case FLYING_RAIJIN_SSRZ -> executeSSRZ(player, stats, sd, level);
             default -> {}
         }
     }
@@ -493,6 +517,140 @@ public final class NinjaSkills {
         }
         player.sendSystemMessage(Component.literal(
                 "\u00a7b[System]\u00a7r \u00a76Sage Mode activated!"));
+    }
+
+    // ── SSRZ (Flying Raijin: Shippu Senko Rennodan Zeroshiki) ───────────
+
+    private static void executeSSRZ(ServerPlayer player, PlayerStats stats, SkillData sd, int level) {
+        int phase = sd.getSsrzPhase();
+
+        if (phase == 0) {
+            // Phase 0: Throw kunai
+            stats.setCurrentMp(stats.getCurrentMp() - SkillType.FLYING_RAIJIN_SSRZ.getMpCost(level));
+
+            if (player.level() instanceof ServerLevel sl) {
+                float dmg = stats.getAttack(player) * getSSRZMultiplier(level, stats.getAgility()) * 0.5f;
+                FlyingRaijinKunaiEntity kunai = new FlyingRaijinKunaiEntity(sl, player, dmg, player.getMainHandItem());
+                kunai.setSSRZMode(true);
+                kunai.shootFromRotation(player, player.getXRot(), player.getYRot(), 0.0f, 2.5f, 0.5f);
+                sl.addFreshEntity(kunai);
+                SkillSounds.playAt(player, SoundEvents.TRIDENT_THROW, 1.0f, 1.5f);
+            }
+            // Cooldown starts now; if kunai misses, it resets to 0 via the entity callback
+            sd.startCooldown(SkillType.FLYING_RAIJIN_SSRZ, level);
+            player.sendSystemMessage(Component.literal(
+                    "\u00a7b[System]\u00a7r \u00a76FR: Zeroshiki kunai thrown!"));
+
+        } else if (phase >= 1 && phase <= 9) {
+            // Phase 1-9: Teleport strikes
+            int targetId = sd.getSsrzTargetId();
+            net.minecraft.world.entity.Entity targetEntity = targetId > 0 ? player.level().getEntity(targetId) : null;
+
+            // Check if target is still valid
+            if (targetEntity == null || !targetEntity.isAlive() || !(targetEntity instanceof net.minecraft.world.entity.LivingEntity livingTarget)) {
+                // Target dead/gone — end combo, enter full cooldown
+                sd.setSsrzPhase(0);
+                sd.setSsrzTargetId(-1);
+                sd.setSsrzMarkTicks(0);
+                sd.startCooldown(SkillType.FLYING_RAIJIN_SSRZ, level);
+                player.sendSystemMessage(Component.literal(
+                        "\u00a7b[System]\u00a7r \u00a77FR: Zeroshiki target lost. Combo ended."));
+                return;
+            }
+
+            // Check if mark expired
+            if (sd.getSsrzMarkTicks() <= 0) {
+                sd.setSsrzPhase(0);
+                sd.setSsrzTargetId(-1);
+                sd.startCooldown(SkillType.FLYING_RAIJIN_SSRZ, level);
+                player.sendSystemMessage(Component.literal(
+                        "\u00a7b[System]\u00a7r \u00a77FR: Zeroshiki mark expired. Combo ended."));
+                return;
+            }
+
+            // Teleport to random position 0.5 blocks from target
+            double angle = player.getRandom().nextDouble() * 2 * Math.PI;
+            double tx = livingTarget.getX() + Math.sin(angle) * 0.5;
+            double ty = livingTarget.getY();
+            double tz = livingTarget.getZ() + Math.cos(angle) * 0.5;
+
+            if (player.level() instanceof ServerLevel sl) {
+                // Departure particles
+                SkillParticles.burst(sl, player.getX(), player.getY() + 1, player.getZ(), 10, 0.3, ParticleTypes.END_ROD);
+            }
+
+            player.teleportTo(tx, ty, tz);
+            // Grant 0.5s invincibility — must exceed invulnerableDuration/2 (default 10)
+            player.invulnerableTime = 20;
+
+            // Calculate damage
+            float atk = stats.getAttack(player);
+            float mult = getSSRZMultiplier(level, stats.getAgility());
+            float damage;
+
+            if (phase == 9) {
+                // Finisher: 3x damage
+                damage = atk * mult * 3.0f;
+
+                // Rasengan combo: consume buff for extra damage
+                if (sd.isRasenganBuffActive()) {
+                    sd.setRasenganBuffActive(false);
+                    sd.setRasenganBuffTicks(0);
+                    int rsgLv = sd.getLevel(SkillType.RASENGAN);
+                    float rasenganBonus = atk * getRasenganMultiplier(rsgLv, stats.getAgility()) * 2.0f;
+                    damage += rasenganBonus;
+                    CombatLog.nextSource = "FR: Zeroshiki (Rasengan Finisher)";
+                } else {
+                    CombatLog.nextSource = "FR: Zeroshiki (Finisher)";
+                }
+            } else {
+                // Normal strike
+                damage = atk * mult;
+                CombatLog.nextSource = "FR: Zeroshiki (Strike " + phase + ")";
+            }
+
+            livingTarget.invulnerableTime = 0; // bypass target iframe for rapid strikes
+            livingTarget.hurt(player.damageSources().playerAttack(player), damage);
+
+            if (player.level() instanceof ServerLevel sl) {
+                if (phase == 9) {
+                    // Finisher: big explosion effect
+                    SkillParticles.burst(sl, tx, ty + 1, tz, 50, 1.5, ParticleTypes.END_ROD);
+                    SkillParticles.burst(sl, tx, ty + 1, tz, 30, 1.0, ParticleTypes.FIREWORK);
+                    SkillParticles.burst(sl, tx, ty + 1, tz, 20, 0.8, ParticleTypes.EXPLOSION);
+                    SkillParticles.spiral(sl, tx, ty, tz, 2.0, 3.0, 3, 20, ParticleTypes.END_ROD);
+                    SkillSounds.playAt(sl, tx, ty, tz, ModSounds.FLYING_RAIJIN_TELEPORT.get(), 0.05f, 1.0f);
+                    SkillSounds.playAt(sl, tx, ty, tz, SoundEvents.GENERIC_EXPLODE, 0.8f, 1.2f);
+                    SkillSounds.playAt(sl, tx, ty, tz, SoundEvents.FIREWORK_ROCKET_BLAST, 0.7f, 0.8f);
+                } else {
+                    // Normal strike: yellow flash
+                    SkillParticles.burst(sl, tx, ty + 1, tz, 15, 0.5, ParticleTypes.END_ROD);
+                    SkillParticles.burst(sl, tx, ty + 1, tz, 5, 0.3, ParticleTypes.FIREWORK);
+                    SkillSounds.playAt(sl, tx, ty, tz, ModSounds.FLYING_RAIJIN_TELEPORT.get(), 0.03f, 1.0f);
+                }
+            }
+
+            if (phase == 9) {
+                // Combo complete — reset and start cooldown
+                sd.setSsrzPhase(0);
+                sd.setSsrzTargetId(-1);
+                sd.setSsrzMarkTicks(0);
+                sd.startCooldown(SkillType.FLYING_RAIJIN_SSRZ, level);
+                player.sendSystemMessage(Component.literal(
+                        "\u00a7b[System]\u00a7r \u00a76FR: Zeroshiki \u2014 FINISHER!"));
+            } else {
+                // Advance to next strike
+                sd.setSsrzPhase(phase + 1);
+                player.sendSystemMessage(Component.literal(
+                        "\u00a7b[System]\u00a7r \u00a76FR: Zeroshiki \u2014 Strike " + phase + "/9"));
+            }
+        }
+    }
+
+    /** SSRZ ATK multiplier per strike. Scales with level and AGI. */
+    public static float getSSRZMultiplier(int level, int agi) {
+        if (level <= 0) return 0;
+        return 1.00f + level * 0.06f + agi * 0.010f;
     }
 
     // ── Clone skill sync ─────────────────────────────────────────────────

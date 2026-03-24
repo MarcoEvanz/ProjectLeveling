@@ -48,7 +48,9 @@ public class SkillExecutor {
             return;
         }
 
-        if (sd.isOnCooldown(skill)) {
+        // SSRZ phases 1-9: skip cooldown check (combo in progress)
+        boolean ssrzCombo = skill == SkillType.FLYING_RAIJIN_SSRZ && sd.getSsrzPhase() >= 1;
+        if (sd.isOnCooldown(skill) && !ssrzCombo) {
             int secs = (sd.getCooldownRemaining(skill) + 19) / 20;
             player.sendSystemMessage(Component.literal(
                     "\u00a7c" + skill.getDisplayName() + " is on cooldown (" + secs + "s)"));
@@ -84,6 +86,10 @@ public class SkillExecutor {
         }
         // Flying Raijin: Ground phase 2 (return teleport): no MP cost
         if (skill == SkillType.FLYING_RAIJIN_GROUND && sd.getFrgPhase() == 1) {
+            mpCost = 0;
+        }
+        // SSRZ phases 1-9 (combo strikes): no MP cost
+        if (skill == SkillType.FLYING_RAIJIN_SSRZ && sd.getSsrzPhase() >= 1) {
             mpCost = 0;
         }
         if (!skill.isToggle() && stats.getCurrentMp() < mpCost) {
@@ -235,7 +241,23 @@ public class SkillExecutor {
             if (start) {
                 LimitlessSkills.startBlueChannel(player, stats, sd);
             } else {
-                LimitlessSkills.endBlueChannel(player, stats, sd);
+                // If Purple is channeling, releasing Red or Blue cancels it
+                if (sd.isPurpleChanneling()) {
+                    LimitlessSkills.endPurpleChannel(player, stats, sd);
+                } else {
+                    LimitlessSkills.endBlueChannel(player, stats, sd);
+                }
+            }
+            StatEventHandler.syncToClient(player);
+        } else if (skill == SkillType.CURSED_TECHNIQUE_RED) {
+            if (start) {
+                LimitlessSkills.startRedChannel(player, stats, sd);
+            } else {
+                if (sd.isPurpleChanneling()) {
+                    LimitlessSkills.endPurpleChannel(player, stats, sd);
+                } else {
+                    LimitlessSkills.endRedChannel(player, stats, sd);
+                }
             }
             StatEventHandler.syncToClient(player);
         }

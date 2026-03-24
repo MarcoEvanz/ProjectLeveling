@@ -107,6 +107,11 @@ public class ClientEvents {
         private static int holdTicks = 0;
         private static boolean holdSent = false;
 
+        // Purple combo state: both Red+Blue must be held during charge
+        private static boolean comboActive = false;
+        private static int comboKey1 = -1; // original held key (e.g. Red)
+        private static int comboKey2 = -1; // combo key (e.g. Blue)
+
         @SubscribeEvent
         public static void onRenderPlayerPre(RenderPlayerEvent.Pre event) {
             Player player = event.getEntity();
@@ -154,8 +159,27 @@ public class ClientEvents {
 
             // Skill activation (only when no screen is open)
             if (mc.screen == null) {
+                // Purple combo: both keys must stay held during charge
+                if (comboActive) {
+                    boolean key1Down = com.mojang.blaze3d.platform.InputConstants.isKeyDown(
+                            mc.getWindow().getWindow(), getSlotKey(comboKey1).getKey().getValue());
+                    boolean key2Down = com.mojang.blaze3d.platform.InputConstants.isKeyDown(
+                            mc.getWindow().getWindow(), getSlotKey(comboKey2).getKey().getValue());
+                    if (!key1Down || !key2Down) {
+                        // One key released — send hold-end to cancel Purple on server
+                        int releasedSlot = !key1Down ? comboKey1 : comboKey2;
+                        ModNetwork.sendToServer(new C2SSkillHoldPacket(releasedSlot, false));
+                        comboActive = false;
+                        comboKey1 = -1;
+                        comboKey2 = -1;
+                    }
+                    // Drain all clicks while combo is active
+                    for (int i = 0; i < 7; i++) {
+                        while (getSlotKey(i).consumeClick()) { /* drain */ }
+                    }
+                }
                 // Hold tracking: if currently tracking a hold, count ticks
-                if (holdSlot >= 0) {
+                else if (holdSlot >= 0) {
                     boolean stillDown = com.mojang.blaze3d.platform.InputConstants.isKeyDown(
                             mc.getWindow().getWindow(), getSlotKey(holdSlot).getKey().getValue());
                     if (stillDown) {
@@ -165,7 +189,29 @@ public class ClientEvents {
                             ModNetwork.sendToServer(new C2SSkillHoldPacket(holdSlot, true));
                             holdSent = true;
                         }
-                        // Drain ALL pending clicks so they don't fire as tap after release
+                        // While hold is active, check for OTHER skill key presses before draining (Purple combo)
+                        if (holdSent) {
+                            for (int i = 0; i < 7; i++) {
+                                if (i == holdSlot) continue;
+                                if (getSlotKey(i).consumeClick()) {
+                                    if (isHoldableSlot(mc.player, i) && canTriggerPurple(mc.player)) {
+                                        // Combo detected (e.g. Red+Blue for Purple): enter combo state
+                                        ModNetwork.sendToServer(new C2SSkillHoldPacket(i, true));
+                                        comboActive = true;
+                                        comboKey1 = holdSlot;
+                                        comboKey2 = i;
+                                        holdSlot = -1;
+                                        holdTicks = 0;
+                                        holdSent = false;
+                                    } else if (!isHoldableSlot(mc.player, i)) {
+                                        ModNetwork.sendToServer(new C2SActivateSkillPacket(i));
+                                    }
+                                    // else: holdable but Purple can't trigger — ignore, keep original hold
+                                    break;
+                                }
+                            }
+                        }
+                        // Drain ALL pending clicks to prevent stale event accumulation
                         for (int i = 0; i < 7; i++) {
                             while (getSlotKey(i).consumeClick()) { /* drain */ }
                         }
@@ -218,11 +264,21 @@ public class ClientEvents {
             };
         }
 
+        private static boolean canTriggerPurple(Player player) {
+            return player.getCapability(PlayerStatsCapability.PLAYER_STATS)
+                    .map(stats -> {
+                        SkillData sd = stats.getSkillData();
+                        return sd.getLevel(SkillType.HOLLOW_TECHNIQUE_PURPLE) > 0
+                                && !sd.isOnCooldown(SkillType.HOLLOW_TECHNIQUE_PURPLE);
+                    })
+                    .orElse(false);
+        }
+
         private static boolean isHoldableSlot(Player player, int slotIndex) {
             return player.getCapability(PlayerStatsCapability.PLAYER_STATS)
                     .map(stats -> {
                         SkillType skill = stats.getSkillData().getEquipped(slotIndex);
-                        return skill == SkillType.CURSED_TECHNIQUE_BLUE;
+                        return skill == SkillType.CURSED_TECHNIQUE_BLUE || skill == SkillType.CURSED_TECHNIQUE_RED;
                     })
                     .orElse(false);
         }

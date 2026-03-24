@@ -9,7 +9,7 @@ import java.util.List;
 import java.util.Map;
 
 public class SkillData {
-    private final int[] tierSP = new int[4]; // Separate SP pool per tier (T0-T3)
+    private final int[] tierSP = new int[5]; // Separate SP pool per tier (T0-T4)
     private PlayerClass selectedClass = PlayerClass.NONE;
     private final Map<SkillType, Integer> skillLevels = new EnumMap<>(SkillType.class);
     public static final int MAX_SLOTS = 7;
@@ -76,6 +76,10 @@ public class SkillData {
     // Ninja: Rasengan buff
     private boolean rasenganBuffActive = false;
     private int rasenganBuffTicks = 0;
+    // Ninja: Flying Raijin SSRZ state
+    private int ssrzPhase = 0;         // 0 = throw, 1-9 = combo strikes
+    private int ssrzTargetId = -1;     // marked target entity ID
+    private int ssrzMarkTicks = 0;     // mark duration (200 ticks = 10s)
     // Beast Master state
     private SkillType bmActiveBuff = null;       // Which next-attack buff is loaded
     private int bmBuffTicks = 0;                 // 80 tick (4s) countdown
@@ -112,6 +116,13 @@ public class SkillData {
     private boolean blueChanneling = false;
     private int blueChannelTicks = 0;
     private int blueDrainTimer = 0;
+    // Limitless: Red channel state
+    private boolean redChanneling = false;
+    private int redChannelTicks = 0;
+    private int redDrainTimer = 0;
+    // Limitless: Purple channel state
+    private boolean purpleChanneling = false;
+    private int purpleChannelTicks = 0;
     // Generic channeling bar (reusable for any skill)
     private int channelTicks = 0;
     private int channelMaxTicks = 0;
@@ -119,9 +130,9 @@ public class SkillData {
 
     // === Getters ===
 
-    public int getTierSP(int tier) { return (tier >= 0 && tier < 4) ? tierSP[tier] : 0; }
-    public void addTierSP(int tier, int amount) { if (tier >= 0 && tier < 4) tierSP[tier] += amount; }
-    public void setTierSP(int tier, int amount) { if (tier >= 0 && tier < 4) tierSP[tier] = amount; }
+    public int getTierSP(int tier) { return (tier >= 0 && tier < 5) ? tierSP[tier] : 0; }
+    public void addTierSP(int tier, int amount) { if (tier >= 0 && tier < 5) tierSP[tier] += amount; }
+    public void setTierSP(int tier, int amount) { if (tier >= 0 && tier < 5) tierSP[tier] = amount; }
 
     public PlayerClass getSelectedClass() { return selectedClass; }
     public void setSelectedClass(PlayerClass cls) { this.selectedClass = cls; }
@@ -291,6 +302,13 @@ public class SkillData {
     public void setRasenganBuffActive(boolean active) { this.rasenganBuffActive = active; }
     public int getRasenganBuffTicks() { return rasenganBuffTicks; }
     public void setRasenganBuffTicks(int ticks) { this.rasenganBuffTicks = ticks; }
+    // Ninja: Flying Raijin SSRZ
+    public int getSsrzPhase() { return ssrzPhase; }
+    public void setSsrzPhase(int phase) { this.ssrzPhase = phase; }
+    public int getSsrzTargetId() { return ssrzTargetId; }
+    public void setSsrzTargetId(int id) { this.ssrzTargetId = id; }
+    public int getSsrzMarkTicks() { return ssrzMarkTicks; }
+    public void setSsrzMarkTicks(int ticks) { this.ssrzMarkTicks = ticks; }
 
     // Beast Master
     public SkillType getBmActiveBuff() { return bmActiveBuff; }
@@ -359,6 +377,18 @@ public class SkillData {
     public void setBlueChannelTicks(int ticks) { this.blueChannelTicks = ticks; }
     public int getBlueDrainTimer() { return blueDrainTimer; }
     public void setBlueDrainTimer(int ticks) { this.blueDrainTimer = ticks; }
+    // Limitless: Red channel
+    public boolean isRedChanneling() { return redChanneling; }
+    public void setRedChanneling(boolean active) { this.redChanneling = active; }
+    public int getRedChannelTicks() { return redChannelTicks; }
+    public void setRedChannelTicks(int ticks) { this.redChannelTicks = ticks; }
+    public int getRedDrainTimer() { return redDrainTimer; }
+    public void setRedDrainTimer(int ticks) { this.redDrainTimer = ticks; }
+    // Limitless: Purple channel
+    public boolean isPurpleChanneling() { return purpleChanneling; }
+    public void setPurpleChanneling(boolean active) { this.purpleChanneling = active; }
+    public int getPurpleChannelTicks() { return purpleChannelTicks; }
+    public void setPurpleChannelTicks(int ticks) { this.purpleChannelTicks = ticks; }
     // Generic channeling bar
     public int getChannelTicks() { return channelTicks; }
     public void setChannelTicks(int ticks) { this.channelTicks = ticks; }
@@ -522,6 +552,9 @@ public class SkillData {
         frgKunaiId = -1;
         rasenganBuffActive = false;
         rasenganBuffTicks = 0;
+        ssrzPhase = 0;
+        ssrzTargetId = -1;
+        ssrzMarkTicks = 0;
         bmActiveBuff = null;
         bmBuffTicks = 0;
         bmEnhanced = false;
@@ -550,6 +583,11 @@ public class SkillData {
         blueChanneling = false;
         blueChannelTicks = 0;
         blueDrainTimer = 0;
+        redChanneling = false;
+        redChannelTicks = 0;
+        redDrainTimer = 0;
+        purpleChanneling = false;
+        purpleChannelTicks = 0;
         channelTicks = 0;
         channelMaxTicks = 0;
         channelSkillName = "";
@@ -579,7 +617,7 @@ public class SkillData {
         Arrays.fill(tierSP, 0);
         if (tag.contains("tierSP")) {
             int[] saved = tag.getIntArray("tierSP");
-            System.arraycopy(saved, 0, tierSP, 0, Math.min(saved.length, 4));
+            System.arraycopy(saved, 0, tierSP, 0, Math.min(saved.length, tierSP.length));
         } else if (tag.contains("skillPoints")) {
             // Backward compat: old saves had a single skillPoints field
             tierSP[0] = tag.getInt("skillPoints");
@@ -606,7 +644,7 @@ public class SkillData {
     }
 
     public void copyFrom(SkillData other) {
-        System.arraycopy(other.tierSP, 0, this.tierSP, 0, 4);
+        System.arraycopy(other.tierSP, 0, this.tierSP, 0, tierSP.length);
         this.selectedClass = other.selectedClass;
         this.skillLevels.clear();
         this.skillLevels.putAll(other.skillLevels);

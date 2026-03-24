@@ -365,6 +365,23 @@ public class StatEventHandler {
                 }
             }
 
+            // Flying Raijin SSRZ: mark duration countdown
+            if (sd.getSsrzMarkTicks() > 0) {
+                sd.setSsrzMarkTicks(sd.getSsrzMarkTicks() - 1);
+                if (sd.getSsrzMarkTicks() <= 0) {
+                    // Mark expired — reset combo, enter full cooldown
+                    sd.setSsrzPhase(0);
+                    sd.setSsrzTargetId(-1);
+                    int ssrzLv = sd.getLevel(SkillType.FLYING_RAIJIN_SSRZ);
+                    if (ssrzLv > 0) {
+                        sd.startCooldown(SkillType.FLYING_RAIJIN_SSRZ, ssrzLv);
+                    }
+                    player.sendSystemMessage(Component.literal(
+                            "\u00a7b[System]\u00a7r \u00a77FR: Zeroshiki mark expired. Combo ended."));
+                    syncToClient(player);
+                }
+            }
+
             // Flying Raijin: Ground countdown + marker particles
             if (sd.getFrgPhase() == 1) {
                 sd.setFrgTicks(sd.getFrgTicks() - 1);
@@ -428,6 +445,16 @@ public class StatEventHandler {
             // Limitless: Blue channel tick
             if (sd.isBlueChanneling()) {
                 LimitlessSkills.tickBlueChannel(player, stats, sd);
+            }
+
+            // Limitless: Red channel tick
+            if (sd.isRedChanneling()) {
+                LimitlessSkills.tickRedChannel(player, stats, sd);
+            }
+
+            // Limitless: Purple channel tick
+            if (sd.isPurpleChanneling()) {
+                LimitlessSkills.tickPurpleChannel(player, stats, sd);
             }
 
             // Beast Master: Turtle Shell absorption expiry (5s)
@@ -1317,6 +1344,13 @@ public class StatEventHandler {
             if (hfLv > 0) {
                 critRate += hfLv * 0.005;
                 critDmgBonus += hfLv * 0.01;
+            }
+
+            // Six Eyes: See Through (Limitless): +1.33% crit rate, +3.33% crit damage per level
+            int setLv = sd.getLevel(SkillType.SIX_EYES_SEE_THROUGH);
+            if (setLv > 0) {
+                critRate += setLv * 0.0133;
+                critDmgBonus += setLv * 0.0333;
             }
 
             // Kunai Mastery crit bonus

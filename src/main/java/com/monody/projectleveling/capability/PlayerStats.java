@@ -96,6 +96,11 @@ public class PlayerStats {
                 base *= 1.0f + (float) (matkPctInst.getValue() / 100.0);
             }
         }
+        // Six Eyes: Mastered — +0.5% MATK per level
+        int semLv = skillData.getLevel(SkillType.SIX_EYES_MASTERED);
+        if (semLv > 0) {
+            base *= 1.0f + semLv * 0.005f;
+        }
         return base;
     }
 
@@ -239,6 +244,10 @@ public class PlayerStats {
                 int sp = 1 + (level % 2 == 0 ? 1 : 0);
                 if (level % 2 == 0) sp += playerClass.getBonusSPPerEvenLevel(3);
                 skillData.addTierSP(3, sp);
+            } else if (level >= 101 && level <= 160) {
+                int sp = 1 + (level % 2 == 0 ? 1 : 0);
+                if (level % 2 == 0) sp += playerClass.getBonusSPPerEvenLevel(4);
+                skillData.addTierSP(4, sp);
             }
             levelsGained++;
         }
@@ -250,8 +259,8 @@ public class PlayerStats {
      * already reached. Called once when a class is first selected.
      */
     public void grantRetroactiveBonusSP(PlayerClass cls) {
-        int[][] tierRanges = {{2, 10}, {11, 30}, {31, 60}, {61, 100}};
-        for (int tier = 0; tier < 4; tier++) {
+        int[][] tierRanges = {{2, 10}, {11, 30}, {31, 60}, {61, 100}, {101, 160}};
+        for (int tier = 0; tier < tierRanges.length; tier++) {
             int bonusPerEven = cls.getBonusSPPerEvenLevel(tier);
             if (bonusPerEven <= 0) continue;
             int start = tierRanges[tier][0];

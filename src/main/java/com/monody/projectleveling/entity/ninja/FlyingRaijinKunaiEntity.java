@@ -36,6 +36,10 @@ public class FlyingRaijinKunaiEntity extends AbstractArrow implements ItemSuppli
 
     private int groundLife = 0;
     private float kunaiDamage = 3.0f;
+    private boolean ssrzMode = false;
+
+    public void setSSRZMode(boolean ssrz) { this.ssrzMode = ssrz; }
+    public boolean isSSRZMode() { return ssrzMode; }
 
     // Required for entity registration (client-side spawn)
     public FlyingRaijinKunaiEntity(EntityType<? extends AbstractArrow> type, Level level) {
@@ -120,7 +124,12 @@ public class FlyingRaijinKunaiEntity extends AbstractArrow implements ItemSuppli
 
         // Safety: discard if flying too long (5 seconds without hitting anything)
         if (!isStuck() && tickCount > 100) {
-            notifyOwnerKunaiExpired();
+            if (ssrzMode) {
+                // SSRZ timeout: reset cooldown (free retry)
+                notifySSRZMiss();
+            } else {
+                notifyOwnerKunaiExpired();
+            }
             discard();
         }
     }
@@ -129,20 +138,28 @@ public class FlyingRaijinKunaiEntity extends AbstractArrow implements ItemSuppli
     protected void onHitEntity(EntityHitResult result) {
         if (level().isClientSide()) return;
 
-        // Deal damage
         if (getOwner() instanceof ServerPlayer owner) {
+            // Deal damage
             result.getEntity().hurt(SkillDamageSource.get(owner.level()), kunaiDamage);
             if (result.getEntity() instanceof LivingEntity target) {
-                CombatLog.damageSkill(owner, "Flying Raijin", kunaiDamage, target);
+                CombatLog.damageSkill(owner, ssrzMode ? "FR: Zeroshiki" : "Flying Raijin", kunaiDamage, target);
             }
 
-            // Mark the target in owner's SkillData
             owner.getCapability(PlayerStatsCapability.PLAYER_STATS).ifPresent(stats -> {
                 SkillData sd = stats.getSkillData();
-                sd.setFlyingRaijinTargetId(result.getEntity().getId());
-                sd.setFlyingRaijinPos(result.getEntity().getX(),
-                        result.getEntity().getY(), result.getEntity().getZ());
-                sd.setFlyingRaijinKunaiId(-1); // No kunai to track, target is marked
+                if (ssrzMode) {
+                    // SSRZ: mark target for combo strikes
+                    sd.setSsrzTargetId(result.getEntity().getId());
+                    sd.setSsrzMarkTicks(200); // 10 seconds
+                    sd.setSsrzPhase(1);       // ready for strike 1
+                    sd.setCooldown(SkillType.FLYING_RAIJIN_SSRZ, 0); // clear CD for strikes
+                } else {
+                    // Normal Flying Raijin: mark target for teleport
+                    sd.setFlyingRaijinTargetId(result.getEntity().getId());
+                    sd.setFlyingRaijinPos(result.getEntity().getX(),
+                            result.getEntity().getY(), result.getEntity().getZ());
+                    sd.setFlyingRaijinKunaiId(-1);
+                }
             });
 
             if (level() instanceof ServerLevel sl) {
@@ -152,7 +169,8 @@ public class FlyingRaijinKunaiEntity extends AbstractArrow implements ItemSuppli
             }
 
             owner.sendSystemMessage(Component.literal(
-                    "\u00a7b[System]\u00a7r \u00a7eTarget marked by Flying Raijin!"));
+                    ssrzMode ? "\u00a7b[System]\u00a7r \u00a7eTarget marked by FR: Zeroshiki!"
+                             : "\u00a7b[System]\u00a7r \u00a7eTarget marked by Flying Raijin!"));
             StatEventHandler.syncToClient(owner);
         }
 
@@ -161,6 +179,22 @@ public class FlyingRaijinKunaiEntity extends AbstractArrow implements ItemSuppli
 
     @Override
     protected void onHitBlock(BlockHitResult result) {
+        if (ssrzMode) {
+            // SSRZ miss: reset cooldown to 0 (free retry) and discard
+            if (getOwner() instanceof ServerPlayer owner) {
+                owner.getCapability(PlayerStatsCapability.PLAYER_STATS).ifPresent(stats -> {
+                    SkillData sd = stats.getSkillData();
+                    sd.setSsrzPhase(0);
+                    sd.setCooldown(SkillType.FLYING_RAIJIN_SSRZ, 0);
+                });
+                owner.sendSystemMessage(Component.literal(
+                        "\u00a7b[System]\u00a7r \u00a77FR: Zeroshiki kunai missed. No cooldown."));
+                StatEventHandler.syncToClient(owner);
+            }
+            discard();
+            return;
+        }
+
         super.onHitBlock(result); // stick in block
         this.entityData.set(DATA_STUCK, true);
 
@@ -171,6 +205,19 @@ public class FlyingRaijinKunaiEntity extends AbstractArrow implements ItemSuppli
                 sd.setFlyingRaijinPos(getX(), getY(), getZ());
                 sd.setFlyingRaijinKunaiId(getId());
             });
+        }
+    }
+
+    private void notifySSRZMiss() {
+        if (getOwner() instanceof ServerPlayer owner) {
+            owner.getCapability(PlayerStatsCapability.PLAYER_STATS).ifPresent(stats -> {
+                SkillData sd = stats.getSkillData();
+                sd.setSsrzPhase(0);
+                sd.setCooldown(SkillType.FLYING_RAIJIN_SSRZ, 0);
+            });
+            owner.sendSystemMessage(Component.literal(
+                    "\u00a7b[System]\u00a7r \u00a77FR: Zeroshiki kunai missed. No cooldown."));
+            StatEventHandler.syncToClient(owner);
         }
     }
 

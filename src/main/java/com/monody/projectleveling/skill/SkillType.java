@@ -318,6 +318,11 @@ public enum SkillType {
             0, 0, 0, 0,
             "Passive. +1-3 max clones. -4% max MP per level when clones active.", "MSC"),
 
+    // --- Ninja T4 ---
+    FLYING_RAIJIN_SSRZ("flying_raijin_ssrz", "FR: Zeroshiki", 25, 4, PlayerClass.NINJA, 100, false, false,
+            60, 40, 600, 300,
+            "Throw kunai. On hit: mark target, then 9 teleport strikes. 9th = massive finisher.", "SSRZ"),
+
     // --- Necromancer T3 ---
     ARMY_OF_THE_DEAD("army_of_the_dead", "Army of the Dead", 20, 3, PlayerClass.NECROMANCER, 60, false, false,
             65, 45, 1200, 600,
@@ -377,6 +382,29 @@ public enum SkillType {
             0, 0, 0, 0,
             "Passive. +1.33% crit rate, +3.33% crit damage per level.", "SET",
             stat(CRIT, 1.33), stat(CDMG, 3.33)),
+
+    // Limitless T3 (required level 60, max level 20)
+    CURSED_TECHNIQUE_RED("cursed_technique_red", "C.T. Reversal: Red", 20, 3, PlayerClass.LIMITLESS, 60, false, false,
+            0, 0, 300, 150,
+            "Charge 1.5-3s, fire destructive beam. Explosion on impact. 40% MP + 10%/0.5s.", "RED"),
+    SIX_EYES_MASTERED("six_eyes_mastered", "Six Eyes - Mastered", 20, 3, PlayerClass.LIMITLESS, 60, false, true,
+            0, 0, 0, 0,
+            "Passive. +0.5% MATK per level. Six Eyes MP reduction cap \u2192 70%.", "SEM",
+            stat(MATK_PCT, 0.5)),
+    REVERSE_CURSED_TECHNIQUE("reverse_cursed_technique", "Reverse Cursed Technique", 20, 3, PlayerClass.LIMITLESS, 60, false, false,
+            0, 0, 400, 200,
+            "Instant heal to full. MP cost = missing HP% of current MP.", "RCT"),
+
+    // =====================================================
+    // Limitless — Tier 4 (requires level 100, max 25)
+    // =====================================================
+    HOLLOW_TECHNIQUE_PURPLE("hollow_technique_purple", "Hollow Technique: Purple", 25, 4, PlayerClass.LIMITLESS, 100, false, false,
+            0, 0, 1200, 1200,
+            "Passive. Use Red+Blue together to fire devastating beam. Pierces all.", "PRP"),
+    SIX_EYES_AWAKENED("six_eyes_awakened", "Six Eyes - Awakened", 25, 4, PlayerClass.LIMITLESS, 100, false, true,
+            0, 0, 0, 0,
+            "Passive. +0.2% MATK per level. Six Eyes MP reduction cap \u2192 80%.", "SEA",
+            stat(MATK_PCT, 0.2)),
 
     // =====================================================
     // Hidden — Reserved / Legacy
@@ -445,7 +473,7 @@ public enum SkillType {
     public StatDef[] getStatDefs() { return statDefs; }
 
     /** Whether this skill is visible (not hidden/reserved). */
-    public boolean isAvailable() { return tier <= 3; }
+    public boolean isAvailable() { return tier <= 4; }
 
     /** Get MP cost for the given skill level (1-based). Linearly scales from base to min. */
     public int getMpCost(int level) {

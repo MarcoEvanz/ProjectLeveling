@@ -305,18 +305,22 @@ public class StatusScreen extends Screen {
         drawStat(g, "ATK%:", String.format("+%.0f%%", atkPct) + atkPctTags, left, rowY);
 
         // MATK = (INT-base + staff) * (1 + MATK%/100)
-        double matkPct = getEquipModifier(player, ModAttributes.MAGIC_ATTACK_PERCENT.get());
+        double equipMatkPct = getEquipModifier(player, ModAttributes.MAGIC_ATTACK_PERCENT.get());
+        Tags matkPctTags = new Tags().wpn(equipMatkPct);
+        double skillMatkPct = StatContribRegistry.applyContribs(StatLine.MATK_PCT, sd, player, stats, matkPctTags);
+        double totalMatkPct = equipMatkPct + skillMatkPct;
         rowY += lineH;
         float equipMatk = (float) getEquipModifier(player, ModAttributes.MAGIC_ATTACK.get());
         double totalMatk = stats.getIntelligence() * 0.1f + equipMatk;
-        if (matkPct > 0) totalMatk *= (1.0 + matkPct / 100.0);
+        if (equipMatkPct > 0) totalMatk *= (1.0 + equipMatkPct / 100.0);
+        if (skillMatkPct > 0) totalMatk *= (1.0 + skillMatkPct / 100.0);
         Tags matkTags = new Tags();
         if (equipMatk > 0) matkTags.add("Staff+" + String.format("%.0f", equipMatk));
         drawStat(g, "MATK:", String.format("+%.2f", totalMatk) + matkTags, left, rowY);
 
         // MATK% display
         rowY += lineH;
-        drawStat(g, "MATK%:", String.format("+%.0f%%", matkPct) + new Tags().wpn(matkPct), left, rowY);
+        drawStat(g, "MATK%:", String.format("+%.1f%%", totalMatkPct) + matkPctTags, left, rowY);
 
         // HEAL
         rowY += lineH;
@@ -499,6 +503,8 @@ public class StatusScreen extends Screen {
         if (sd.isToggleActive(SkillType.INFINITY)) buffs.add("Infinity");
         if (sd.isBlackFlashActive()) buffs.add("B.Flash " + fmtSec(sd.getBlackFlashTicks()));
         if (sd.isBlueChanneling()) buffs.add("Blue");
+        if (sd.isRedChanneling()) buffs.add("Red");
+        if (sd.isPurpleChanneling()) buffs.add("Purple");
         return buffs;
     }
 

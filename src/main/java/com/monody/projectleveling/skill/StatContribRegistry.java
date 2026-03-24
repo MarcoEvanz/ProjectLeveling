@@ -18,7 +18,7 @@ import java.util.List;
  */
 public final class StatContribRegistry {
 
-    public enum StatLine { CRIT, CDMG, PROJ, DODGE, DMG_RED, DMG, HP_PCT, MP_REGEN }
+    public enum StatLine { CRIT, CDMG, PROJ, DODGE, DMG_RED, DMG, HP_PCT, MP_REGEN, MATK_PCT }
 
     /** Simple stat definition embedded in SkillType enum constants. */
     public record StatDef(StatLine line, double factor, boolean tagOnly) {}

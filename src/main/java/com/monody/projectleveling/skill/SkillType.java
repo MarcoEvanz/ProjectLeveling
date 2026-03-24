@@ -365,8 +365,7 @@ public enum SkillType {
             "MATK-scaled strike. Empowers next melee attack. 5% MP cost.", "BF"),
     SIX_EYES_NEWBORN("six_eyes_newborn", "Six Eyes - New Born", 10, 1, PlayerClass.LIMITLESS, 10, false, true,
             0, 0, 0, 0,
-            "Passive. +1% MP regen, -5% all skill MP cost per level.", "SEN",
-            stat(MP_REGEN, 1.0)),
+            "Passive. -5% all skill MP cost per level.", "SEN"),
     INFINITY("limitless_infinity", "Infinity", 10, 1, PlayerClass.LIMITLESS, 10, true, false,
             50, 25, 0, 0, // Toggle drain: 5%→2.5% MP/sec
             "Toggle. All damage redirected to MP. Deflects projectiles.", "INF"),

@@ -289,6 +289,7 @@ public final class LimitlessSkills {
 
         double range = 6 + level * 0.3;
         float damage = stats.getMagicAttack(player) * getBlueMultiplier(level, stats.getIntelligence());
+        damage = StatEventHandler.applySkillCrit(player, stats, sd, damage, null);
         Vec3 look = player.getLookAngle();
         Vec3 eye = player.getEyePosition();
         AABB area = player.getBoundingBox().inflate(range);
@@ -423,6 +424,10 @@ public final class LimitlessSkills {
 
         int level = sd.getLevel(SkillType.CURSED_TECHNIQUE_BLUE);
         float damage = stats.getMagicAttack(player) * getBlueMultiplier(level, stats.getIntelligence()) * 0.1f; // 10% per tick
+        boolean isDamageTick = sd.getBlueChannelTicks() % 10 == 0;
+        if (isDamageTick) {
+            damage = StatEventHandler.applySkillCrit(player, stats, sd, damage, null);
+        }
 
         // Pull point: 10 blocks in front of player's look direction
         Vec3 eye = player.getEyePosition();
@@ -436,6 +441,7 @@ public final class LimitlessSkills {
 
         List<LivingEntity> entities = player.level().getEntitiesOfClass(
                 LivingEntity.class, area, e -> e != player);
+        List<Monster> hitMobs = isDamageTick ? new ArrayList<>() : null;
 
         for (LivingEntity entity : entities) {
             Vec3 pullDir = pullPoint.subtract(entity.position()).normalize();
@@ -443,10 +449,13 @@ public final class LimitlessSkills {
             double force = Math.min(0.5, 1.5 / Math.max(1, dist));
             entity.setDeltaMovement(entity.getDeltaMovement().add(pullDir.scale(force)));
             entity.hurtMarked = true;
-            // Damage every 10 ticks (0.5s)
-            if (sd.getBlueChannelTicks() % 10 == 0 && entity instanceof Monster m) {
+            if (isDamageTick && entity instanceof Monster m) {
                 m.hurt(SkillDamageSource.get(player.level()), damage);
+                hitMobs.add(m);
             }
+        }
+        if (isDamageTick && hitMobs != null && !hitMobs.isEmpty()) {
+            CombatLog.aoeSkill(player, "C.T. Blue (Channel)", damage, hitMobs);
         }
 
         // Particles at pull point: blue orb constantly pulling particles inward
@@ -622,6 +631,7 @@ public final class LimitlessSkills {
         // Calculate damage with charge bonus: +3.33% per tick beyond minimum (up to +100% at full charge)
         float chargeBonus = 1.0f + Math.max(0, chargeTicks - RED_MIN_TICKS) * 0.0333f;
         float damage = stats.getMagicAttack(player) * getRedMultiplier(level, stats.getIntelligence()) * chargeBonus;
+        damage = StatEventHandler.applySkillCrit(player, stats, sd, damage, null);
         float aoeRadius = 3.0f + level * 0.1f;
         float beamWidth = 1.5f; // radius around beam line that hits entities
 
@@ -938,6 +948,7 @@ public final class LimitlessSkills {
         float damage = stats.getMagicAttack(player) * getPurpleMultiplier(level, stats.getIntelligence(), stats.getCurrentMp());
         // Consume ALL remaining MP (no cost reduction applies)
         stats.setCurrentMp(0);
+        damage = StatEventHandler.applySkillCrit(player, stats, sd, damage, null);
 
         Vec3 eye = player.getEyePosition();
         Vec3 look = player.getLookAngle();

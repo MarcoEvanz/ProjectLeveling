@@ -933,6 +933,87 @@ public class StatEventHandler {
         });
     }
 
+    // === Crit utility (shared by pipeline and manual skill calls) ===
+
+    /** Calculate crit rate and crit damage bonus for the player's current stats. */
+    public static double[] getCritStats(ServerPlayer player, PlayerStats stats, SkillData sd) {
+        double critRate = 0.15;
+        double critDmgBonus = 1.5;
+
+        int sig = stats.getSight();
+        if (sig > 1) {
+            critRate += (sig - 1) * 0.001;
+            critDmgBonus += (sig - 1) * 0.002;
+        }
+        int ceLv = sd.getLevel(SkillType.CRITICAL_EDGE);
+        if (ceLv > 0) { critRate += ceLv * 0.015; critDmgBonus += ceLv * 0.03; }
+        int seLv = sd.getLevel(SkillType.SHARP_EYES);
+        if (seLv > 0) { critRate += seLv * 0.015; critDmgBonus += seLv * 0.05; }
+        int aoLv = sd.getLevel(SkillType.ARCANE_OVERDRIVE);
+        if (aoLv > 0) { critRate += aoLv * 0.015; critDmgBonus += aoLv * 0.01; }
+        int bsLv = sd.getLevel(SkillType.BERSERKER_SPIRIT);
+        if (bsLv > 0) { critRate += bsLv * 0.01; critDmgBonus += bsLv * 0.015; }
+        int drLv = sd.getLevel(SkillType.DARK_RESONANCE);
+        if (drLv > 0) { critRate += drLv * 0.01; critDmgBonus += drLv * 0.02; }
+        int piLv = sd.getLevel(SkillType.PREDATOR_INSTINCT);
+        if (piLv > 0) { critRate += piLv * 0.015; critDmgBonus += piLv * 0.02; }
+        int hfLv = sd.getLevel(SkillType.HOLY_FERVOR);
+        if (hfLv > 0) { critRate += hfLv * 0.005; critDmgBonus += hfLv * 0.01; }
+        int setLv = sd.getLevel(SkillType.SIX_EYES_SEE_THROUGH);
+        if (setLv > 0) { critRate += setLv * 0.0133; critDmgBonus += setLv * 0.0333; }
+        float kmCrit = NinjaSkills.getKunaiMasteryCritBonus(stats);
+        if (kmCrit > 0) critRate += kmCrit / 100.0;
+        var critInst = player.getAttribute(com.monody.projectleveling.item.ModAttributes.CRIT_RATE.get());
+        if (critInst != null && critInst.getValue() > 0) critRate += critInst.getValue() / 100.0;
+        var cdInst = player.getAttribute(com.monody.projectleveling.item.ModAttributes.CRIT_DAMAGE.get());
+        if (cdInst != null && cdInst.getValue() > 0) critDmgBonus += cdInst.getValue() / 100.0;
+        if (sd.isEvasionCritReady()) {
+            critRate = 1.0;
+            sd.setEvasionCritReady(false);
+        }
+        return new double[]{critRate, critDmgBonus};
+    }
+
+    /**
+     * Roll crit for a skill and apply side effects (particles, message, lifesteal, etc.).
+     * Returns the damage after crit multiplier (unchanged if no crit).
+     * Pass a target for on-crit effects (Wither, particles); null to skip target effects.
+     */
+    public static float applySkillCrit(ServerPlayer player, PlayerStats stats, SkillData sd,
+                                        float damage, @javax.annotation.Nullable LivingEntity target) {
+        double[] cs = getCritStats(player, stats, sd);
+        double critRate = cs[0];
+        double critDmgBonus = cs[1];
+        if (critRate <= 0 || player.getRandom().nextDouble() >= critRate) return damage;
+
+        damage = (float) (damage * critDmgBonus);
+        // Critical Edge lifesteal
+        int ceLv = sd.getLevel(SkillType.CRITICAL_EDGE);
+        if (ceLv > 0) {
+            float ceHeal = damage * ceLv * 0.005f;
+            player.heal(ceHeal);
+            CombatLog.heal(player, "Critical Edge", ceHeal);
+        }
+        if (target != null) {
+            // Dark Resonance: Wither on crit
+            int drLv = sd.getLevel(SkillType.DARK_RESONANCE);
+            if (drLv > 0) target.addEffect(new net.minecraft.world.effect.MobEffectInstance(
+                    net.minecraft.world.effect.MobEffects.WITHER, 40, 0, false, true));
+            // Predator Instinct: Speed on crit
+            int piLv = sd.getLevel(SkillType.PREDATOR_INSTINCT);
+            if (piLv > 0) player.addEffect(new net.minecraft.world.effect.MobEffectInstance(
+                    net.minecraft.world.effect.MobEffects.MOVEMENT_SPEED, 40, 0, false, true));
+            // Particles
+            if (player.level() instanceof ServerLevel sl) {
+                SkillParticles.burst(sl, target.getX(), target.getY() + 1.5, target.getZ(), 12, 0.4, ParticleTypes.CRIT);
+                SkillParticles.burst(sl, target.getX(), target.getY() + 1, target.getZ(), 6, 0.3, ParticleTypes.ENCHANTED_HIT);
+            }
+        }
+        player.sendSystemMessage(net.minecraft.network.chat.Component.literal(
+                "\u00a76\u2726 Critical Hit! \u00a7r(" + String.format("%.0f%%", critDmgBonus * 100) + ")"));
+        return damage;
+    }
+
     // === Skill Combat Events ===
 
     @SubscribeEvent
@@ -1287,121 +1368,17 @@ public class StatEventHandler {
                 }
             }
 
-            // Crit calculation: Sight-based + Critical Edge + Sharp Eyes + Arcane Overdrive + Evasion crit ready + Berserker Spirit
-            double critRate = 0.15;
-            double critDmgBonus = 1.5;
-
-            int sig = stats.getSight();
-            if (sig > 1) {
-                critRate += (sig - 1) * 0.001;
-                critDmgBonus += (sig - 1) * 0.002;
-            }
-
-            int ceLv = sd.getLevel(SkillType.CRITICAL_EDGE);
-            if (ceLv > 0) {
-                critRate += ceLv * 0.015;
-                critDmgBonus += ceLv * 0.03;
-            }
-
-            int seLv = sd.getLevel(SkillType.SHARP_EYES);
-            if (seLv > 0) {
-                critRate += seLv * 0.015;
-                critDmgBonus += seLv * 0.05;
-            }
-
-            int aoLv = sd.getLevel(SkillType.ARCANE_OVERDRIVE);
-            if (aoLv > 0) {
-                critRate += aoLv * 0.015;
-                critDmgBonus += aoLv * 0.01;
-            }
-
+            // Berserker Spirit lifesteal (applies regardless of crit)
             int bsLv = sd.getLevel(SkillType.BERSERKER_SPIRIT);
             if (bsLv > 0) {
-                critRate += bsLv * 0.01;
-                critDmgBonus += bsLv * 0.015;
-                // Lifesteal
                 float bsHeal = amount * bsLv * 0.003f;
                 player.heal(bsHeal);
                 CombatLog.heal(player, "Berserker", bsHeal);
             }
 
-            // Dark Resonance (Necromancer): +1% crit rate, +2% crit damage per level
-            int drLv = sd.getLevel(SkillType.DARK_RESONANCE);
-            if (drLv > 0) {
-                critRate += drLv * 0.01;
-                critDmgBonus += drLv * 0.02;
-            }
-
-            // Predator Instinct (Beast Master): +1.5% crit rate, +2% crit damage per level
-            int piLv = sd.getLevel(SkillType.PREDATOR_INSTINCT);
-            if (piLv > 0) {
-                critRate += piLv * 0.015;
-                critDmgBonus += piLv * 0.02;
-            }
-
-            // Holy Fervor (Healer): +0.5% crit rate, +1% crit damage per level
-            int hfLv = sd.getLevel(SkillType.HOLY_FERVOR);
-            if (hfLv > 0) {
-                critRate += hfLv * 0.005;
-                critDmgBonus += hfLv * 0.01;
-            }
-
-            // Six Eyes: See Through (Limitless): +1.33% crit rate, +3.33% crit damage per level
-            int setLv = sd.getLevel(SkillType.SIX_EYES_SEE_THROUGH);
-            if (setLv > 0) {
-                critRate += setLv * 0.0133;
-                critDmgBonus += setLv * 0.0333;
-            }
-
-            // Kunai Mastery crit bonus
-            float kmCrit = NinjaSkills.getKunaiMasteryCritBonus(stats);
-            if (kmCrit > 0) {
-                critRate += kmCrit / 100.0;
-            }
-
-            // Equipment crit rate (Dagger, etc.)
-            var critInst = player.getAttribute(com.monody.projectleveling.item.ModAttributes.CRIT_RATE.get());
-            if (critInst != null && critInst.getValue() > 0) {
-                critRate += critInst.getValue() / 100.0;
-            }
-
-            // Equipment crit damage
-            var cdInst = player.getAttribute(com.monody.projectleveling.item.ModAttributes.CRIT_DAMAGE.get());
-            if (cdInst != null && cdInst.getValue() > 0) {
-                critDmgBonus += cdInst.getValue() / 100.0;
-            }
-
-            // Evasion crit ready (guaranteed crit on next hit after dodge)
-            if (sd.isEvasionCritReady()) {
-                critRate = 1.0;
-                sd.setEvasionCritReady(false);
-            }
-
-            if (critRate > 0 && player.getRandom().nextDouble() < critRate) {
-                amount = (float) (amount * critDmgBonus);
-                // Critical Edge lifesteal on crit: 0.5% per level
-                if (ceLv > 0) {
-                    float ceHeal = amount * ceLv * 0.005f;
-                    player.heal(ceHeal);
-                    CombatLog.heal(player, "Critical Edge", ceHeal);
-                }
-                // Dark Resonance: crits apply Wither I for 2s
-                if (drLv > 0) {
-                    ((net.minecraft.world.entity.LivingEntity) event.getEntity())
-                            .addEffect(new MobEffectInstance(MobEffects.WITHER, 40, 0, false, true));
-                }
-                // Predator Instinct: crits grant Speed I for 2s
-                if (piLv > 0) {
-                    player.addEffect(new MobEffectInstance(MobEffects.MOVEMENT_SPEED, 40, 0, false, true));
-                }
-                if (player.level() instanceof ServerLevel sl) {
-                    net.minecraft.world.entity.LivingEntity target = (net.minecraft.world.entity.LivingEntity) event.getEntity();
-                    SkillParticles.burst(sl, target.getX(), target.getY() + 1.5, target.getZ(), 12, 0.4, ParticleTypes.CRIT);
-                    SkillParticles.burst(sl, target.getX(), target.getY() + 1, target.getZ(), 6, 0.3, ParticleTypes.ENCHANTED_HIT);
-                }
-                player.sendSystemMessage(Component.literal(
-                        "\u00a76\u2726 Critical Hit! \u00a7r(" + String.format("%.0f%%", critDmgBonus * 100) + ")"));
-            }
+            // Crit: delegates to shared utility
+            amount = applySkillCrit(player, stats, sd, amount,
+                    (net.minecraft.world.entity.LivingEntity) event.getEntity());
 
             // Projectile damage multiplier: applies to ALL arrows (player bow + skill arrows)
             if (event.getSource().isIndirect()) {

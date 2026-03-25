@@ -310,7 +310,7 @@ public enum SkillType {
             "Empower next attack with a spiraling explosion in 2-block radius.", "RSG"),
     SAGE_MODE("sage_mode", "Sage Mode", 20, 3, PlayerClass.NINJA, 60, true, false,
             30, 20, 0, 0,
-            "Toggle. +dmg%, +speed, knockback resist. Drains MP% per second.", "SgM"),
+            "Toggle. +2% dmg per level, +speed, knockback resist. Drains MP% per second.", "SgM"),
     EIGHT_INNER_GATES("eight_inner_gates", "Eight Inner Gates", 20, 3, PlayerClass.NINJA, 60, false, true,
             0, 0, 0, 0,
             "Passive. Below 30% HP: massive damage and speed boost.", "8G"),
@@ -319,9 +319,20 @@ public enum SkillType {
             "Passive. +1-3 max clones. -4% max MP per level when clones active.", "MSC"),
 
     // --- Ninja T4 ---
-    FLYING_RAIJIN_SSRZ("flying_raijin_ssrz", "FR: Zeroshiki", 25, 4, PlayerClass.NINJA, 100, false, false,
+    FLYING_RAIJIN_SSRZ("flying_raijin_ssrz", "FR: Shippu Senko Rennodan Zeroshiki", 25, 4, PlayerClass.NINJA, 100, false, false,
             60, 40, 600, 300,
             "Throw kunai. On hit: mark target, then 9 teleport strikes. 9th = massive finisher.", "SSRZ"),
+    MASTERED_SAGE_MODE("mastered_sage_mode", "Mastered Sage Mode", 25, 4, PlayerClass.NINJA, 100, false, true,
+            0, 0, 0, 0,
+            "Passive. +0.4% Sage Mode damage, +0.4% ATK per level.", "MSM"),
+
+    // --- Warrior T4 ---
+    HEAVEN_SWORD("heaven_sword", "Heaven Sword", 25, 4, PlayerClass.WARRIOR, 100, false, false,
+            50, 30, 600, 300,
+            "Call a giant sword from the sky. AoE damage in 10 block radius.", "HS"),
+    WARLORDS_COMMAND("warlords_command", "Warlord's Command", 25, 4, PlayerClass.WARRIOR, 100, false, true,
+            0, 0, 0, 0,
+            "Passive. Enhances War Cry: +ATK% bonus, increased aggro range with VIT.", "WLC"),
 
     // --- Necromancer T3 ---
     ARMY_OF_THE_DEAD("army_of_the_dead", "Army of the Dead", 20, 3, PlayerClass.NECROMANCER, 60, false, false,

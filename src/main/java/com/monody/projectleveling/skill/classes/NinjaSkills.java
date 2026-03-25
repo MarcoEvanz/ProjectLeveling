@@ -33,7 +33,7 @@ public final class NinjaSkills {
             SkillType.SHADOW_CLONE, SkillType.FLYING_RAIJIN, SkillType.FLYING_RAIJIN_GROUND, SkillType.CHAKRA_CONTROL,
             SkillType.RASENGAN, SkillType.SAGE_MODE, SkillType.EIGHT_INNER_GATES,
             SkillType.MULTI_SHADOW_CLONE,
-            SkillType.FLYING_RAIJIN_SSRZ,
+            SkillType.FLYING_RAIJIN_SSRZ, SkillType.MASTERED_SAGE_MODE,
     };
 
     private NinjaSkills() {}
@@ -145,7 +145,9 @@ public final class NinjaSkills {
                 lines.add(new int[]{TEXT_DIM});
             }
             case SAGE_MODE -> {
-                float dmgBoost = 25 + level * 1.5f;
+                float dmgBoost = level * 2.0f;
+                int msmLv = stats.getSkillData().getLevel(SkillType.MASTERED_SAGE_MODE);
+                if (msmLv > 0) dmgBoost += msmLv * 0.4f;
                 texts.add("Damage boost: +" + String.format("%.0f", dmgBoost) + "%");
                 lines.add(new int[]{TEXT_VALUE});
                 texts.add("Speed: +15%  |  Knockback resist");
@@ -200,6 +202,16 @@ public final class NinjaSkills {
                     texts.add("\u00a76Rasengan Combo:\u00a7f 9th strike + Rasengan x " + String.format("%.0f", rsgMult * 2) + "%");
                     lines.add(new int[]{TEXT_VALUE});
                 }
+            }
+            case MASTERED_SAGE_MODE -> {
+                texts.add("Sage Mode damage: +" + String.format("%.1f", level * 0.4f) + "%");
+                lines.add(new int[]{TEXT_VALUE});
+                texts.add("ATK: +" + String.format("%.1f", level * 0.4f) + "%");
+                lines.add(new int[]{TEXT_VALUE});
+                int sgmLv = stats.getSkillData().getLevel(SkillType.SAGE_MODE);
+                float total = sgmLv * 2.0f + level * 0.4f;
+                texts.add("Total Sage Mode boost: +" + String.format("%.1f", total) + "%");
+                lines.add(new int[]{TEXT_DIM});
             }
             default -> {}
         }
@@ -841,11 +853,15 @@ public final class NinjaSkills {
         return level * 0.15f;
     }
 
-    /** Sage Mode damage multiplier (1.0 = no boost). Buffed: ~27-48% at lv1-15. */
+    /** Sage Mode damage multiplier (1.0 = no boost). Base: 2% per level (max 40% at lv20).
+     *  Mastered Sage Mode: +0.4% per level (max +10% at lv25). Total cap: 50%. */
     public static float getSageModeDamageMultiplier(SkillData sd) {
         if (!sd.isToggleActive(SkillType.SAGE_MODE)) return 1.0f;
         int level = sd.getLevel(SkillType.SAGE_MODE);
-        return 1.0f + (25 + level * 1.5f) / 100.0f;
+        float bonus = level * 2.0f;
+        int msmLv = sd.getLevel(SkillType.MASTERED_SAGE_MODE);
+        if (msmLv > 0) bonus += msmLv * 0.4f;
+        return 1.0f + bonus / 100.0f;
     }
 
     /** Eight Inner Gates damage multiplier. Only applies below 30% HP. */

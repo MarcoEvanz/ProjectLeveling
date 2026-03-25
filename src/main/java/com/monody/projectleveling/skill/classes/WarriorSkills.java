@@ -30,6 +30,7 @@ public final class WarriorSkills {
             SkillType.SLASH_BLAST, SkillType.WAR_CRY, SkillType.WARRIOR_MASTERY,
             SkillType.SPIRIT_BLADE, SkillType.GROUND_SLAM, SkillType.FINAL_ATTACK,
             SkillType.BEAM_BLADE, SkillType.UNBREAKABLE, SkillType.BERSERKER_SPIRIT,
+            SkillType.HEAVEN_SWORD, SkillType.WARLORDS_COMMAND,
     };
 
     private WarriorSkills() {}
@@ -91,6 +92,16 @@ public final class WarriorSkills {
     /** Berserker Spirit: +1% Final Attack chance per level */
     public static float getBerserkerFinalAttackBonus(int level) { return level * 1.0f; }
 
+    /** Heaven Sword ATK multiplier: ATK × this value. T4 (~1250% at max lv25/str150) */
+    public static float getHeavenSwordMultiplier(int level, int str) {
+        return 4.0f + level * 0.16f + str * 0.03f;
+    }
+
+    /** Warlord's Command: bonus ATK% added to War Cry. +10% at lv25 */
+    public static float getWarlordAtkBonus(int level) { return level * 0.4f; }
+    /** Warlord's Command: bonus VIT multiplier for War Cry range. 0.1 → 0.2 at lv25 */
+    public static double getWarlordVitBonus(int level) { return level * 0.004; }
+
     // ========== TOOLTIPS ==========
 
     public static void addDetailLines(List<String> texts, List<int[]> lines,
@@ -105,7 +116,10 @@ public final class WarriorSkills {
             }
             case WAR_CRY -> {
                 float atkPct = getWarCryAtkPct(level);
-                double range = getWarCryRange(stats.getVitality());
+                int wlcLv = stats.getSkillData().getLevel(SkillType.WARLORDS_COMMAND);
+                if (wlcLv > 0) atkPct += getWarlordAtkBonus(wlcLv);
+                double vitMult = 0.1 + getWarlordVitBonus(wlcLv);
+                double range = 5 + stats.getVitality() * vitMult;
                 int dur = 10 + level;
                 texts.add("ATK buff: +" + String.format("%.0f", atkPct) + "% for " + dur + "s");
                 lines.add(new int[]{TEXT_VALUE});
@@ -181,6 +195,23 @@ public final class WarriorSkills {
                 texts.add("Final Attack bonus: +" + String.format("%.0f", getBerserkerFinalAttackBonus(level)) + "%");
                 lines.add(new int[]{TEXT_VALUE});
             }
+            case HEAVEN_SWORD -> {
+                float mult = getHeavenSwordMultiplier(level, stats.getStrength()) * 100;
+                texts.add("Damage: ATK x " + String.format("%.0f", mult) + "%");
+                lines.add(new int[]{TEXT_VALUE});
+                texts.add("Radius: 10 blocks");
+                lines.add(new int[]{TEXT_VALUE});
+                texts.add("Targets where you look (30 block range)");
+                lines.add(new int[]{TEXT_DIM});
+            }
+            case WARLORDS_COMMAND -> {
+                float atkBonus = getWarlordAtkBonus(level);
+                double vitMult = 0.1 + getWarlordVitBonus(level);
+                texts.add("War Cry ATK bonus: +" + String.format("%.1f", atkBonus) + "%");
+                lines.add(new int[]{TEXT_VALUE});
+                texts.add("War Cry VIT range multiplier: x" + String.format("%.3f", vitMult));
+                lines.add(new int[]{TEXT_VALUE});
+            }
             default -> {}
         }
     }
@@ -195,6 +226,7 @@ public final class WarriorSkills {
             case SPIRIT_BLADE -> executeSpiritBlade(player, stats, sd, level);
             case GROUND_SLAM -> executeGroundSlam(player, stats, sd, level);
             case BEAM_BLADE -> executeBeamBlade(player, stats, sd, level);
+            case HEAVEN_SWORD -> executeHeavenSword(player, stats, sd, level);
             default -> {}
         }
     }
@@ -216,11 +248,16 @@ public final class WarriorSkills {
         int durationTicks = (10 + level) * 20;
         float atkPct = getWarCryAtkPct(level);
 
+        // Warlord's Command passive: bonus ATK% and VIT range multiplier
+        int wlcLv = sd.getLevel(SkillType.WARLORDS_COMMAND);
+        if (wlcLv > 0) atkPct += getWarlordAtkBonus(wlcLv);
+        double vitMult = 0.1 + getWarlordVitBonus(wlcLv);
+
         sd.setWarCryTicks(durationTicks);
         sd.setWarCryAtkBonus(atkPct);
 
         // Pull aggro from nearby mobs
-        double range = getWarCryRange(stats.getVitality());
+        double range = 5 + stats.getVitality() * vitMult;
         AABB area = player.getBoundingBox().inflate(range);
         List<Monster> mobs = player.level().getEntitiesOfClass(Monster.class, area);
         for (Monster mob : mobs) {
@@ -335,6 +372,39 @@ public final class WarriorSkills {
             player.sendSystemMessage(Component.literal(
                     "\u00a7b[System]\u00a7r \u00a7eBeam Blade! " + hits + " enemies hit."));
         }
+    }
+
+    private static void executeHeavenSword(ServerPlayer player, PlayerStats stats, SkillData sd, int level) {
+        stats.setCurrentMp(stats.getCurrentMp() - SkillType.HEAVEN_SWORD.getMpCost(level));
+        float damage = stats.getAttack(player) * getHeavenSwordMultiplier(level, stats.getStrength());
+        damage = StatEventHandler.applySkillCrit(player, stats, sd, damage, null);
+
+        // Raycast to find impact point (where player looks, max 30 blocks)
+        double maxRange = 30;
+        Vec3 eye = player.getEyePosition();
+        Vec3 look = player.getLookAngle();
+        net.minecraft.world.phys.BlockHitResult hitResult = player.level().clip(
+                new net.minecraft.world.level.ClipContext(
+                        eye, eye.add(look.scale(maxRange)),
+                        net.minecraft.world.level.ClipContext.Block.COLLIDER,
+                        net.minecraft.world.level.ClipContext.Fluid.NONE,
+                        player));
+
+        Vec3 impact;
+        if (hitResult.getType() == net.minecraft.world.phys.HitResult.Type.BLOCK) {
+            impact = Vec3.atBottomCenterOf(hitResult.getBlockPos().above());
+        } else {
+            impact = eye.add(look.scale(maxRange));
+        }
+
+        // Spawn the falling sword entity — damage dealt on impact (1s delay)
+        com.monody.projectleveling.entity.warrior.HeavenSwordEntity sword =
+                new com.monody.projectleveling.entity.warrior.HeavenSwordEntity(
+                        player.level(), player.getUUID(), damage,
+                        impact.x, impact.y, impact.z);
+        player.level().addFreshEntity(sword);
+
+        sd.startCooldown(SkillType.HEAVEN_SWORD, level);
     }
 
     /** Called when Unbreakable passive triggers on fatal damage. */

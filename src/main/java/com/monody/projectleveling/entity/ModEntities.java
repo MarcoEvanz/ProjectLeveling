@@ -9,6 +9,7 @@ import com.monody.projectleveling.entity.kunai.ThrownKunaiEntity;
 import com.monody.projectleveling.entity.kunai.ThrownShurikenEntity;
 import com.monody.projectleveling.entity.ninja.FlyingRaijinKunaiEntity;
 import com.monody.projectleveling.entity.ninja.ShadowCloneEntity;
+import com.monody.projectleveling.entity.warrior.HeavenSwordEntity;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.MobCategory;
 import net.minecraftforge.registries.DeferredRegister;
@@ -82,4 +83,12 @@ public class ModEntities {
                             .clientTrackingRange(8)
                             .updateInterval(20)
                             .build("thrown_shuriken"));
+
+    public static final RegistryObject<EntityType<HeavenSwordEntity>> HEAVEN_SWORD =
+            ENTITIES.register("heaven_sword", () ->
+                    EntityType.Builder.<HeavenSwordEntity>of(HeavenSwordEntity::new, MobCategory.MISC)
+                            .sized(1.0f, 3.0f)
+                            .clientTrackingRange(16)
+                            .updateInterval(1)
+                            .build("heaven_sword"));
 }

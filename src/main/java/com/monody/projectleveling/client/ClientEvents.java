@@ -11,6 +11,7 @@ import com.monody.projectleveling.entity.kunai.ThrownKunaiRenderer;
 import com.monody.projectleveling.entity.kunai.ThrownShurikenRenderer;
 import com.monody.projectleveling.entity.ninja.FlyingRaijinKunaiRenderer;
 import com.monody.projectleveling.entity.ninja.ShadowCloneRenderer;
+import com.monody.projectleveling.entity.warrior.HeavenSwordRenderer;
 import com.monody.projectleveling.item.ModItems;
 import com.monody.projectleveling.network.C2SActivateSkillPacket;
 import com.monody.projectleveling.network.C2SRequestSyncPacket;
@@ -91,6 +92,7 @@ public class ClientEvents {
             event.registerEntityRenderer(ModEntities.FLYING_RAIJIN_KUNAI.get(), FlyingRaijinKunaiRenderer::new);
             event.registerEntityRenderer(ModEntities.THROWN_KUNAI.get(), ThrownKunaiRenderer::new);
             event.registerEntityRenderer(ModEntities.THROWN_SHURIKEN.get(), ThrownShurikenRenderer::new);
+            event.registerEntityRenderer(ModEntities.HEAVEN_SWORD.get(), HeavenSwordRenderer::new);
         }
     }
 

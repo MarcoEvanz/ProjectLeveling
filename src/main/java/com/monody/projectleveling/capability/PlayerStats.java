@@ -78,6 +78,11 @@ public class PlayerStats {
                 base *= 1.0f + (float) (atkPctInst.getValue() / 100.0);
             }
         }
+        // Mastered Sage Mode: +0.4% ATK per level
+        int msmLv = skillData.getLevel(SkillType.MASTERED_SAGE_MODE);
+        if (msmLv > 0) {
+            base *= 1.0f + msmLv * 0.004f;
+        }
         return base;
     }
 

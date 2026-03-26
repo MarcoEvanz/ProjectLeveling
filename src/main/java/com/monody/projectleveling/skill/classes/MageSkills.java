@@ -23,10 +23,13 @@ import static com.monody.projectleveling.skill.SkillTooltips.TEXT_VALUE;
 
 public final class MageSkills {
 
+    private static final java.util.Random RAND = new java.util.Random();
+
     public static final SkillType[] ALL = {
             SkillType.FLAME_ORB, SkillType.MAGIC_GUARD, SkillType.ELEMENTAL_DRAIN,
             SkillType.FROST_BIND, SkillType.POISON_MIST, SkillType.ELEMENT_AMPLIFICATION,
             SkillType.MIST_ERUPTION, SkillType.ARCANE_INFINITY, SkillType.ARCANE_OVERDRIVE,
+            SkillType.STAR_FALL, SkillType.ARCANE_POWER,
     };
 
     private MageSkills() {}
@@ -43,6 +46,8 @@ public final class MageSkills {
     public static float getMistEruptionDetonateMultiplier(int level, int intel) { return 1.60f + level * 0.08f + intel * 0.013f; }
     /** Mist Eruption (arcane fallback): MATK × this value. (~35% reduced) */
     public static float getMistEruptionArcaneMultiplier(int level, int intel) { return 0.80f + level * 0.04f + intel * 0.006f; }
+    /** Star Fall per-meteor: MATK × this value. */
+    public static float getStarFallMultiplier(int level, int intel) { return 1.0f + level * 0.08f + intel * 0.012f; }
 
     // ========== TOOLTIPS ==========
 
@@ -127,7 +132,7 @@ public final class MageSkills {
                 texts.add("Detonates Poison Mist for bonus damage");
                 lines.add(new int[]{TEXT_DIM});
             }
-            case INFINITY -> {
+            case ARCANE_INFINITY -> {
                 int dur = 20 + level;
                 texts.add("Duration: " + dur + "s");
                 lines.add(new int[]{TEXT_VALUE});
@@ -146,6 +151,25 @@ public final class MageSkills {
                 texts.add("Armor pen: +" + level + "%");
                 lines.add(new int[]{TEXT_VALUE});
             }
+
+            // === T4 ===
+            case STAR_FALL -> {
+                float mult = getStarFallMultiplier(level, stats.getIntelligence()) * 100;
+                texts.add("Per meteor: MATK x " + String.format("%.0f", mult) + "%");
+                lines.add(new int[]{TEXT_VALUE});
+                texts.add("Zone radius: 10 blocks");
+                lines.add(new int[]{TEXT_VALUE});
+                texts.add("Channel: 10s (rooted)");
+                lines.add(new int[]{TEXT_VALUE});
+                texts.add("~30 meteors over duration");
+                lines.add(new int[]{TEXT_DIM});
+            }
+            case ARCANE_POWER -> {
+                texts.add("MATK bonus: +10%");
+                lines.add(new int[]{TEXT_VALUE});
+                texts.add("MP drain: 2% max MP/sec");
+                lines.add(new int[]{TEXT_VALUE});
+            }
             default -> {}
         }
     }
@@ -160,7 +184,9 @@ public final class MageSkills {
             case FROST_BIND -> executeFrostBind(player, stats, sd, level);
             case POISON_MIST -> executePoisonMist(player, stats, sd, level);
             case MIST_ERUPTION -> executeMistEruption(player, stats, sd, level);
-            case INFINITY -> executeInfinity(player, stats, sd, level);
+            case ARCANE_INFINITY -> executeInfinity(player, stats, sd, level);
+            case ARCANE_POWER -> executeArcanePower(player, stats, sd, level);
+            // STAR_FALL uses hold-channel via handleHold(), not execute()
             default -> {}
         }
     }
@@ -334,6 +360,168 @@ public final class MageSkills {
         SkillParticles.playerFeet(player, 6, 0.8, ParticleTypes.WITCH);
         player.sendSystemMessage(Component.literal(
                 "\u00a7b[System]\u00a7r \u00a75Infinity +" + (sd.getInfinityStacks() * 5) + "% damage"));
+    }
+
+    // ========== ARCANE POWER (Toggle) ==========
+
+    private static void executeArcanePower(ServerPlayer player, PlayerStats stats, SkillData sd, int level) {
+        if (stats.getCurrentMp() < SkillType.ARCANE_POWER.getToggleMpPerSecond(level, stats.getMaxMp())) {
+            player.sendSystemMessage(Component.literal("\u00a7cNot enough MP!"));
+            return;
+        }
+        sd.setToggleActive(SkillType.ARCANE_POWER, true);
+        SkillParticles.playerAura(player, 12, 1.2, ParticleTypes.ENCHANT);
+        SkillSounds.playAt(player, SoundEvents.BEACON_ACTIVATE, 0.5f, 1.2f);
+        player.sendSystemMessage(Component.literal(
+                "\u00a7b[System]\u00a7r \u00a7dArcane Power activated! +10% MATK."));
+    }
+
+    // ========== STAR FALL (Hold-to-channel) ==========
+
+    public static final int STAR_FALL_MAX_TICKS = 200; // 10 seconds max
+
+    public static void startStarFallChannel(ServerPlayer player, PlayerStats stats, SkillData sd) {
+        int level = sd.getLevel(SkillType.STAR_FALL);
+        if (level <= 0) return;
+        if (sd.isOnCooldown(SkillType.STAR_FALL)) return;
+
+        int mpCost = SkillType.STAR_FALL.getMpCost(level);
+        if (stats.getCurrentMp() < mpCost) {
+            player.sendSystemMessage(Component.literal("\u00a7cNot enough MP!"));
+            return;
+        }
+        stats.setCurrentMp(stats.getCurrentMp() - mpCost);
+
+        sd.setStarFallChanneling(true);
+        sd.setStarFallTicks(0);
+        sd.setStarFallCastPos(player.getX(), player.getY(), player.getZ());
+        sd.setStarFallAngle(RAND.nextDouble() * Math.PI * 2); // fixed direction for all meteors
+        sd.setStarFallZoneLocked(false);
+        sd.setStarFallZoneStableTicks(0);
+        sd.setChannelTicks(0);
+        sd.setChannelMaxTicks(STAR_FALL_MAX_TICKS);
+        sd.setChannelSkillName("Star Fall");
+
+        // Initial zone from raycast
+        updateStarFallZone(player, sd);
+
+        if (player.level() instanceof ServerLevel sl) {
+            double zx = sd.getStarFallZoneX(), zy = sd.getStarFallZoneY(), zz = sd.getStarFallZoneZ();
+            SkillParticles.burst(sl, zx, zy + 1, zz, 30, 5.0, ParticleTypes.LAVA);
+            SkillParticles.ring(sl, zx, zy + 0.5, zz, 10.0, 24, ParticleTypes.FLAME);
+            SkillSounds.playAt(sl, zx, zy, zz, SoundEvents.END_PORTAL_SPAWN, 0.5f, 0.5f);
+        }
+
+        player.sendSystemMessage(Component.literal(
+                "\u00a7b[System]\u00a7r \u00a76Star Fall! Channeling..."));
+    }
+
+    public static void endStarFallChannel(ServerPlayer player, SkillData sd) {
+        if (!sd.isStarFallChanneling()) return;
+        sd.setStarFallChanneling(false);
+        sd.setStarFallTicks(0);
+        sd.setChannelTicks(0);
+        sd.setChannelMaxTicks(0);
+        sd.setChannelSkillName("");
+        sd.startCooldown(SkillType.STAR_FALL, sd.getLevel(SkillType.STAR_FALL));
+        player.sendSystemMessage(Component.literal(
+                "\u00a7b[System]\u00a7r \u00a77Star Fall ended."));
+    }
+
+    /** Raycast from player eyes to update the zone center position. */
+    private static void updateStarFallZone(ServerPlayer player, SkillData sd) {
+        Vec3 eye = player.getEyePosition();
+        Vec3 look = player.getLookAngle();
+        Vec3 end = eye.add(look.scale(50));
+        net.minecraft.world.phys.BlockHitResult hitResult = player.level().clip(
+                new net.minecraft.world.level.ClipContext(eye, end,
+                        net.minecraft.world.level.ClipContext.Block.COLLIDER,
+                        net.minecraft.world.level.ClipContext.Fluid.NONE, player));
+        sd.setStarFallZonePos(hitResult.getLocation().x, hitResult.getLocation().y, hitResult.getLocation().z);
+    }
+
+    /** Called every tick while Star Fall is channeling. */
+    public static void tickStarFall(ServerPlayer player, PlayerStats stats, SkillData sd) {
+        sd.setStarFallTicks(sd.getStarFallTicks() + 1);
+        sd.setChannelTicks(sd.getStarFallTicks());
+
+        // Max duration reached
+        if (sd.getStarFallTicks() >= STAR_FALL_MAX_TICKS) {
+            endStarFallChannel(player, sd);
+            return;
+        }
+
+        // Root player at cast position but allow looking around
+        player.teleportTo(sd.getStarFallCastX(), sd.getStarFallCastY(), sd.getStarFallCastZ());
+
+        // Update zone center to where player is looking (unless locked)
+        if (!sd.isStarFallZoneLocked()) {
+            double oldX = sd.getStarFallZoneX();
+            double oldZ = sd.getStarFallZoneZ();
+            updateStarFallZone(player, sd);
+            double dx = sd.getStarFallZoneX() - oldX;
+            double dz = sd.getStarFallZoneZ() - oldZ;
+            double distSq = dx * dx + dz * dz;
+            if (distSq < 1.0) { // less than 1 block movement
+                sd.setStarFallZoneStableTicks(sd.getStarFallZoneStableTicks() + 1);
+                if (sd.getStarFallZoneStableTicks() >= 40) { // 2 seconds
+                    sd.setStarFallZoneLocked(true);
+                    player.sendSystemMessage(net.minecraft.network.chat.Component.literal(
+                            "\u00a7b[System]\u00a7r \u00a7eZone locked!"));
+                }
+            } else {
+                sd.setStarFallZoneStableTicks(0);
+            }
+        }
+
+        if (!(player.level() instanceof ServerLevel sl)) return;
+
+        // Spawn 1-2 meteors every 10 ticks (0.5s)
+        if (sd.getStarFallTicks() % 10 == 0) {
+            int level = sd.getLevel(SkillType.STAR_FALL);
+            float damage = stats.getMagicAttack(player) * getStarFallMultiplier(level, stats.getIntelligence());
+            double zoneX = sd.getStarFallZoneX();
+            double zoneY = sd.getStarFallZoneY();
+            double zoneZ = sd.getStarFallZoneZ();
+
+            int meteorCount = 1 + RAND.nextInt(2);
+            double baseAngle = sd.getStarFallAngle(); // all meteors from the same direction
+
+            for (int i = 0; i < meteorCount; i++) {
+                // Target: random point within 10-block radius
+                double tAngle = RAND.nextDouble() * Math.PI * 2;
+                double tDist = RAND.nextDouble() * 10.0;
+                double tx = zoneX + Math.cos(tAngle) * tDist;
+                double tz = zoneZ + Math.sin(tAngle) * tDist;
+
+                // Spawn: all from same direction with slight spread (+/- 20 degrees)
+                double spread = (RAND.nextDouble() - 0.5) * 0.7;
+                double spawnDir = baseAngle + spread;
+                double lateralOffset = 12 + RAND.nextDouble() * 6; // 12-18 blocks out
+                double mx = tx + Math.cos(spawnDir) * lateralOffset;
+                double mz = tz + Math.sin(spawnDir) * lateralOffset;
+                double my = zoneY + 20 + RAND.nextDouble() * 5;
+
+                // Direct velocity to reach target in ~20 ticks (1 second)
+                double flightTicks = 18 + RAND.nextDouble() * 6;
+                double vx = (tx - mx) / flightTicks;
+                double vy = (zoneY - my) / flightTicks;
+                double vz = (tz - mz) / flightTicks;
+
+                // Pass (0,0,0) as power so no acceleration; use setDeltaMovement for constant velocity
+                SkillFireballEntity meteor = new SkillFireballEntity(
+                        sl, player,
+                        0, 0, 0,
+                        SkillFireballEntity.FireballType.METEOR, damage, 3.0f, level);
+                meteor.setPos(mx, my, mz);
+                meteor.setDeltaMovement(vx, vy, vz);
+                sl.addFreshEntity(meteor);
+            }
+
+            // Zone border ring
+            SkillParticles.ring(sl, zoneX, zoneY + 0.5, zoneZ, 10.0, 24, ParticleTypes.FLAME);
+            SkillParticles.ring(sl, zoneX, zoneY + 0.2, zoneZ, 10.0, 24, ParticleTypes.SMOKE);
+        }
     }
 
     // ========== TOGGLE DEACTIVATION ==========

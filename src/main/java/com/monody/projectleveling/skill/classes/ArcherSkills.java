@@ -29,6 +29,8 @@ public final class ArcherSkills {
             SkillType.ARROW_RAIN, SkillType.SOUL_ARROW, SkillType.SHARP_EYES,
             SkillType.ARROW_BOMB, SkillType.COVERING_FIRE, SkillType.EVASION_BOOST,
             SkillType.PHOENIX, SkillType.HURRICANE, SkillType.MORTAL_BLOW,
+            SkillType.STORM_OF_ARROWS,
+            SkillType.HAWK_EYE,
     };
 
     private ArcherSkills() {}
@@ -47,6 +49,8 @@ public final class ArcherSkills {
     public static float getPhoenixMultiplier(int level, int dex) { return 0.38f + level * 0.03f + dex * 0.005f; }
     /** Hurricane per-arrow multiplier: ATK × this value. (+50% buffed) */
     public static float getHurricaneMultiplier(int level, int dex) { return 0.45f + level * 0.03f + dex * 0.006f; }
+    /** Storm of Arrows per-arrow multiplier: ATK × this value. */
+    public static float getStormOfArrowsMultiplier(int level, int dex) { return 0.5f + level * 0.047f + dex * 0.0027f; }
 
     // ================================================================
     // Tooltips
@@ -148,6 +152,27 @@ public final class ArcherSkills {
                 texts.add("Execute chance: " + String.format("%.1f", level * 0.5) + "%");
                 lines.add(new int[]{TEXT_VALUE});
             }
+
+            // === T4 ===
+            case STORM_OF_ARROWS -> {
+                float mult = getStormOfArrowsMultiplier(level, stats.getDexterity()) * 100;
+                texts.add("Dmg/arrow: ATK x " + String.format("%.0f", mult) + "%");
+                lines.add(new int[]{TEXT_VALUE});
+                texts.add("Arrows: 2-3 every 5s for 30s (0.5s apart)");
+                lines.add(new int[]{TEXT_VALUE});
+                texts.add("Range: " + String.format("%.1f", 10 + stats.getDexterity() * 0.1) + " blocks");
+                lines.add(new int[]{TEXT_VALUE});
+                texts.add("Homing arrows from the sky, bypasses I-frame");
+                lines.add(new int[]{TEXT_DIM});
+            }
+
+            // === T5 ===
+            case HAWK_EYE -> {
+                texts.add("Crit rate: +" + level + "%");
+                lines.add(new int[]{TEXT_VALUE});
+                texts.add("Crit damage: +" + (level * 2) + "%");
+                lines.add(new int[]{TEXT_VALUE});
+            }
             default -> {}
         }
     }
@@ -164,6 +189,7 @@ public final class ArcherSkills {
             case COVERING_FIRE -> executeCoveringFire(player, stats, sd, level);
             case PHOENIX -> executePhoenix(player, stats, sd, level);
             case HURRICANE -> executeHurricane(player, stats, sd, level);
+            case STORM_OF_ARROWS -> executeStormOfArrows(player, stats, sd, level);
             default -> {}
         }
     }
@@ -375,6 +401,46 @@ public final class ArcherSkills {
             SkillParticles.spiral(sl, player.getX(), player.getY(), player.getZ(), 1.5, 2.5, 2, 8, ParticleTypes.CRIT);
         }
         player.addEffect(new MobEffectInstance(MobEffects.MOVEMENT_SLOWDOWN, 25, 1, false, false));
+    }
+
+    private static void executeStormOfArrows(ServerPlayer player, PlayerStats stats, SkillData sd, int level) {
+        stats.setCurrentMp(stats.getCurrentMp() - SkillType.STORM_OF_ARROWS.getMpCost(level));
+        sd.setStormOfArrowsTicks(600); // 30 seconds
+        if (player.level() instanceof ServerLevel sl) {
+            SkillParticles.column(sl, player.getX(), player.getZ(), player.getY(), player.getY() + 5, 0.4, 15, ParticleTypes.CRIT);
+            SkillParticles.ring(sl, player.getX(), player.getY() + 5, player.getZ(), 3.0, 12, ParticleTypes.END_ROD);
+            SkillSounds.playAt(player, SoundEvents.CROSSBOW_SHOOT, 1.0f, 0.6f);
+            SkillSounds.playAt(player, SoundEvents.UI_TOAST_CHALLENGE_COMPLETE, 0.5f, 1.5f);
+        }
+        sd.startCooldown(SkillType.STORM_OF_ARROWS, level);
+        player.sendSystemMessage(Component.literal(
+                "\u00a7b[System]\u00a7r \u00a7eStorm of Arrows! Arrows will rain for 30s."));
+    }
+
+    /** Called every tick while Storm of Arrows is active. 2-3 arrows per batch, staggered 0.5s apart, every 5s. */
+    public static void tickStormOfArrows(ServerPlayer player, PlayerStats stats, SkillData sd) {
+        int rem = sd.getStormOfArrowsTicks() % 100;
+        // Arrow 1 at batch start, arrow 2 at 0.5s later, arrow 3 (50% chance) at 1.0s later
+        boolean spawn = rem == 0 || rem == 90 || (rem == 80 && player.getRandom().nextBoolean());
+        if (!spawn) return;
+        if (!(player.level() instanceof ServerLevel sl)) return;
+
+        int level = sd.getLevel(SkillType.STORM_OF_ARROWS);
+        double range = 10 + stats.getDexterity() * 0.1;
+        float damage = stats.getAttack(player) * getStormOfArrowsMultiplier(level, stats.getDexterity());
+
+        List<Monster> mobs = sl.getEntitiesOfClass(Monster.class, player.getBoundingBox().inflate(range));
+        if (mobs.isEmpty()) return;
+
+        Monster target = mobs.get(player.getRandom().nextInt(mobs.size()));
+        SkillArrowEntity arrow = new SkillArrowEntity(
+                sl, player, SkillArrowEntity.ArrowType.STORM, damage, 0, 0);
+        arrow.setPos(target.getX(), target.getY() + target.getBbHeight() * 0.5 + 12, target.getZ());
+        arrow.shoot(0, -1, 0, 3.0f, 0.5f);
+        sl.addFreshEntity(arrow);
+
+        SkillSounds.playAt(sl, player.getX(), player.getY(), player.getZ(),
+                SoundEvents.CROSSBOW_SHOOT, 0.5f, 1.3f);
     }
 
     // ================================================================

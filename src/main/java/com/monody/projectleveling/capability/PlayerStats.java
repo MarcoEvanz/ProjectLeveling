@@ -4,6 +4,7 @@ import com.monody.projectleveling.item.ModAttributes;
 import com.monody.projectleveling.skill.PlayerClass;
 import com.monody.projectleveling.skill.SkillData;
 import com.monody.projectleveling.skill.SkillType;
+import com.monody.projectleveling.skill.classes.AssassinSkills;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.world.entity.ai.attributes.AttributeInstance;
 import net.minecraft.world.entity.player.Player;
@@ -65,23 +66,43 @@ public class PlayerStats {
 
     /** Physical Attack: derived from STR, LUK, DEX, AGI. Used in tooltips (no player context). */
     public float getAttack() {
-        return 1 + (strength - 1) * 0.1f + (luck - 1) * 0.07f + (dexterity - 1) * 0.07f + (agility - 1) * 0.05f;
+        return 1 + (strength - 1) * 0.1f + (luck - 1) * 0.05f + (dexterity - 1) * 0.05f + (agility - 1) * 0.05f;
     }
 
-    /** Physical Attack including weapon + ATK%. Use in execution where player is available. */
+    /**
+     * Full ATK value: (base stats + weapon) × (1 + ATK%/100) + Spirit Blade flat.
+     * Used by skills and anywhere the complete ATK is needed.
+     */
     public float getAttack(Player player) {
-        float base = 1 + (strength - 1) * 0.1f + (luck - 1) * 0.07f + (dexterity - 1) * 0.07f + (agility - 1) * 0.05f;
+        float base = getAttack(); // base stats only
         if (player != null) {
             base += com.monody.projectleveling.skill.SkillExecutor.getWeaponDamage(player);
+        }
+        // ATK%: equipment + War Cry + Mastered Sage Mode
+        double atkPct = 0;
+        if (player != null) {
             AttributeInstance atkPctInst = player.getAttribute(ModAttributes.ATTACK_PERCENT.get());
             if (atkPctInst != null && atkPctInst.getValue() > 0) {
-                base *= 1.0f + (float) (atkPctInst.getValue() / 100.0);
+                atkPct += atkPctInst.getValue();
             }
         }
-        // Mastered Sage Mode: +0.4% ATK per level
+        if (skillData.getWarCryTicks() > 0) {
+            atkPct += skillData.getWarCryAtkBonus();
+        }
+        // Spirit Blade: ATK% buff
+        if (skillData.getSpiritBladeTicks() > 0) {
+            atkPct += skillData.getSpiritBladeAtk();
+        }
         int msmLv = skillData.getLevel(SkillType.MASTERED_SAGE_MODE);
         if (msmLv > 0) {
-            base *= 1.0f + msmLv * 0.004f;
+            atkPct += msmLv * 0.4;
+        }
+        int lmLv = skillData.getLevel(SkillType.LETHAL_MASTERY);
+        if (lmLv > 0) {
+            atkPct += AssassinSkills.getLethalMasteryAtkPct(lmLv);
+        }
+        if (atkPct > 0) {
+            base *= 1.0f + (float) (atkPct / 100.0);
         }
         return base;
     }
@@ -105,6 +126,10 @@ public class PlayerStats {
         int semLv = skillData.getLevel(SkillType.SIX_EYES_MASTERED);
         if (semLv > 0) {
             base *= 1.0f + semLv * 0.005f;
+        }
+        // Arcane Power toggle: +10% MATK
+        if (skillData.isToggleActive(SkillType.ARCANE_POWER)) {
+            base *= 1.10f;
         }
         return base;
     }

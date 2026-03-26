@@ -40,9 +40,9 @@ public enum SkillType {
     SHADOW_STRIKE("shadow_strike", "Shadow Strike", 10, 1, PlayerClass.ASSASSIN, 10, false, false,
             22, 16, 280, 100,
             "Empower your next attack with bonus shadow damage.", "SS"),
-    VENOM("venom", "Venom", 10, 1, PlayerClass.ASSASSIN, 10, false, false,
-            18, 14, 300, 150,
-            "Coat weapon in poison. Attacks apply stacking poison DoT.", "VN"),
+    VENOM("venom", "Bleeding Edge", 10, 1, PlayerClass.ASSASSIN, 10, false, true,
+            0, 0, 0, 0,
+            "Passive. Attacks have a chance to cause bleeding. Stacks up to 10.", "BE"),
     CRITICAL_EDGE("critical_edge", "Critical Edge", 10, 1, PlayerClass.ASSASSIN, 10, false, true,
             0, 0, 0, 0,
             "Passive. +1% crit rate and +2% crit damage per level.", "CE",
@@ -255,9 +255,9 @@ public enum SkillType {
             stat(CRIT, 1.0)),
 
     // --- Assassin ---
-    RULERS_AUTHORITY("rulers_authority", "Ruler's Authority", 20, 3, PlayerClass.ASSASSIN, 60, false, false,
+    SHADOW_SNEAK("shadow_sneak", "Shadow Sneak", 20, 3, PlayerClass.ASSASSIN, 60, false, false,
             38, 26, 500, 160,
-            "Pull nearby enemies toward you with telekinetic force.", "RA"),
+            "Mark a target, then teleport behind it for a devastating strike.", "SS"),
     SHADOW_PARTNER("shadow_partner", "Shadow Partner", 20, 3, PlayerClass.ASSASSIN, 60, true, false,
             40, 20, 0, 0,
             "Toggle. Shadow clone mirrors attacks at 30-40% damage.", "SP"),
@@ -268,6 +268,14 @@ public enum SkillType {
     SHADOW_LEGION("shadow_legion", "Shadow Legion", 20, 3, PlayerClass.ASSASSIN, 60, false, true,
             0, 0, 0, 0,
             "Passive. 2nd Shadow Partner, auto-attacks, counter on dodge, reduced MP penalty.", "SL"),
+
+    // --- Assassin T4 ---
+    FINAL_BLOW("final_blow", "Final Blow", 25, 4, PlayerClass.ASSASSIN, 100, false, false,
+            50, 30, 600, 300,
+            "Buff next attack. Consumes bleed stacks for massive bonus damage.", "FLB"),
+    LETHAL_MASTERY("lethal_mastery", "Lethal Mastery", 25, 4, PlayerClass.ASSASSIN, 100, false, true,
+            0, 0, 0, 0,
+            "Passive. +ATK% and +Bleed chance per level.", "LM"),
 
     // --- Archer ---
     PHOENIX("phoenix", "Phoenix", 20, 3, PlayerClass.ARCHER, 60, false, false,
@@ -281,6 +289,17 @@ public enum SkillType {
             "Passive. +2% damage vs low HP mobs. Execute chance on projectiles.", "MB",
             statTag(DMG, 2.0)),
 
+    // --- Archer T4 ---
+    STORM_OF_ARROWS("storm_of_arrows", "Storm of Arrows", 25, 4, PlayerClass.ARCHER, 100, false, false,
+            60, 40, 1200, 1200,
+            "Rain homing arrows on enemies every 5s for 30s. Bypasses I-frame.", "SOA"),
+
+    // --- Archer T5 ---
+    HAWK_EYE("hawk_eye", "Hawk Eye", 5, 5, PlayerClass.ARCHER, 120, false, true,
+            0, 0, 0, 0,
+            "Passive. +1% crit rate, +2% crit dmg per level.", "HE",
+            stat(CRIT, 1.0), stat(CDMG, 2.0)),
+
     // --- Healer ---
     BENEDICTION("benediction", "Benediction", 20, 3, PlayerClass.HEALER, 60, false, false,
             55, 40, 1800, 900,
@@ -291,6 +310,11 @@ public enum SkillType {
     BLESSED_ENSEMBLE("blessed_ensemble", "Blessed Ensemble", 20, 3, PlayerClass.HEALER, 60, false, true,
             0, 0, 0, 0,
             "Passive. +3% damage per nearby player. +5% XP per nearby player.", "BE"),
+
+    // --- Healer T4 ---
+    MAGIC_FINALE("magic_finale", "Magic: Finale", 25, 4, PlayerClass.HEALER, 100, false, false,
+            80, 55, 1800, 1800,
+            "Channel 5s. Draw magic circle, then massive beam from the sky.", "MF"),
 
     // --- Mage ---
     MIST_ERUPTION("mist_eruption", "Mist Eruption", 20, 3, PlayerClass.MAGE, 60, false, false,
@@ -303,6 +327,14 @@ public enum SkillType {
             0, 0, 0, 0,
             "Passive. +1.5% crit rate, +1% crit damage, +1% armor pen per level.", "AO",
             stat(CRIT, 1.5), stat(CDMG, 1.0)),
+
+    // --- Mage T4 ---
+    STAR_FALL("star_fall", "Star Fall", 25, 4, PlayerClass.MAGE, 100, false, false,
+            70, 45, 1200, 1200,
+            "Channel. Rain meteors on a zone for 10s. Cannot move while casting.", "SF"),
+    ARCANE_POWER("arcane_power", "Arcane Power", 25, 4, PlayerClass.MAGE, 100, true, false,
+            20, 20, 0, 0,
+            "Toggle. Drain 2% max MP/s. +10% Magic Attack while active.", "AP"),
 
     // --- Ninja T3 ---
     RASENGAN("rasengan", "Rasengan", 20, 3, PlayerClass.NINJA, 60, false, false,
@@ -320,7 +352,7 @@ public enum SkillType {
 
     // --- Ninja T4 ---
     FLYING_RAIJIN_SSRZ("flying_raijin_ssrz", "FR: Shippu Senko Rennodan Zeroshiki", 25, 4, PlayerClass.NINJA, 100, false, false,
-            60, 40, 600, 300,
+            60, 40, 1200, 1200,
             "Throw kunai. On hit: mark target, then 9 teleport strikes. 9th = massive finisher.", "SSRZ"),
     MASTERED_SAGE_MODE("mastered_sage_mode", "Mastered Sage Mode", 25, 4, PlayerClass.NINJA, 100, false, true,
             0, 0, 0, 0,
@@ -350,6 +382,14 @@ public enum SkillType {
     ENHANCE_UNDEAD("enhance_undead", "Enhance Undead", 20, 3, PlayerClass.NECROMANCER, 60, false, true,
             0, 0, 0, 0,
             "Passive. +1% summon damage per level. Max level: summon Wither Skeletons.", "EU"),
+
+    // --- Necromancer T4 ---
+    NIGHT_OF_THE_LIVING_DEAD("night_of_the_living_dead", "Night of The Living Dead", 25, 4, PlayerClass.NECROMANCER, 100, false, false,
+            80, 55, 1800, 1800,
+            "Domain. Minions speed x2, you and minions cannot die inside. 30s.", "NLD"),
+    UNDEAD_ARMAMENT("undead_armament", "Undead Armament", 20, 4, PlayerClass.NECROMANCER, 100, false, true,
+            0, 0, 0, 0,
+            "Passive. Summoned skeletons gain armor. Quality scales with level.", "UA"),
 
     // --- Beast Master T3 (passives) ---
     TIGER_CLAW_MASTERY_2("tiger_claw_mastery_2", "Tiger Claw Mastery (+1)", 20, 3, PlayerClass.BEAST_MASTER, 60, false, true,

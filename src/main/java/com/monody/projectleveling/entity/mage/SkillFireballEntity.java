@@ -32,10 +32,11 @@ import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.EntityHitResult;
 
 import java.util.List;
+import java.util.concurrent.ThreadLocalRandom;
 
 public class SkillFireballEntity extends AbstractHurtingProjectile implements ItemSupplier {
 
-    public enum FireballType { FLAME_ORB, ANGEL_RAY }
+    public enum FireballType { FLAME_ORB, ANGEL_RAY, METEOR }
 
     private static final EntityDataAccessor<Integer> DATA_TYPE =
             SynchedEntityData.defineId(SkillFireballEntity.class, EntityDataSerializers.INT);
@@ -43,6 +44,8 @@ public class SkillFireballEntity extends AbstractHurtingProjectile implements It
     private float damage = 4.0f;
     private float aoeRadius = 3.0f;
     private int skillLevel = 1;
+    private boolean meteorLanded = false;
+    private int meteorFadeTicks = 0;
 
     // Required for entity registration (client-side spawn)
     public SkillFireballEntity(EntityType<? extends AbstractHurtingProjectile> type, Level level) {
@@ -72,16 +75,20 @@ public class SkillFireballEntity extends AbstractHurtingProjectile implements It
 
     @Override
     public ItemStack getItem() {
-        return getFireballType() == FireballType.FLAME_ORB
-                ? new ItemStack(Items.FIRE_CHARGE)
-                : new ItemStack(Items.NETHER_STAR);
+        return switch (getFireballType()) {
+            case FLAME_ORB -> new ItemStack(Items.FIRE_CHARGE);
+            case METEOR -> new ItemStack(Items.MAGMA_BLOCK);
+            default -> new ItemStack(Items.NETHER_STAR);
+        };
     }
 
     @Override
     protected ParticleOptions getTrailParticle() {
-        return getFireballType() == FireballType.FLAME_ORB
-                ? ParticleTypes.FLAME
-                : ParticleTypes.END_ROD;
+        return switch (getFireballType()) {
+            case FLAME_ORB -> ParticleTypes.FLAME;
+            case METEOR -> ParticleTypes.LARGE_SMOKE;
+            default -> ParticleTypes.END_ROD;
+        };
     }
 
     @Override
@@ -95,13 +102,22 @@ public class SkillFireballEntity extends AbstractHurtingProjectile implements It
     }
 
     @Override
+    protected boolean canHitEntity(net.minecraft.world.entity.Entity entity) {
+        // METEOR passes through all entities — only block collision matters
+        if (getFireballType() == FireballType.METEOR) return false;
+        return super.canHitEntity(entity);
+    }
+
+    @Override
     protected void onHitEntity(EntityHitResult result) {
+        if (meteorLanded) return;
         super.onHitEntity(result);
         explodeAndDamage();
     }
 
     @Override
     protected void onHitBlock(BlockHitResult result) {
+        if (meteorLanded) return;
         super.onHitBlock(result);
         explodeAndDamage();
     }
@@ -128,7 +144,35 @@ public class SkillFireballEntity extends AbstractHurtingProjectile implements It
             logPlayer = partner.getOwnerPlayer();
         }
 
-        if (type == FireballType.FLAME_ORB) {
+        if (type == FireballType.METEOR) {
+            // METEOR: AoE damage + random debuff
+            List<Monster> mobs = serverLevel.getEntitiesOfClass(Monster.class, area);
+            CombatLog.suppressDamageLog = true;
+            for (Monster mob : mobs) {
+                mob.hurt(src, damage);
+                mob.addEffect(getRandomDebuff());
+            }
+            CombatLog.suppressDamageLog = false;
+            if (!mobs.isEmpty() && logPlayer != null) {
+                String name = (ownerEntity instanceof ShadowPartnerEntity) ? "Shadow Star Fall" : "Star Fall";
+                float totalFinal = 0;
+                for (Monster m : mobs) totalFinal += CombatLog.afterArmor(m, src, damage);
+                CombatLog.aoe(logPlayer, name, totalFinal / mobs.size(), mobs.size());
+            }
+            // Big impact: lava burst + fire + smoke column
+            serverLevel.sendParticles(ParticleTypes.EXPLOSION_EMITTER, getX(), getY(), getZ(), 1, 0, 0, 0, 0);
+            SkillParticles.burst(serverLevel, getX(), getY(), getZ(), 20, aoeRadius * 0.6, ParticleTypes.LAVA);
+            SkillParticles.burst(serverLevel, getX(), getY() + 0.5, getZ(), 15, aoeRadius * 0.4, ParticleTypes.FLAME);
+            SkillParticles.burst(serverLevel, getX(), getY() + 1, getZ(), 10, aoeRadius * 0.3, ParticleTypes.LARGE_SMOKE);
+            SkillSounds.playAt(serverLevel, getX(), getY(), getZ(),
+                    SoundEvents.GENERIC_EXPLODE, 1.0f, 0.6f);
+            // Enter fade state instead of discarding
+            meteorLanded = true;
+            meteorFadeTicks = 30; // 1.5 seconds
+            setDeltaMovement(0, 0, 0);
+            setNoGravity(true);
+            return; // Don't discard yet
+        } else if (type == FireballType.FLAME_ORB) {
             // Damage mobs and set on fire
             List<Monster> mobs = serverLevel.getEntitiesOfClass(Monster.class, area);
             CombatLog.suppressDamageLog = true;
@@ -179,11 +223,57 @@ public class SkillFireballEntity extends AbstractHurtingProjectile implements It
         discard();
     }
 
+    private static final net.minecraft.world.effect.MobEffect[] METEOR_DEBUFFS = {
+            MobEffects.MOVEMENT_SLOWDOWN, MobEffects.WEAKNESS,
+            MobEffects.WITHER, MobEffects.POISON,
+            MobEffects.BLINDNESS, MobEffects.DIG_SLOWDOWN,
+    };
+
+    private static MobEffectInstance getRandomDebuff() {
+        net.minecraft.world.effect.MobEffect effect = METEOR_DEBUFFS[ThreadLocalRandom.current().nextInt(METEOR_DEBUFFS.length)];
+        return new MobEffectInstance(effect, 60, 0, false, true); // 3 seconds, level I
+    }
+
     @Override
     public void tick() {
+        if (meteorLanded) {
+            // Fade state: stay in place, emit diminishing particles, then discard
+            meteorFadeTicks--;
+            if (meteorFadeTicks <= 0) {
+                discard();
+                return;
+            }
+            if (level() instanceof ServerLevel sl) {
+                float fade = meteorFadeTicks / 30.0f; // 1.0 -> 0.0
+                int smokeCount = Math.max(1, (int) (4 * fade));
+                int emberCount = Math.max(1, (int) (3 * fade));
+                sl.sendParticles(ParticleTypes.CAMPFIRE_COSY_SMOKE, getX(), getY() + 0.5, getZ(),
+                        smokeCount, 0.3, 0.3, 0.3, 0.0);
+                sl.sendParticles(ParticleTypes.FLAME, getX(), getY() + 0.3, getZ(),
+                        emberCount, 0.2, 0.1, 0.2, 0.01);
+                if (meteorFadeTicks % 5 == 0) {
+                    sl.sendParticles(ParticleTypes.LAVA, getX(), getY() + 0.2, getZ(),
+                            1, 0.2, 0.1, 0.2, 0.0);
+                }
+            }
+            return;
+        }
+
         super.tick();
         // Auto-discard after 5 seconds
         if (tickCount > 100) discard();
+
+        // METEOR: fiery smoke trail while flying
+        if (getFireballType() == FireballType.METEOR && level() instanceof ServerLevel sl) {
+            sl.sendParticles(ParticleTypes.FLAME, getX(), getY(), getZ(),
+                    3, 0.2, 0.2, 0.2, 0.02);
+            sl.sendParticles(ParticleTypes.CAMPFIRE_COSY_SMOKE, getX(), getY(), getZ(),
+                    2, 0.15, 0.15, 0.15, 0.0);
+            sl.sendParticles(ParticleTypes.SMOKE, getX(), getY(), getZ(),
+                    2, 0.2, 0.2, 0.2, 0.01);
+            sl.sendParticles(ParticleTypes.LAVA, getX(), getY(), getZ(),
+                    1, 0.1, 0.1, 0.1, 0.0);
+        }
     }
 
     @Override

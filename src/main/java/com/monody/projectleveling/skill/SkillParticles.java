@@ -11,23 +11,33 @@ public class SkillParticles {
     /** Ring of particles at Y offset from center */
     public static void ring(ServerLevel level, double cx, double cy, double cz,
                             double radius, int count, ParticleOptions particle) {
+        ring(level, cx, cy, cz, radius, count, particle, false);
+    }
+
+    public static void ring(ServerLevel level, double cx, double cy, double cz,
+                            double radius, int count, ParticleOptions particle, boolean force) {
         for (int i = 0; i < count; i++) {
             double angle = 2.0 * Math.PI * i / count;
             double x = cx + radius * Math.cos(angle);
             double z = cz + radius * Math.sin(angle);
-            level.sendParticles(particle, x, cy, z, 1, 0, 0, 0, 0);
+            send(level, particle, x, cy, z, 1, 0, 0, 0, 0, force);
         }
     }
 
     /** Filled circle (disc) of random particles */
     public static void disc(ServerLevel level, double cx, double cy, double cz,
                             double radius, int count, ParticleOptions particle) {
+        disc(level, cx, cy, cz, radius, count, particle, false);
+    }
+
+    public static void disc(ServerLevel level, double cx, double cy, double cz,
+                            double radius, int count, ParticleOptions particle, boolean force) {
         for (int i = 0; i < count; i++) {
             double angle = level.random.nextDouble() * 2 * Math.PI;
             double r = Math.sqrt(level.random.nextDouble()) * radius;
             double x = cx + r * Math.cos(angle);
             double z = cz + r * Math.sin(angle);
-            level.sendParticles(particle, x, cy, z, 1, 0, 0, 0, 0);
+            send(level, particle, x, cy, z, 1, 0, 0, 0, 0, force);
         }
     }
 
@@ -47,19 +57,29 @@ public class SkillParticles {
     /** Burst of particles at a point with random spread */
     public static void burst(ServerLevel level, double x, double y, double z,
                              int count, double spread, ParticleOptions particle) {
-        level.sendParticles(particle, x, y, z, count, spread, spread, spread, 0.05);
+        burst(level, x, y, z, count, spread, particle, false);
+    }
+
+    public static void burst(ServerLevel level, double x, double y, double z,
+                             int count, double spread, ParticleOptions particle, boolean force) {
+        send(level, particle, x, y, z, count, spread, spread, spread, 0.05, force);
     }
 
     /** Line of particles from A to B */
     public static void line(ServerLevel level, Vec3 from, Vec3 to,
                             double spacing, ParticleOptions particle) {
+        line(level, from, to, spacing, particle, false);
+    }
+
+    public static void line(ServerLevel level, Vec3 from, Vec3 to,
+                            double spacing, ParticleOptions particle, boolean force) {
         Vec3 dir = to.subtract(from);
         double length = dir.length();
         if (length < 0.01) return;
         dir = dir.normalize();
         for (double d = 0; d < length; d += spacing) {
             Vec3 pos = from.add(dir.scale(d));
-            level.sendParticles(particle, pos.x, pos.y, pos.z, 1, 0, 0, 0, 0);
+            send(level, particle, pos.x, pos.y, pos.z, 1, 0, 0, 0, 0, force);
         }
     }
 
@@ -67,12 +87,18 @@ public class SkillParticles {
     public static void column(ServerLevel level, double cx, double cz,
                               double yMin, double yMax, double radius,
                               int count, ParticleOptions particle) {
+        column(level, cx, cz, yMin, yMax, radius, count, particle, false);
+    }
+
+    public static void column(ServerLevel level, double cx, double cz,
+                              double yMin, double yMax, double radius,
+                              int count, ParticleOptions particle, boolean force) {
         for (int i = 0; i < count; i++) {
             double angle = level.random.nextDouble() * 2 * Math.PI;
             double r = level.random.nextDouble() * radius;
             double y = yMin + level.random.nextDouble() * (yMax - yMin);
-            level.sendParticles(particle, cx + r * Math.cos(angle), y,
-                    cz + r * Math.sin(angle), 1, 0, 0.05, 0, 0);
+            send(level, particle, cx + r * Math.cos(angle), y,
+                    cz + r * Math.sin(angle), 1, 0, 0.05, 0, 0, force);
         }
     }
 
@@ -156,9 +182,28 @@ public class SkillParticles {
     public static void explosion(ServerLevel level, double x, double y, double z,
                                  double radius, ParticleOptions primary,
                                  ParticleOptions secondary) {
-        burst(level, x, y, z, 30, radius * 0.5, primary);
-        ring(level, x, y, z, radius, 20, secondary);
-        level.sendParticles(ParticleTypes.EXPLOSION, x, y, z, 1, 0, 0, 0, 0);
+        explosion(level, x, y, z, radius, primary, secondary, false);
+    }
+
+    public static void explosion(ServerLevel level, double x, double y, double z,
+                                 double radius, ParticleOptions primary,
+                                 ParticleOptions secondary, boolean force) {
+        burst(level, x, y, z, 30, radius * 0.5, primary, force);
+        ring(level, x, y, z, radius, 20, secondary, force);
+        send(level, ParticleTypes.EXPLOSION, x, y, z, 1, 0, 0, 0, 0, force);
+    }
+
+    /** Send particle with optional force (512-block render distance) */
+    private static void send(ServerLevel level, ParticleOptions particle,
+                             double x, double y, double z, int count,
+                             double dx, double dy, double dz, double speed, boolean force) {
+        if (force) {
+            for (ServerPlayer p : level.players()) {
+                level.sendParticles(p, particle, true, x, y, z, count, dx, dy, dz, speed);
+            }
+        } else {
+            level.sendParticles(particle, x, y, z, count, dx, dy, dz, speed);
+        }
     }
 
     /** Claw slash arc from attacker toward target at target position */

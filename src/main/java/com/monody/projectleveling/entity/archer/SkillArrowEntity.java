@@ -33,7 +33,7 @@ import java.util.List;
 
 public class SkillArrowEntity extends AbstractArrow {
 
-    public enum ArrowType { RAIN, BOMB, COVERING_FIRE, RAIN_SCOUT, HURRICANE }
+    public enum ArrowType { RAIN, BOMB, COVERING_FIRE, RAIN_SCOUT, HURRICANE, STORM }
 
     private static final EntityDataAccessor<Integer> DATA_TYPE =
             SynchedEntityData.defineId(SkillArrowEntity.class, EntityDataSerializers.INT);
@@ -100,11 +100,24 @@ public class SkillArrowEntity extends AbstractArrow {
             return;
         }
 
+        // Hurricane and Storm bypass invulnerability frames (like Rain)
+        if (type == ArrowType.HURRICANE || type == ArrowType.STORM) {
+            if (result.getEntity() instanceof LivingEntity target) {
+                target.invulnerableTime = 0;
+            }
+            CombatLog.nextSource = type == ArrowType.HURRICANE ? "Hurricane" : "Storm of Arrows";
+            super.onHitEntity(result);
+            if (result.getEntity() instanceof LivingEntity target) {
+                target.invulnerableTime = 0;
+            }
+            discard();
+            return;
+        }
+
         // Tag the damage source for combat log
         switch (type) {
             case BOMB -> CombatLog.nextSource = "Arrow Bomb";
             case COVERING_FIRE -> CombatLog.nextSource = "Covering Fire";
-            case HURRICANE -> CombatLog.nextSource = "Hurricane";
             default -> {}
         }
         super.onHitEntity(result);

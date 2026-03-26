@@ -274,34 +274,34 @@ public class StatusScreen extends Screen {
     }
 
     private int renderDamageStats(GuiGraphics g, PlayerStats stats, SkillData sd, Player player, int left, int rowY) {
-        int kmLv = sd.getLevel(SkillType.KUNAI_MASTERY);
-
         // ATK% (calculated first, applied to ATK)
         double equipAtkPct = getEquipModifier(player, ModAttributes.ATTACK_PERCENT.get());
         double atkPct = equipAtkPct;
         if (sd.getWarCryTicks() > 0) atkPct += sd.getWarCryAtkBonus();
+        float sbPct = sd.getSpiritBladeTicks() > 0 ? sd.getSpiritBladeAtk() : 0;
+        if (sbPct > 0) atkPct += sbPct;
 
-        // ATK = (base + weapon + skills) * (1 + ATK%/100) + flat bonuses
-        double dmg = 1 + (stats.getStrength() - 1) * 0.1 + (stats.getLuck() - 1) * 0.05 + (stats.getDexterity() - 1) * 0.05;
+        // ATK: single source — getAttack(player). Tags for display breakdown only.
+        double totalAtk = stats.getAttack(player);
         float weaponDmg = SkillExecutor.getWeaponDamage(player);
-        float kmBonus = kmLv > 0 ? stats.getAgility() * 0.08f * kmLv / 10.0f : 0;
-        dmg += kmBonus;
-        double baseAtk = dmg + weaponDmg;
+        double baseAtk = stats.getAttack() + weaponDmg; // before ATK%
 
-        Tags atkTags = new Tags().base("WPN", weaponDmg).base("KM", kmBonus)
-                .buff("ATK%", baseAtk * equipAtkPct / 100.0);
+        int msmLv = sd.getLevel(SkillType.MASTERED_SAGE_MODE);
+        double msmPct = msmLv > 0 ? msmLv * 0.4 : 0;
+
+        Tags atkTags = new Tags().base("WPN", weaponDmg);
+        if (equipAtkPct > 0) atkTags.buff("ATK%", baseAtk * equipAtkPct / 100.0);
         if (sd.getWarCryTicks() > 0) atkTags.buff("WC", baseAtk * sd.getWarCryAtkBonus() / 100.0);
-        if (sd.getSpiritBladeTicks() > 0) atkTags.flat("SB", sd.getSpiritBladeAtk());
-
-        double totalAtk = baseAtk;
-        if (atkPct > 0) totalAtk *= (1.0 + atkPct / 100.0);
-        if (sd.getSpiritBladeTicks() > 0) totalAtk += sd.getSpiritBladeAtk();
+        if (sbPct > 0) atkTags.buff("SB", baseAtk * sbPct / 100.0);
+        if (msmPct > 0) atkTags.buff("MSM", baseAtk * msmPct / 100.0);
         drawStat(g, "ATK:", String.format("+%.2f", totalAtk) + atkTags, left, rowY);
 
-        // ATK% display
+        // ATK% display (includes MSM)
         rowY += lineH;
         Tags atkPctTags = new Tags().pct("WPN+", equipAtkPct);
         if (sd.getWarCryTicks() > 0) atkPctTags.pct("WC+", sd.getWarCryAtkBonus());
+        if (sbPct > 0) atkPctTags.pct("SB+", sbPct);
+        if (msmPct > 0) atkPctTags.pct("MSM+", msmPct);
         drawStat(g, "ATK%:", String.format("+%.0f%%", atkPct) + atkPctTags, left, rowY);
 
         // MATK = (INT-base + staff) * (1 + MATK%/100)

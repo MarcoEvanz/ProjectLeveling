@@ -13,6 +13,9 @@ import net.minecraft.sounds.SoundEvents;
 import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.entity.monster.Monster;
+import net.minecraft.world.entity.EquipmentSlot;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 
@@ -28,6 +31,7 @@ public final class NecromancerSkills {
             SkillType.BONE_SHIELD, SkillType.CORPSE_EXPLOSION, SkillType.SOUL_SIPHON, SkillType.SKELETAL_MASTERY,
             SkillType.ARMY_OF_THE_DEAD, SkillType.DEATH_MARK, SkillType.UNDYING_WILL, SkillType.SOUL_LINK,
             SkillType.ENHANCE_UNDEAD, SkillType.DARK_RESONANCE,
+            SkillType.NIGHT_OF_THE_LIVING_DEAD, SkillType.UNDEAD_ARMAMENT,
     };
 
     private NecromancerSkills() {}
@@ -191,6 +195,28 @@ public final class NecromancerSkills {
                 texts.add("Crits apply Wither I for 2s");
                 lines.add(new int[]{TEXT_VALUE});
             }
+            case NIGHT_OF_THE_LIVING_DEAD -> {
+                texts.add("Domain radius: 20 blocks");
+                lines.add(new int[]{TEXT_VALUE});
+                texts.add("Duration: 30s");
+                lines.add(new int[]{TEXT_VALUE});
+                texts.add("Minion speed: x2 inside domain");
+                lines.add(new int[]{TEXT_VALUE});
+                texts.add("You and minions cannot die inside domain");
+                lines.add(new int[]{TEXT_VALUE});
+            }
+            case UNDEAD_ARMAMENT -> {
+                String material = level >= 20 ? "Diamond" : level >= 13 ? "Iron" : level >= 9 ? "Chainmail" : "Leather";
+                String pieces = level >= 13 ? "Full set" : level >= 9 ? "Boots + Legs + Chest" : level >= 5 ? "Boots + Legs" : "Boots";
+                texts.add("Armor: " + material);
+                lines.add(new int[]{TEXT_VALUE});
+                texts.add("Pieces: " + pieces);
+                lines.add(new int[]{TEXT_VALUE});
+                if (level < 20) {
+                    texts.add("Lv5: +Legs | Lv9: +Chest (Chain) | Lv13: +Helm (Iron) | Lv20: Diamond");
+                    lines.add(new int[]{TEXT_DIM});
+                }
+            }
             default -> {}
         }
     }
@@ -208,6 +234,7 @@ public final class NecromancerSkills {
             case DEATH_MARK -> executeDeathMark(player, stats, sd, level);
             case UNHOLY_FERVOR -> executeUnholyFervor(player, stats, sd, level);
             case SOUL_LINK -> executeSoulLink(player, stats, sd, level);
+            case NIGHT_OF_THE_LIVING_DEAD -> executeNightDomain(player, stats, sd, level);
             default -> {}
         }
     }
@@ -260,6 +287,8 @@ public final class NecromancerSkills {
             despawnRaisedSkeleton(player, sl);
             SkeletonMinionEntity minion = new SkeletonMinionEntity(sl, player, minionHp, minionDmg, level);
             if (euLv >= 20) minion.setWitherVariant(true);
+            int uaLv = sd.getLevel(SkillType.UNDEAD_ARMAMENT);
+            if (uaLv > 0) equipMinionArmor(minion, uaLv);
             Vec3 behind = player.position().subtract(player.getLookAngle().scale(2.0));
             minion.setPos(behind.x, behind.y, behind.z);
             sl.addFreshEntity(minion);
@@ -353,6 +382,7 @@ public final class NecromancerSkills {
         float minionHp = (20 + mindStat * 0.5f) * 0.5f;
         minionHp *= (1 + uwLv * 0.02f);
         boolean wither = euLv >= 20;
+        int uaLv = sd.getLevel(SkillType.UNDEAD_ARMAMENT);
 
         // Spawn 5 skeletons in a circle around the player
         for (int i = 0; i < 5; i++) {
@@ -363,6 +393,7 @@ public final class NecromancerSkills {
             SkeletonMinionEntity minion = new SkeletonMinionEntity(sl, player, minionHp, minionDmg, level);
             minion.setArmyMinion(true);
             if (wither) minion.setWitherVariant(true);
+            if (uaLv > 0) equipMinionArmor(minion, uaLv);
             minion.setPos(player.getX() + ox, player.getY(), player.getZ() + oz);
             sl.addFreshEntity(minion);
 
@@ -496,6 +527,64 @@ public final class NecromancerSkills {
                 "\u00a7b[System]\u00a7r \u00a75Soul Link activated. Damage shared with minions."));
     }
 
+    // ========== NIGHT OF THE LIVING DEAD (Domain) ==========
+
+    public static final int NIGHT_DOMAIN_RADIUS = 20;
+    public static final int NIGHT_DOMAIN_TICKS = 600; // 30 seconds
+
+    private static void executeNightDomain(ServerPlayer player, PlayerStats stats, SkillData sd, int level) {
+        stats.setCurrentMp(stats.getCurrentMp() - SkillType.NIGHT_OF_THE_LIVING_DEAD.getMpCost(level));
+        sd.setNightDomainTicks(NIGHT_DOMAIN_TICKS);
+        sd.setNightDomainPos(player.getX(), player.getY(), player.getZ());
+
+        if (player.level() instanceof ServerLevel sl) {
+            // Domain activation visuals
+            SkillParticles.disc(sl, player.getX(), player.getY() + 0.2, player.getZ(),
+                    NIGHT_DOMAIN_RADIUS, 60, ParticleTypes.SOUL_FIRE_FLAME);
+            SkillParticles.ring(sl, player.getX(), player.getY() + 0.1, player.getZ(),
+                    NIGHT_DOMAIN_RADIUS, 40, ParticleTypes.SOUL);
+            SkillParticles.burst(sl, player.getX(), player.getY() + 1, player.getZ(),
+                    30, 1.5, ParticleTypes.SOUL_FIRE_FLAME);
+            SkillSounds.playAt(player, SoundEvents.WITHER_SPAWN, 1.0f, 0.6f);
+            SkillSounds.playAt(player, SoundEvents.ENDER_DRAGON_GROWL, 0.6f, 0.5f);
+        }
+
+        sd.startCooldown(SkillType.NIGHT_OF_THE_LIVING_DEAD, level);
+        player.sendSystemMessage(Component.literal(
+                "\u00a7b[System]\u00a7r \u00a74Night of The Living Dead! Domain deployed."));
+    }
+
+    /** Called every tick while the domain is active. Handles visuals. */
+    public static void tickNightDomain(ServerPlayer player, SkillData sd) {
+        if (!(player.level() instanceof ServerLevel sl)) return;
+
+        // Ambient particles along domain edge every 10 ticks
+        if (player.tickCount % 10 == 0) {
+            double cx = sd.getNightDomainX();
+            double cy = sd.getNightDomainY();
+            double cz = sd.getNightDomainZ();
+            SkillParticles.ring(sl, cx, cy + 0.1, cz, NIGHT_DOMAIN_RADIUS, 16, ParticleTypes.SOUL);
+        }
+
+        // Periodic ground particles every 20 ticks
+        if (player.tickCount % 20 == 0) {
+            double cx = sd.getNightDomainX();
+            double cy = sd.getNightDomainY();
+            double cz = sd.getNightDomainZ();
+            SkillParticles.disc(sl, cx, cy + 0.1, cz, NIGHT_DOMAIN_RADIUS, 12, ParticleTypes.SOUL_FIRE_FLAME);
+        }
+    }
+
+    /** Check if a position is inside the active Night domain. */
+    public static boolean isInsideNightDomain(SkillData sd, double x, double y, double z) {
+        if (sd.getNightDomainTicks() <= 0) return false;
+        double dx = x - sd.getNightDomainX();
+        double dy = y - sd.getNightDomainY();
+        double dz = z - sd.getNightDomainZ();
+        return (dx * dx + dz * dz) <= NIGHT_DOMAIN_RADIUS * NIGHT_DOMAIN_RADIUS
+                && Math.abs(dy) <= 10; // vertical tolerance
+    }
+
     // ========== HELPER METHODS ==========
 
     public static float getUnholyFervorDamageBonus(int level) {
@@ -516,6 +605,41 @@ public final class NecromancerSkills {
 
     public static float getSkeletalMasteryDamageReduction(int level) {
         return (3 + level * 0.3f) / 100.0f;
+    }
+
+    /** Equip armor pieces on a skeleton minion based on Undead Armament level. */
+    public static void equipMinionArmor(SkeletonMinionEntity minion, int level) {
+        if (level <= 0) return;
+
+        // Determine material tier
+        boolean diamond = level >= 20;
+        boolean iron = level >= 13;
+        boolean chain = level >= 9;
+
+        // Boots (level 1+)
+        minion.setItemSlot(EquipmentSlot.FEET, new ItemStack(
+                diamond ? Items.DIAMOND_BOOTS : iron ? Items.IRON_BOOTS :
+                chain ? Items.CHAINMAIL_BOOTS : Items.LEATHER_BOOTS));
+
+        // Leggings (level 5+)
+        if (level >= 5) {
+            minion.setItemSlot(EquipmentSlot.LEGS, new ItemStack(
+                    diamond ? Items.DIAMOND_LEGGINGS : iron ? Items.IRON_LEGGINGS :
+                    chain ? Items.CHAINMAIL_LEGGINGS : Items.LEATHER_LEGGINGS));
+        }
+
+        // Chestplate (level 9+)
+        if (level >= 9) {
+            minion.setItemSlot(EquipmentSlot.CHEST, new ItemStack(
+                    diamond ? Items.DIAMOND_CHESTPLATE : iron ? Items.IRON_CHESTPLATE :
+                    Items.CHAINMAIL_CHESTPLATE));
+        }
+
+        // Helmet (level 13+)
+        if (level >= 13) {
+            minion.setItemSlot(EquipmentSlot.HEAD, new ItemStack(
+                    diamond ? Items.DIAMOND_HELMET : Items.IRON_HELMET));
+        }
     }
 
     public static SkeletonMinionEntity findNearestMinion(ServerPlayer player, ServerLevel level) {

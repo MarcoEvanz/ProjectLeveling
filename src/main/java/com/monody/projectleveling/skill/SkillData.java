@@ -20,6 +20,12 @@ public class SkillData {
     private final Map<SkillType, Boolean> toggleStates = new EnumMap<>(SkillType.class);
     private boolean shadowStrikeActive = false;
     private int shadowStrikeTicks = 0;
+    private boolean finalBlowActive = false;
+    private int finalBlowTicks = 0;
+    // Assassin: Shadow Sneak state
+    private int shadowSneakPhase = 0;       // 0 = ready to mark, 1 = marked
+    private int shadowSneakTargetId = -1;   // marked entity ID
+    private int shadowSneakMarkTicks = 0;   // mark timer (200 = 10s)
     private int domainTicks = 0;
     private double domainX;
     private double domainY;
@@ -45,11 +51,28 @@ public class SkillData {
     private float arrowRainDamage = 0;
     private float arrowRainRadius = 3.0f;
     private int arrowRainTargetId = -1; // Entity ID for rain to follow
+    private int stormOfArrowsTicks = 0;
+    // Star Fall channel
+    private boolean starFallChanneling = false;
+    private int starFallTicks = 0;
+    private double starFallZoneX, starFallZoneY, starFallZoneZ;
+    private double starFallCastX, starFallCastY, starFallCastZ;
+    private double starFallAngle; // fixed direction all meteors come from
+    private boolean starFallZoneLocked = false;
+    private int starFallZoneStableTicks = 0;
+    // Magic: Finale channel
+    private boolean finaleChanneling = false;
+    private int finaleTicks = 0;
+    private double finaleCenterX, finaleCenterY, finaleCenterZ;
+    private double finaleCastX, finaleCastY, finaleCastZ;
     // Evasion guaranteed crit (set true on dodge)
     private boolean evasionCritReady = false;
     // Army of the Dead zone
     private int armyTicks = 0;
     private double armyX, armyY, armyZ;
+    // Night of The Living Dead domain
+    private int nightDomainTicks = 0;
+    private double nightDomainX, nightDomainY, nightDomainZ;
     // Death Mark
     private int deathMarkTicks = 0;
     private int deathMarkTargetId = -1;
@@ -168,6 +191,18 @@ public class SkillData {
     public void setShadowStrikeActive(boolean active) { this.shadowStrikeActive = active; }
     public void setShadowStrikeTicks(int ticks) { this.shadowStrikeTicks = ticks; }
 
+    public boolean isFinalBlowActive() { return finalBlowActive; }
+    public int getFinalBlowTicks() { return finalBlowTicks; }
+    public void setFinalBlowActive(boolean active) { this.finalBlowActive = active; }
+    public void setFinalBlowTicks(int ticks) { this.finalBlowTicks = ticks; }
+
+    public int getShadowSneakPhase() { return shadowSneakPhase; }
+    public void setShadowSneakPhase(int phase) { this.shadowSneakPhase = phase; }
+    public int getShadowSneakTargetId() { return shadowSneakTargetId; }
+    public void setShadowSneakTargetId(int id) { this.shadowSneakTargetId = id; }
+    public int getShadowSneakMarkTicks() { return shadowSneakMarkTicks; }
+    public void setShadowSneakMarkTicks(int ticks) { this.shadowSneakMarkTicks = ticks; }
+
     public int getDomainTicks() { return domainTicks; }
     public void setDomainTicks(int ticks) { this.domainTicks = ticks; }
     public double getDomainX() { return domainX; }
@@ -232,10 +267,65 @@ public class SkillData {
     public void setArrowRainRadius(float r) { this.arrowRainRadius = r; }
     public int getArrowRainTargetId() { return arrowRainTargetId; }
     public void setArrowRainTargetId(int id) { this.arrowRainTargetId = id; }
+    // Storm of Arrows
+    public int getStormOfArrowsTicks() { return stormOfArrowsTicks; }
+    public void setStormOfArrowsTicks(int ticks) { this.stormOfArrowsTicks = ticks; }
+
+    // Star Fall
+    public boolean isStarFallChanneling() { return starFallChanneling; }
+    public void setStarFallChanneling(boolean active) { this.starFallChanneling = active; }
+    public int getStarFallTicks() { return starFallTicks; }
+    public void setStarFallTicks(int ticks) { this.starFallTicks = ticks; }
+    public double getStarFallZoneX() { return starFallZoneX; }
+    public double getStarFallZoneY() { return starFallZoneY; }
+    public double getStarFallZoneZ() { return starFallZoneZ; }
+    public void setStarFallZonePos(double x, double y, double z) {
+        this.starFallZoneX = x; this.starFallZoneY = y; this.starFallZoneZ = z;
+    }
+    public double getStarFallCastX() { return starFallCastX; }
+    public double getStarFallCastY() { return starFallCastY; }
+    public double getStarFallCastZ() { return starFallCastZ; }
+    public void setStarFallCastPos(double x, double y, double z) {
+        this.starFallCastX = x; this.starFallCastY = y; this.starFallCastZ = z;
+    }
+    public double getStarFallAngle() { return starFallAngle; }
+    public void setStarFallAngle(double angle) { this.starFallAngle = angle; }
+    public boolean isStarFallZoneLocked() { return starFallZoneLocked; }
+    public void setStarFallZoneLocked(boolean locked) { this.starFallZoneLocked = locked; }
+    public int getStarFallZoneStableTicks() { return starFallZoneStableTicks; }
+    public void setStarFallZoneStableTicks(int ticks) { this.starFallZoneStableTicks = ticks; }
+
+    // Magic: Finale
+    public boolean isFinaleChanneling() { return finaleChanneling; }
+    public void setFinaleChanneling(boolean v) { this.finaleChanneling = v; }
+    public int getFinaleTicks() { return finaleTicks; }
+    public void setFinaleTicks(int ticks) { this.finaleTicks = ticks; }
+    public double getFinaleCenterX() { return finaleCenterX; }
+    public double getFinaleCenterY() { return finaleCenterY; }
+    public double getFinaleCenterZ() { return finaleCenterZ; }
+    public void setFinaleCenterPos(double x, double y, double z) {
+        this.finaleCenterX = x; this.finaleCenterY = y; this.finaleCenterZ = z;
+    }
+    public double getFinaleCastX() { return finaleCastX; }
+    public double getFinaleCastY() { return finaleCastY; }
+    public double getFinaleCastZ() { return finaleCastZ; }
+    public void setFinaleCastPos(double x, double y, double z) {
+        this.finaleCastX = x; this.finaleCastY = y; this.finaleCastZ = z;
+    }
 
     // Evasion crit
     public boolean isEvasionCritReady() { return evasionCritReady; }
     public void setEvasionCritReady(boolean ready) { this.evasionCritReady = ready; }
+
+    // Night of The Living Dead domain
+    public int getNightDomainTicks() { return nightDomainTicks; }
+    public void setNightDomainTicks(int ticks) { this.nightDomainTicks = ticks; }
+    public double getNightDomainX() { return nightDomainX; }
+    public double getNightDomainY() { return nightDomainY; }
+    public double getNightDomainZ() { return nightDomainZ; }
+    public void setNightDomainPos(double x, double y, double z) {
+        this.nightDomainX = x; this.nightDomainY = y; this.nightDomainZ = z;
+    }
 
     // Army of the Dead
     public int getArmyTicks() { return armyTicks; }
@@ -501,6 +591,11 @@ public class SkillData {
         cooldowns.put(skill, skill.getCooldownTicks(level));
     }
 
+    /** Set cooldown to a specific tick value (for half-cooldown penalties, etc.). */
+    public void startCooldownRaw(SkillType skill, int ticks) {
+        cooldowns.put(skill, ticks);
+    }
+
     public void tickCooldowns() {
         cooldowns.entrySet().removeIf(e -> {
             e.setValue(e.getValue() - 1);
@@ -508,8 +603,25 @@ public class SkillData {
         });
     }
 
+    /** Clear all skill cooldowns without affecting active states. */
+    public void clearAllCooldowns() {
+        cooldowns.clear();
+    }
+
     // === Reset ===
 
+    /** Reset skills only: refund all spent SP back to tier pools, keep class. */
+    public void resetSkills() {
+        for (Map.Entry<SkillType, Integer> e : skillLevels.entrySet()) {
+            int tier = e.getKey().getTier();
+            if (tier >= 0 && tier < 5) tierSP[tier] += e.getValue();
+        }
+        skillLevels.clear();
+        for (int i = 0; i < MAX_SLOTS; i++) equippedSlots[i] = null;
+        clearTransient();
+    }
+
+    /** Full reset: class back to NONE, all SP zeroed, skills cleared. */
     public void reset() {
         Arrays.fill(tierSP, 0);
         selectedClass = PlayerClass.NONE;
@@ -523,6 +635,11 @@ public class SkillData {
         toggleStates.clear();
         shadowStrikeActive = false;
         shadowStrikeTicks = 0;
+        finalBlowActive = false;
+        finalBlowTicks = 0;
+        shadowSneakPhase = 0;
+        shadowSneakTargetId = -1;
+        shadowSneakMarkTicks = 0;
         domainTicks = 0;
         venomActive = false;
         venomTicks = 0;
@@ -535,7 +652,15 @@ public class SkillData {
         arrowRainTicks = 0;
         arrowRainDamage = 0;
         arrowRainTargetId = -1;
+        stormOfArrowsTicks = 0;
+        starFallChanneling = false;
+        starFallTicks = 0;
+        starFallZoneLocked = false;
+        finaleChanneling = false;
+        finaleTicks = 0;
+        starFallZoneStableTicks = 0;
         evasionCritReady = false;
+        nightDomainTicks = 0;
         armyTicks = 0;
         deathMarkTicks = 0;
         deathMarkTargetId = -1;

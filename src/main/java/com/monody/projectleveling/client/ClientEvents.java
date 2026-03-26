@@ -12,7 +12,9 @@ import com.monody.projectleveling.entity.kunai.ThrownShurikenRenderer;
 import com.monody.projectleveling.entity.ninja.FlyingRaijinKunaiRenderer;
 import com.monody.projectleveling.entity.ninja.ShadowCloneRenderer;
 import com.monody.projectleveling.entity.warrior.HeavenSwordRenderer;
+import com.monody.projectleveling.client.particle.ShortEndRodParticle;
 import com.monody.projectleveling.item.ModItems;
+import com.monody.projectleveling.particle.ModParticles;
 import com.monody.projectleveling.network.C2SActivateSkillPacket;
 import com.monody.projectleveling.network.C2SRequestSyncPacket;
 import com.monody.projectleveling.network.C2SSkillHoldPacket;
@@ -30,6 +32,7 @@ import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.client.event.EntityRenderersEvent;
 import net.minecraftforge.client.event.RegisterGuiOverlaysEvent;
 import net.minecraftforge.client.event.RegisterKeyMappingsEvent;
+import net.minecraftforge.client.event.RegisterParticleProvidersEvent;
 import net.minecraftforge.client.event.RenderPlayerEvent;
 import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
@@ -80,6 +83,11 @@ public class ClientEvents {
         @SubscribeEvent
         public static void onRegisterGuiOverlays(RegisterGuiOverlaysEvent event) {
             event.registerAboveAll("skill_hud", new SkillHud());
+        }
+
+        @SubscribeEvent
+        public static void onRegisterParticleProviders(RegisterParticleProvidersEvent event) {
+            event.registerSpriteSet(ModParticles.SHORT_END_ROD.get(), ShortEndRodParticle.Provider::new);
         }
 
         @SubscribeEvent
@@ -145,6 +153,11 @@ public class ClientEvents {
             if (event.phase != TickEvent.Phase.END) return;
             Minecraft mc = Minecraft.getInstance();
             if (mc.player == null) return;
+
+            // Tick cooldowns client-side so the HUD updates every second
+            mc.player.getCapability(PlayerStatsCapability.PLAYER_STATS).ifPresent(stats -> {
+                stats.getSkillData().tickCooldowns();
+            });
 
             if (KeyBindings.STATUS_SCREEN.consumeClick()) {
                 ModNetwork.sendToServer(new C2SRequestSyncPacket());
@@ -280,7 +293,8 @@ public class ClientEvents {
             return player.getCapability(PlayerStatsCapability.PLAYER_STATS)
                     .map(stats -> {
                         SkillType skill = stats.getSkillData().getEquipped(slotIndex);
-                        return skill == SkillType.CURSED_TECHNIQUE_BLUE || skill == SkillType.CURSED_TECHNIQUE_RED;
+                        return skill == SkillType.CURSED_TECHNIQUE_BLUE || skill == SkillType.CURSED_TECHNIQUE_RED
+                                || skill == SkillType.STAR_FALL || skill == SkillType.MAGIC_FINALE;
                     })
                     .orElse(false);
         }

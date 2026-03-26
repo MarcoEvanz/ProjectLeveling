@@ -59,9 +59,9 @@ public final class WarriorSkills {
     /** Warrior Mastery: +2% knockback resist per level */
     public static float getWarriorMasteryKbResist(int level) { return level * 0.02f; }
 
-    /** Spirit Blade ATK multiplier: ATK × this = flat bonus. (+60% buffed) */
-    public static float getSpiritBladeMultiplier(int level, int str) {
-        return 0.08f + level * 0.008f + str * 0.0015f;
+    /** Spirit Blade ATK% bonus: 20% at max lv15. */
+    public static float getSpiritBladeAtkPct(int level) {
+        return level * (20.0f / 15.0f);
     }
 
     /** Spirit Blade self damage reduction: 5% at lv1, 20% at lv15 */
@@ -137,13 +137,11 @@ public final class WarriorSkills {
                 lines.add(new int[]{TEXT_VALUE});
             }
             case SPIRIT_BLADE -> {
-                float mult = getSpiritBladeMultiplier(level, stats.getStrength()) * 100;
+                float atkPct = getSpiritBladeAtkPct(level);
                 float defPct = getSpiritBladeDefPct(level) * 100;
-                texts.add("Flat ATK: ATK x " + String.format("%.0f", mult) + "% for 30s (party)");
+                texts.add("ATK +" + String.format("%.1f", atkPct) + "% for 30s (party)");
                 lines.add(new int[]{TEXT_VALUE});
                 texts.add("Self: -" + String.format("%.0f", defPct) + "% damage taken");
-                lines.add(new int[]{TEXT_VALUE});
-                texts.add("Flat ATK added after ATK%");
                 lines.add(new int[]{TEXT_DIM});
             }
             case GROUND_SLAM -> {
@@ -276,15 +274,15 @@ public final class WarriorSkills {
 
     private static void executeSpiritBlade(ServerPlayer player, PlayerStats stats, SkillData sd, int level) {
         stats.setCurrentMp(stats.getCurrentMp() - SkillType.SPIRIT_BLADE.getMpCost(level));
-        float flatAtk = stats.getAttack(player) * getSpiritBladeMultiplier(level, stats.getStrength());
+        float atkPct = getSpiritBladeAtkPct(level);
         int durationTicks = 600; // 30 seconds
 
-        // Self: flat ATK + damage reduction
+        // Self: ATK% + damage reduction
         sd.setSpiritBladeTicks(durationTicks);
-        sd.setSpiritBladeAtk(flatAtk);
+        sd.setSpiritBladeAtk(atkPct);
         sd.setSpiritBladeDefActive(true);
 
-        // Party: flat ATK only (no damage reduction)
+        // Party: ATK% only (no damage reduction)
         double range = 8;
         AABB area = player.getBoundingBox().inflate(range);
         List<ServerPlayer> nearby = player.level().getEntitiesOfClass(ServerPlayer.class, area, p -> p != player);
@@ -292,7 +290,7 @@ public final class WarriorSkills {
             p.getCapability(PlayerStatsCapability.PLAYER_STATS).ifPresent(pStats -> {
                 SkillData pSd = pStats.getSkillData();
                 pSd.setSpiritBladeTicks(durationTicks);
-                pSd.setSpiritBladeAtk(flatAtk);
+                pSd.setSpiritBladeAtk(atkPct);
                 // No def for party members
                 StatEventHandler.syncToClient(p);
             });
@@ -305,7 +303,7 @@ public final class WarriorSkills {
         }
         sd.startCooldown(SkillType.SPIRIT_BLADE, level);
         player.sendSystemMessage(Component.literal(
-                "\u00a7b[System]\u00a7r \u00a7eSpirit Blade! +" + String.format("%.1f", flatAtk) + " ATK for 30s. " + (nearby.size() + 1) + " allies buffed."));
+                "\u00a7b[System]\u00a7r \u00a7eSpirit Blade! ATK +" + String.format("%.1f", atkPct) + "% for 30s. " + (nearby.size() + 1) + " allies buffed."));
     }
 
     private static void executeGroundSlam(ServerPlayer player, PlayerStats stats, SkillData sd, int level) {

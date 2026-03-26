@@ -3,10 +3,13 @@ package com.monody.projectleveling.skill.classes;
 import com.monody.projectleveling.capability.PlayerStats;
 import com.monody.projectleveling.entity.assassin.ShadowPartnerEntity;
 import com.monody.projectleveling.entity.mage.SkillFireballEntity;
+import com.monody.projectleveling.particle.ModParticles;
 import com.monody.projectleveling.skill.*;
 import static com.monody.projectleveling.skill.StatContribRegistry.*;
 
+import net.minecraft.core.particles.ParticleOptions;
 import net.minecraft.core.particles.ParticleTypes;
+import net.minecraft.core.particles.SimpleParticleType;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
@@ -15,7 +18,9 @@ import net.minecraft.world.InteractionHand;
 import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.entity.monster.Monster;
+import net.minecraft.world.level.ClipContext;
 import net.minecraft.world.phys.AABB;
+import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.Vec3;
 
 import java.util.List;
@@ -29,6 +34,7 @@ public final class HealerSkills {
             SkillType.HOLY_LIGHT, SkillType.BLESS, SkillType.MP_RECOVERY,
             SkillType.HOLY_SHELL, SkillType.DISPEL, SkillType.DIVINE_PROTECTION, SkillType.HOLY_FERVOR,
             SkillType.BENEDICTION, SkillType.ANGEL_RAY, SkillType.BLESSED_ENSEMBLE,
+            SkillType.MAGIC_FINALE,
     };
 
     private HealerSkills() {}
@@ -43,6 +49,8 @@ public final class HealerSkills {
     public static float getBenedictionDmgMultiplier(int level, int fai) { return 0.28f + level * 0.02f + fai * 0.004f; }
     /** Angel Ray damage: MATK × this value. (~30% reduced) */
     public static float getAngelRayMultiplier(int level, int fai) { return 1.00f + level * 0.07f + fai * 0.014f; }
+    /** Magic: Finale beam damage: MATK × this value. Massive single hit. */
+    public static float getFinaleMultiplier(int level, int intel, int faith) { return 5.0f + level * 0.3f + intel * 0.01f + faith * 0.015f; }
 
     // ================================================================
     // Tooltips
@@ -152,6 +160,19 @@ public final class HealerSkills {
                 texts.add("MATK scaling: +" + String.format("%.0f", level * 1.5f) + "% of MATK added to skills");
                 lines.add(new int[]{TEXT_VALUE});
             }
+
+            // === T4 ===
+            case MAGIC_FINALE -> {
+                float mult = getFinaleMultiplier(level, stats.getIntelligence(), stats.getFaith()) * 100;
+                texts.add("Beam damage: MATK x " + String.format("%.0f", mult) + "%");
+                lines.add(new int[]{TEXT_VALUE});
+                texts.add("Radius: 15 blocks");
+                lines.add(new int[]{TEXT_VALUE});
+                texts.add("Channel: 12.5s (rooted, magic circle)");
+                lines.add(new int[]{TEXT_VALUE});
+                texts.add("Massive holy beam after channeling completes");
+                lines.add(new int[]{TEXT_DIM});
+            }
             default -> {}
         }
     }
@@ -168,6 +189,7 @@ public final class HealerSkills {
             case DISPEL -> executeDispel(player, stats, sd, level);
             case BENEDICTION -> executeBenediction(player, stats, sd, level);
             case ANGEL_RAY -> executeAngelRay(player, stats, sd, level);
+            // MAGIC_FINALE uses hold-channel via handleHold(), not execute()
             default -> {}
         }
     }
@@ -376,6 +398,302 @@ public final class HealerSkills {
             SkillParticles.ring(sl, sd.getBenedictionX(), sd.getBenedictionY() + 0.1, sd.getBenedictionZ(), radius, 12, ParticleTypes.HEART);
             SkillParticles.ring(sl, sd.getBenedictionX(), sd.getBenedictionY() + 0.5, sd.getBenedictionZ(), radius * 0.7, 8, ParticleTypes.END_ROD);
         }
+    }
+
+    // ================================================================
+    // Magic: Finale (channel → beam)
+    // ================================================================
+
+    public static final int FINALE_CAST_TICKS = 250;  // 12.5s channel
+    public static final int FINALE_BEAM_TICKS = 20;   // 1s beam sequence after channel
+    public static final double FINALE_RADIUS = 15.0;
+
+    public static void startFinaleChannel(ServerPlayer player, PlayerStats stats, SkillData sd) {
+        int level = sd.getLevel(SkillType.MAGIC_FINALE);
+        if (level <= 0) return;
+        if (sd.isOnCooldown(SkillType.MAGIC_FINALE)) return;
+        if (sd.isFinaleChanneling()) return;
+
+        int mpCost = SkillType.MAGIC_FINALE.getMpCost(level);
+        if (stats.getCurrentMp() < mpCost) {
+            player.sendSystemMessage(Component.literal("\u00a7cNot enough MP!"));
+            return;
+        }
+        stats.setCurrentMp(stats.getCurrentMp() - mpCost);
+
+        // Raycast to find center
+        Vec3 eye = player.getEyePosition();
+        Vec3 look = player.getLookAngle();
+        Vec3 end = eye.add(look.scale(50));
+        BlockHitResult hit = player.level().clip(
+                new ClipContext(eye, end, ClipContext.Block.COLLIDER, ClipContext.Fluid.NONE, player));
+        sd.setFinaleCenterPos(hit.getLocation().x, hit.getLocation().y, hit.getLocation().z);
+        sd.setFinaleCastPos(player.getX(), player.getY(), player.getZ());
+        sd.setFinaleChanneling(true);
+        sd.setFinaleTicks(0);
+        sd.setChannelTicks(0);
+        sd.setChannelMaxTicks(FINALE_CAST_TICKS);
+        sd.setChannelSkillName("Magic: Finale");
+
+        if (player.level() instanceof ServerLevel sl) {
+            double cx = hit.getLocation().x, cy = hit.getLocation().y, cz = hit.getLocation().z;
+            SkillParticles.burst(sl, cx, cy + 1, cz, 20, 2.0, ParticleTypes.END_ROD, true);
+            SkillSounds.playAt(sl, cx, cy, cz, SoundEvents.BEACON_ACTIVATE, 1.0f, 0.5f);
+        }
+
+        player.sendSystemMessage(Component.literal(
+                "\u00a7b[System]\u00a7r \u00a7aMagic: Finale! Channeling..."));
+    }
+
+    /** Called every tick while Finale is active. Handles both channel phase and beam phase. */
+    public static void tickFinale(ServerPlayer player, PlayerStats stats, SkillData sd) {
+        sd.setFinaleTicks(sd.getFinaleTicks() + 1);
+        int tick = sd.getFinaleTicks();
+
+        // Root player throughout entire sequence
+        player.teleportTo(sd.getFinaleCastX(), sd.getFinaleCastY(), sd.getFinaleCastZ());
+
+        double cx = sd.getFinaleCenterX();
+        double cy = sd.getFinaleCenterY();
+        double cz = sd.getFinaleCenterZ();
+
+        // ============================
+        // CHANNEL PHASE (ticks 1-99)
+        // ============================
+        if (tick < FINALE_CAST_TICKS) {
+            sd.setChannelTicks(tick);
+            if (!(player.level() instanceof ServerLevel sl)) return;
+
+            double t = (double) tick / FINALE_CAST_TICKS;
+            double spin = -tick * (2.0 * Math.PI / 400.0); // clockwise, 1 rotation per 20s
+
+            // Main pentagram every 2 ticks (lifetime=1 covers 2 frames, so no gaps)
+            if (tick % 2 == 0) {
+                drawPentagram(sl, cx, cy + 0.2, cz, FINALE_RADIUS, 0.35, ModParticles.SHORT_END_ROD.get(), spin);
+            }
+
+            // Circle + center glow every 4 ticks
+            if (tick % 4 == 0) {
+                SkillParticles.ring(sl, cx, cy + 0.2, cz, FINALE_RADIUS, (int) (FINALE_RADIUS * 6), ParticleTypes.END_ROD, true);
+                SkillParticles.burst(sl, cx, cy + 0.5, cz, 3, 0.5, ParticleTypes.END_ROD, true);
+            }
+
+            // Layer 1: from 2.5s (tick 50) — 1/3 size, 8 blocks up, counter-clockwise
+            if (tick >= 50) {
+                double r1 = FINALE_RADIUS / 3.0;
+                double s1 = tick * (2.0 * Math.PI / 400.0); // counter-clockwise
+                if (tick % 2 == 0) {
+                    drawPentagram(sl, cx, cy + 8.2, cz, r1, 0.25, ModParticles.SHORT_END_ROD.get(), s1);
+                }
+                if (tick % 4 == 0) {
+                    SkillParticles.ring(sl, cx, cy + 8.2, cz, r1, (int) (r1 * 6), ParticleTypes.END_ROD, true);
+                }
+            }
+
+            // Layer 2: from 5s (tick 100) — 2/3 size, cy+11.2, clockwise
+            if (tick >= 100) {
+                double r2 = FINALE_RADIUS * 2.0 / 3.0;
+                double s2 = -tick * (2.0 * Math.PI / 400.0); // clockwise
+                if (tick % 2 == 0) {
+                    drawPentagram(sl, cx, cy + 11.2, cz, r2, 0.3, ModParticles.SHORT_END_ROD.get(), s2);
+                }
+                if (tick % 4 == 0) {
+                    SkillParticles.ring(sl, cx, cy + 11.2, cz, r2, (int) (r2 * 6), ParticleTypes.END_ROD, true);
+                }
+            }
+
+            // Layer 3: from 7.5s (tick 150) — same size as main, cy+14.2, counter-clockwise
+            if (tick >= 150) {
+                double r3 = FINALE_RADIUS;
+                double s3 = tick * (2.0 * Math.PI / 400.0); // counter-clockwise
+                if (tick % 2 == 0) {
+                    drawPentagram(sl, cx, cy + 14.2, cz, r3, 0.35, ModParticles.SHORT_END_ROD.get(), s3);
+                }
+                if (tick % 4 == 0) {
+                    SkillParticles.ring(sl, cx, cy + 14.2, cz, r3, (int) (r3 * 6), ParticleTypes.END_ROD, true);
+                }
+            }
+
+            // Layer 4: from 10s (tick 200) — 1.25x size, cy+17.2, clockwise
+            if (tick >= 200) {
+                double r4 = FINALE_RADIUS * 1.25;
+                double s4 = -tick * (2.0 * Math.PI / 400.0); // clockwise
+                if (tick % 2 == 0) {
+                    drawPentagram(sl, cx, cy + 17.2, cz, r4, 0.35, ModParticles.SHORT_END_ROD.get(), s4);
+                }
+                if (tick % 4 == 0) {
+                    SkillParticles.ring(sl, cx, cy + 17.2, cz, r4, (int) (r4 * 6), ParticleTypes.END_ROD, true);
+                }
+            }
+            // Rising sound
+            if (tick % 20 == 0) {
+                SkillSounds.playAt(sl, cx, cy, cz, SoundEvents.BEACON_AMBIENT, 0.6f, (float) (0.5 + t * 1.5));
+            }
+            return;
+        }
+
+        // Clear channel bar on transition
+        if (tick == FINALE_CAST_TICKS) {
+            sd.setChannelTicks(0);
+            sd.setChannelMaxTicks(0);
+            sd.setChannelSkillName("");
+        }
+
+        // ============================
+        // BEAM PHASE (bt 0-29)
+        // ============================
+        int bt = tick - FINALE_CAST_TICKS;
+        if (!(player.level() instanceof ServerLevel sl)) return;
+
+        // --- Sub-phase 1: Beam descends from sky (bt 0-7) ---
+        // Column drops from Y+50 down to ground over 8 ticks
+        if (bt >= 0 && bt <= 7) {
+            // Keep all pentagrams + circles visible during descent (frozen at final angle)
+            double finalSpinCW = -FINALE_CAST_TICKS * (2.0 * Math.PI / 400.0);
+            double finalSpinCCW = FINALE_CAST_TICKS * (2.0 * Math.PI / 400.0);
+            if (bt % 2 == 0) {
+                // Main (ground)
+                drawPentagram(sl, cx, cy + 0.2, cz, FINALE_RADIUS, 0.35, ModParticles.SHORT_END_ROD.get(), finalSpinCW);
+                // Layer 1 (cy+8.2, 1/3 size, CCW)
+                drawPentagram(sl, cx, cy + 8.2, cz, FINALE_RADIUS / 3.0, 0.25, ModParticles.SHORT_END_ROD.get(), finalSpinCCW);
+                // Layer 2 (cy+11.2, 2/3 size, CW)
+                drawPentagram(sl, cx, cy + 11.2, cz, FINALE_RADIUS * 2.0 / 3.0, 0.3, ModParticles.SHORT_END_ROD.get(), finalSpinCW);
+                // Layer 3 (cy+14.2, full size, CCW)
+                drawPentagram(sl, cx, cy + 14.2, cz, FINALE_RADIUS, 0.35, ModParticles.SHORT_END_ROD.get(), finalSpinCCW);
+                // Layer 4 (cy+17.2, 1.25x size, CW)
+                drawPentagram(sl, cx, cy + 17.2, cz, FINALE_RADIUS * 1.25, 0.35, ModParticles.SHORT_END_ROD.get(), finalSpinCW);
+            }
+            if (bt % 4 == 0) {
+                SkillParticles.ring(sl, cx, cy + 0.2, cz, FINALE_RADIUS, (int) (FINALE_RADIUS * 6), ParticleTypes.END_ROD, true);
+                SkillParticles.ring(sl, cx, cy + 8.2, cz, FINALE_RADIUS / 3.0, (int) (FINALE_RADIUS / 3.0 * 6), ParticleTypes.END_ROD, true);
+                SkillParticles.ring(sl, cx, cy + 11.2, cz, FINALE_RADIUS * 2.0 / 3.0, (int) (FINALE_RADIUS * 2.0 / 3.0 * 6), ParticleTypes.END_ROD, true);
+                SkillParticles.ring(sl, cx, cy + 14.2, cz, FINALE_RADIUS, (int) (FINALE_RADIUS * 6), ParticleTypes.END_ROD, true);
+                SkillParticles.ring(sl, cx, cy + 17.2, cz, FINALE_RADIUS * 1.25, (int) (FINALE_RADIUS * 1.25 * 6), ParticleTypes.END_ROD, true);
+            }
+
+            double progress = (bt + 1) / 8.0; // 0.125 → 1.0
+            double bottom = cy + 50.0 * (1.0 - progress); // sky → ground
+            int count = (int) (80 * progress);
+            SkillParticles.column(sl, cx, cz, bottom, cy + 50, 2.0, count, ParticleTypes.END_ROD, true);
+            SkillParticles.column(sl, cx, cz, bottom, cy + 50, 0.8, count / 2, ParticleTypes.FLASH, true);
+            SkillParticles.column(sl, cx, cz, bottom, cy + 50, 3.5, (int) (count * 0.75), ParticleTypes.ENCHANT, true);
+            if (bt % 2 == 0) {
+                SkillSounds.playAt(sl, cx, bottom, cz, SoundEvents.FIREWORK_ROCKET_LAUNCH, 1.0f, 0.5f + (float) progress);
+            }
+        }
+
+        // --- Sub-phase 2: GROUND IMPACT (bt 8) ---
+        // Beam hits ground, damage applied, massive explosion
+        if (bt == 8) {
+            finaleImpact(player, stats, sd);
+            // Full beam at impact
+            SkillParticles.column(sl, cx, cz, cy, cy + 50, 2.0, 80, ParticleTypes.END_ROD, true);
+            SkillParticles.column(sl, cx, cz, cy, cy + 50, 0.8, 40, ParticleTypes.FLASH, true);
+            SkillParticles.column(sl, cx, cz, cy, cy + 50, 3.5, 60, ParticleTypes.ENCHANT, true);
+            // Ground explosion + disc
+            SkillParticles.explosion(sl, cx, cy + 1, cz, FINALE_RADIUS, ParticleTypes.END_ROD, ParticleTypes.ENCHANT, true);
+            SkillParticles.disc(sl, cx, cy + 0.3, cz, FINALE_RADIUS, 60, ParticleTypes.END_ROD, true);
+            // Full pentagram flash (frozen at final spin angle)
+            double impactSpin = -FINALE_CAST_TICKS * (2.0 * Math.PI / 400.0);
+            drawPentagram(sl, cx, cy + 0.3, cz, FINALE_RADIUS, 0.2, ParticleTypes.END_ROD, impactSpin);
+            SkillParticles.ring(sl, cx, cy + 0.3, cz, FINALE_RADIUS, (int) (FINALE_RADIUS * 6), ParticleTypes.END_ROD, true);
+            // Impact sounds
+            SkillSounds.playAt(sl, cx, cy, cz, SoundEvents.ENDER_DRAGON_GROWL, 1.5f, 1.5f);
+            SkillSounds.playAt(sl, cx, cy, cz, SoundEvents.GENERIC_EXPLODE, 1.5f, 0.6f);
+            SkillSounds.playAt(sl, cx, cy, cz, SoundEvents.LIGHTNING_BOLT_THUNDER, 1.5f, 0.5f);
+            player.sendSystemMessage(Component.literal(
+                    "\u00a7b[System]\u00a7r \u00a7a\u00a7lMagic: Finale! \u00a7r\u00a7aBeam strikes!"));
+        }
+
+        // --- Sub-phase 3: Shockwave + fading beam (bt 9-19) ---
+        if (bt > 8 && bt <= 19) {
+            double wave = (bt - 8.0) / 11.0; // 0.0 → 1.0
+            // Expanding shockwave ring (goes beyond original radius)
+            double waveRadius = FINALE_RADIUS * 1.5 * wave;
+            SkillParticles.ring(sl, cx, cy + 0.3, cz, waveRadius, (int) (waveRadius * 3), ParticleTypes.END_ROD, true);
+            SkillParticles.ring(sl, cx, cy + 1.0, cz, waveRadius * 0.7, (int) (waveRadius * 2), ParticleTypes.ENCHANT, true);
+            // Fading beam (shrinks in height + radius over time)
+            if (bt <= 14) {
+                double fade = 1.0 - (bt - 8.0) / 6.0; // 1.0 → 0.0
+                int count = (int) (60 * fade);
+                if (count > 0) {
+                    SkillParticles.column(sl, cx, cz, cy, cy + 50 * fade, 1.5 * fade, count, ParticleTypes.END_ROD, true);
+                }
+            }
+        }
+
+        // --- End sequence ---
+        if (bt >= FINALE_BEAM_TICKS) {
+            endFinale(player, sd);
+        }
+    }
+
+    /** Draw a pentagram (5-pointed star) inscribed in a circle, with rotation offset. */
+    private static void drawPentagram(ServerLevel sl, double cx, double cy, double cz,
+                                       double radius, double spacing, ParticleOptions particle,
+                                       double angleOffset) {
+        if (radius < 0.5) return;
+        Vec3[] verts = new Vec3[5];
+        for (int i = 0; i < 5; i++) {
+            double angle = Math.toRadians(-90 + i * 72) + angleOffset;
+            verts[i] = new Vec3(cx + Math.cos(angle) * radius, cy, cz + Math.sin(angle) * radius);
+        }
+        for (int i = 0; i < 5; i++) {
+            SkillParticles.line(sl, verts[i], verts[(i + 2) % 5], spacing, particle, true);
+        }
+    }
+
+    /** Apply Finale damage to all mobs in radius. */
+    private static void finaleImpact(ServerPlayer player, PlayerStats stats, SkillData sd) {
+        double cx = sd.getFinaleCenterX();
+        double cy = sd.getFinaleCenterY();
+        double cz = sd.getFinaleCenterZ();
+
+        int level = sd.getLevel(SkillType.MAGIC_FINALE);
+        float damage = stats.getMagicAttack(player) * getFinaleMultiplier(level, stats.getIntelligence(), stats.getFaith());
+        int hfLv = sd.getLevel(SkillType.HOLY_FERVOR);
+        if (hfLv > 0) damage *= 1.0f + hfLv * 0.02f;
+
+        AABB area = new AABB(cx - FINALE_RADIUS, cy - 10, cz - FINALE_RADIUS,
+                cx + FINALE_RADIUS, cy + 10, cz + FINALE_RADIUS);
+        List<Monster> mobs = player.level().getEntitiesOfClass(Monster.class, area);
+        for (Monster mob : mobs) {
+            double dx = mob.getX() - cx;
+            double dz = mob.getZ() - cz;
+            if (dx * dx + dz * dz <= FINALE_RADIUS * FINALE_RADIUS) {
+                mob.hurt(SkillDamageSource.get(player.level()), damage);
+            }
+        }
+        CombatLog.aoeSkill(player, "Magic: Finale", damage, mobs);
+    }
+
+    /** Clear all Finale channel state and start cooldown. */
+    public static void endFinale(ServerPlayer player, SkillData sd) {
+        sd.setFinaleChanneling(false);
+        sd.setFinaleTicks(0);
+        sd.setChannelTicks(0);
+        sd.setChannelMaxTicks(0);
+        sd.setChannelSkillName("");
+        sd.startCooldown(SkillType.MAGIC_FINALE, sd.getLevel(SkillType.MAGIC_FINALE));
+    }
+
+    /** Called when player releases the hold key. Cancels if still in channel phase. */
+    public static void releaseFinale(ServerPlayer player, SkillData sd) {
+        if (!sd.isFinaleChanneling()) return;
+        // If beam already firing (past channel phase), let it finish
+        if (sd.getFinaleTicks() >= FINALE_CAST_TICKS) return;
+        // Cancel channel — clear state without starting full cooldown
+        sd.setFinaleChanneling(false);
+        sd.setFinaleTicks(0);
+        sd.setChannelTicks(0);
+        sd.setChannelMaxTicks(0);
+        sd.setChannelSkillName("");
+        // Half cooldown on cancel
+        int level = sd.getLevel(SkillType.MAGIC_FINALE);
+        int halfCd = SkillType.MAGIC_FINALE.getCooldownTicks(level) / 2;
+        sd.startCooldownRaw(SkillType.MAGIC_FINALE, halfCd);
+        player.sendSystemMessage(Component.literal(
+                "\u00a7b[System]\u00a7r \u00a77Magic: Finale cancelled."));
     }
 
     // ================================================================

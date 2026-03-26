@@ -241,10 +241,21 @@ public class SkeletonMinionEntity extends PathfinderMob implements RangedAttackM
 
         if (isRemoved()) return;
 
-        // Unholy Fervor: speed boost while active
+        // Speed buffs: Unholy Fervor and Night Domain
         owner.getCapability(PlayerStatsCapability.PLAYER_STATS).ifPresent(stats -> {
             SkillData sd = stats.getSkillData();
-            if (sd.getFervorTicks() > 0) {
+            boolean inDomain = com.monody.projectleveling.skill.classes.NecromancerSkills
+                    .isInsideNightDomain(sd, getX(), getY(), getZ());
+            if (inDomain) {
+                // Night Domain: double speed (0.6)
+                if (this.getAttribute(Attributes.MOVEMENT_SPEED).getBaseValue() < 0.6) {
+                    this.getAttribute(Attributes.MOVEMENT_SPEED).setBaseValue(0.6);
+                }
+                if (tickCount % 20 == 0 && level() instanceof ServerLevel sl) {
+                    SkillParticles.burst(sl, getX(), getY() + 1, getZ(), 3, 0.3, ParticleTypes.SOUL);
+                }
+            } else if (sd.getFervorTicks() > 0) {
+                // Unholy Fervor: speed boost
                 if (this.getAttribute(Attributes.MOVEMENT_SPEED).getBaseValue() < 0.4) {
                     this.getAttribute(Attributes.MOVEMENT_SPEED).setBaseValue(0.4);
                 }

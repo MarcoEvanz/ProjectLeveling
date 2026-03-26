@@ -18,6 +18,7 @@ import com.monody.projectleveling.skill.SkillParticles;
 import com.monody.projectleveling.skill.classes.*;
 import com.monody.projectleveling.skill.SkillSounds;
 import com.monody.projectleveling.skill.SkillType;
+import net.minecraft.nbt.CompoundTag;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.sounds.SoundEvents;
@@ -59,12 +60,15 @@ public class StatEventHandler {
     private static final Map<UUID, double[]> lastPositions = new HashMap<>();
     // Recursion guard for Final Attack
     private static boolean finalAttackInProgress = false;
+    /** True when a re-entrant .hurt(playerAttack) already has correct ATK — skip Unified ATK recalc. */
+    static boolean skipUnifiedAtk = false;
 
     private static final UUID STRENGTH_UUID = UUID.fromString("a3d5b8c1-1234-4a5b-9c6d-7e8f9a0b1c2d");
     private static final UUID VITALITY_UUID = UUID.fromString("b4e6c9d2-2345-4b6c-ad7e-8f9a0b1c2d3e");
     private static final UUID AGILITY_UUID = UUID.fromString("c5f7dae3-3456-4c7d-be8f-9a0b1c2d3e4f");
     private static final UUID LUCK_ATK_UUID = UUID.fromString("d6a8ebf4-4567-4d8e-cf90-ab1c2d3e4f5a");
     private static final UUID DEX_ATK_UUID = UUID.fromString("e7b9fc05-5678-4e9f-d0a1-bc2d3e4f5a6b");
+    private static final UUID AGI_ATK_UUID = UUID.fromString("f9ca1e27-6789-4b0a-e2c3-dd4e5f6a7b8c");
     // Passive skill modifier UUIDs
     private static final UUID ENDURANCE_HP_UUID = UUID.fromString("f8ca0d16-6789-4fa0-e1b2-cd3e4f5a6b7c");
     private static final UUID WARRIOR_MASTERY_HP_UUID = UUID.fromString("a1b2c3d4-5678-4e9f-a1b2-c3d4e5f6a7b8");
@@ -201,6 +205,16 @@ public class StatEventHandler {
                 }
             }
 
+            // Final Blow expiry
+            if (sd.isFinalBlowActive()) {
+                sd.setFinalBlowTicks(sd.getFinalBlowTicks() - 1);
+                if (sd.getFinalBlowTicks() <= 0) {
+                    sd.setFinalBlowActive(false);
+                    player.sendSystemMessage(Component.literal("\u00a7b[System]\u00a7r \u00a77Final Blow expired."));
+                    syncToClient(player);
+                }
+            }
+
             // Slash Blast buff expiry (4s)
             if (sd.isSlashBlastActive() && sd.getSlashBlastTicks() > 0) {
                 sd.setSlashBlastTicks(sd.getSlashBlastTicks() - 1);
@@ -238,13 +252,19 @@ public class StatEventHandler {
                 sd.setUnbreakableCooldown(sd.getUnbreakableCooldown() - 1);
             }
 
-            // Venom expiry
-            if (sd.isVenomActive()) {
-                sd.setVenomTicks(sd.getVenomTicks() - 1);
-                if (sd.getVenomTicks() <= 0) {
-                    sd.setVenomActive(false);
-                    player.sendSystemMessage(Component.literal("\u00a7b[System]\u00a7r \u00a77Venom wore off."));
-                    syncToClient(player);
+            // Shadow Sneak mark expiry
+            if (sd.getShadowSneakMarkTicks() > 0) {
+                sd.setShadowSneakMarkTicks(sd.getShadowSneakMarkTicks() - 1);
+                if (sd.getShadowSneakMarkTicks() <= 0) {
+                    sd.setShadowSneakPhase(0);
+                    sd.setShadowSneakTargetId(-1);
+                    int ssLv = sd.getLevel(SkillType.SHADOW_SNEAK);
+                    if (ssLv > 0) {
+                        sd.startCooldownRaw(SkillType.SHADOW_SNEAK,
+                                SkillType.SHADOW_SNEAK.getCooldownTicks(ssLv) / 2);
+                    }
+                    player.sendSystemMessage(Component.literal(
+                            "\u00a7b[System]\u00a7r \u00a77Shadow Sneak mark expired. Half cooldown."));
                 }
             }
 
@@ -270,6 +290,17 @@ public class StatEventHandler {
                 }
             }
 
+            // Storm of Arrows tick
+            if (sd.getStormOfArrowsTicks() > 0) {
+                sd.setStormOfArrowsTicks(sd.getStormOfArrowsTicks() - 1);
+                if (sd.getStormOfArrowsTicks() <= 0) {
+                    player.sendSystemMessage(Component.literal("\u00a7b[System]\u00a7r \u00a77Storm of Arrows ended."));
+                    syncToClient(player);
+                } else {
+                    ArcherSkills.tickStormOfArrows(player, stats, sd);
+                }
+            }
+
             // Benediction zone tick
             if (sd.getBenedictionTicks() > 0) {
                 sd.setBenedictionTicks(sd.getBenedictionTicks() - 1);
@@ -279,6 +310,11 @@ public class StatEventHandler {
                 } else if (player.tickCount % 20 == 0) {
                     HealerSkills.tickBenediction(player, stats, sd);
                 }
+            }
+
+            // Magic: Finale channel tick
+            if (sd.isFinaleChanneling()) {
+                HealerSkills.tickFinale(player, stats, sd);
             }
 
             // Poison Mist zone tick
@@ -305,6 +341,11 @@ public class StatEventHandler {
                 }
             }
 
+            // Star Fall hold-channel tick
+            if (sd.isStarFallChanneling()) {
+                MageSkills.tickStarFall(player, stats, sd);
+            }
+
             // Army of the Dead duration (despawn army minions when expired)
             if (sd.getArmyTicks() > 0) {
                 sd.setArmyTicks(sd.getArmyTicks() - 1);
@@ -326,6 +367,17 @@ public class StatEventHandler {
                     syncToClient(player);
                 } else if (player.tickCount % 20 == 0) {
                     NecromancerSkills.tickDeathMark(player, stats, sd);
+                }
+            }
+
+            // Night of The Living Dead domain tick
+            if (sd.getNightDomainTicks() > 0) {
+                sd.setNightDomainTicks(sd.getNightDomainTicks() - 1);
+                if (sd.getNightDomainTicks() <= 0) {
+                    player.sendSystemMessage(Component.literal("\u00a7b[System]\u00a7r \u00a77Night of The Living Dead ended."));
+                    syncToClient(player);
+                } else {
+                    NecromancerSkills.tickNightDomain(player, sd);
                 }
             }
 
@@ -477,7 +529,9 @@ public class StatEventHandler {
                     if (targetEnt instanceof LivingEntity target && target.isAlive()) {
                         target.invulnerableTime = 0;
                         CombatLog.nextSource = sd.isTigerClawEnhanced() ? "Enhanced Tiger Claw" : "Tiger Claw";
+                        skipUnifiedAtk = true;
                         target.hurt(player.damageSources().playerAttack(player), sd.getTigerClawDmg());
+                        skipUnifiedAtk = false;
                         if (player.level() instanceof ServerLevel sl) {
                             SkillParticles.slash(sl,
                                     player.position(),
@@ -613,6 +667,23 @@ public class StatEventHandler {
                     } else {
                         sd.setToggleActive(SkillType.MAGIC_GUARD, false);
                         player.sendSystemMessage(Component.literal("\u00a7b[System]\u00a7r \u00a77Magic Guard deactivated (no MP)."));
+                        changed = true;
+                    }
+                }
+
+                // Arcane Power drain
+                if (sd.isToggleActive(SkillType.ARCANE_POWER)) {
+                    int level = sd.getLevel(SkillType.ARCANE_POWER);
+                    int drain = SkillType.ARCANE_POWER.getToggleMpPerSecond(level, stats.getMaxMp());
+                    if (stats.getCurrentMp() >= drain) {
+                        stats.setCurrentMp(stats.getCurrentMp() - drain);
+                        if (player.tickCount % 40 == 0) {
+                            SkillParticles.playerFeet(player, 6, 0.6, ParticleTypes.ENCHANT);
+                        }
+                        changed = true;
+                    } else {
+                        sd.setToggleActive(SkillType.ARCANE_POWER, false);
+                        player.sendSystemMessage(Component.literal("\u00a7b[System]\u00a7r \u00a77Arcane Power deactivated (no MP)."));
                         changed = true;
                     }
                 }
@@ -898,33 +969,35 @@ public class StatEventHandler {
             if (!sd.isToggleActive(SkillType.SHADOW_PARTNER)) return;
 
             if (!(player.level() instanceof ServerLevel sl)) return;
-            ShadowPartnerEntity partner = AssassinSkills.findShadowPartner(player, sl);
-            if (partner == null) return;
+            List<ShadowPartnerEntity> partners = AssassinSkills.findAllShadowPartners(player, sl);
+            if (partners.isEmpty()) return;
 
             int spLv = sd.getLevel(SkillType.SHADOW_PARTNER);
             float multiplier = AssassinSkills.getShadowPartnerDamageMultiplier(spLv);
 
-            // Check trident first since ThrownTrident extends AbstractArrow
-            if (entity instanceof net.minecraft.world.entity.projectile.ThrownTrident) {
-                net.minecraft.world.entity.projectile.ThrownTrident shadowTrident =
-                        new net.minecraft.world.entity.projectile.ThrownTrident(sl, partner,
-                                new ItemStack(Items.TRIDENT));
-                shadowTrident.shootFromRotation(partner, player.getXRot(), player.getYRot(), 0, 2.5f, 3.0f);
-                shadowTrident.setBaseDamage(8.0 * multiplier);
-                shadowTrident.pickup = net.minecraft.world.entity.projectile.AbstractArrow.Pickup.DISALLOWED;
-                sl.addFreshEntity(shadowTrident);
-            } else if (entity instanceof net.minecraft.world.entity.projectile.AbstractArrow origArrow) {
-                net.minecraft.world.entity.projectile.Arrow shadowArrow =
-                        new net.minecraft.world.entity.projectile.Arrow(sl, partner);
-                shadowArrow.shootFromRotation(partner, player.getXRot(), player.getYRot(), 0, 2.5f, 3.0f);
-                shadowArrow.setBaseDamage(origArrow.getBaseDamage() * multiplier);
-                shadowArrow.pickup = net.minecraft.world.entity.projectile.AbstractArrow.Pickup.DISALLOWED;
-                sl.addFreshEntity(shadowArrow);
-            } else {
-                return;
+            for (ShadowPartnerEntity partner : partners) {
+                // Check trident first since ThrownTrident extends AbstractArrow
+                if (entity instanceof net.minecraft.world.entity.projectile.ThrownTrident) {
+                    net.minecraft.world.entity.projectile.ThrownTrident shadowTrident =
+                            new net.minecraft.world.entity.projectile.ThrownTrident(sl, partner,
+                                    new ItemStack(Items.TRIDENT));
+                    shadowTrident.shootFromRotation(partner, player.getXRot(), player.getYRot(), 0, 2.5f, 3.0f);
+                    shadowTrident.setBaseDamage(8.0 * multiplier);
+                    shadowTrident.pickup = net.minecraft.world.entity.projectile.AbstractArrow.Pickup.DISALLOWED;
+                    sl.addFreshEntity(shadowTrident);
+                } else if (entity instanceof net.minecraft.world.entity.projectile.AbstractArrow origArrow) {
+                    net.minecraft.world.entity.projectile.Arrow shadowArrow =
+                            new net.minecraft.world.entity.projectile.Arrow(sl, partner);
+                    shadowArrow.shootFromRotation(partner, player.getXRot(), player.getYRot(), 0, 2.5f, 3.0f);
+                    shadowArrow.setBaseDamage(origArrow.getBaseDamage() * multiplier);
+                    shadowArrow.pickup = net.minecraft.world.entity.projectile.AbstractArrow.Pickup.DISALLOWED;
+                    sl.addFreshEntity(shadowArrow);
+                } else {
+                    continue;
+                }
+                partner.swing(InteractionHand.MAIN_HAND);
+                SkillParticles.burst(sl, partner.getX(), partner.getY() + 1, partner.getZ(), 3, 0.2, ParticleTypes.PORTAL);
             }
-            partner.swing(InteractionHand.MAIN_HAND);
-            SkillParticles.burst(sl, partner.getX(), partner.getY() + 1, partner.getZ(), 3, 0.2, ParticleTypes.PORTAL);
 
             // Combat log
             String type = (entity instanceof net.minecraft.world.entity.projectile.ThrownTrident) ? "Trident" : "Arrow";
@@ -972,6 +1045,44 @@ public class StatEventHandler {
             sd.setEvasionCritReady(false);
         }
         return new double[]{critRate, critDmgBonus};
+    }
+
+    /**
+     * Apply bleed stacks to a monster. Computes bleed ATK from player stats.
+     * Used by Venom passive (1 stack), Shadow Strike (2), Blade Fury (3), Shadow Sneak (5).
+     */
+    public static void applyBleedStacks(ServerPlayer player, PlayerStats stats, SkillData sd,
+                                         Monster mob, int addStacks) {
+        CompoundTag data = mob.getPersistentData();
+        int stacks = Math.min(data.getInt("pl_bleed_stacks") + addStacks, 10);
+        data.putInt("pl_bleed_stacks", stacks);
+        data.putInt("pl_bleed_ticks", 200);
+        data.putUUID("pl_bleed_owner", player.getUUID());
+        float bleedAtk = stats.getAttack(player);
+        bleedAtk *= NinjaSkills.getSageModeDamageMultiplier(sd);
+        bleedAtk *= NinjaSkills.getGatesDamageMultiplier(stats,
+                player.getHealth() / player.getMaxHealth());
+        int edLv = sd.getLevel(SkillType.ELEMENTAL_DRAIN);
+        if (edLv > 0) {
+            int dbc = 0;
+            for (MobEffectInstance eff : mob.getActiveEffects()) {
+                if (!eff.getEffect().isBeneficial()) dbc++;
+            }
+            bleedAtk *= 1.0f + Math.min(dbc * 0.02f * edLv, 0.50f);
+        }
+        if (sd.getInfinityTicks() > 0 && sd.getInfinityStacks() > 0) {
+            bleedAtk *= 1.0f + sd.getInfinityStacks() * 0.05f;
+        }
+        var fdBleed = player.getAttribute(
+                com.monody.projectleveling.item.ModAttributes.FINAL_DAMAGE.get());
+        if (fdBleed != null && fdBleed.getValue() > 0) {
+            bleedAtk *= 1.0f + (float) (fdBleed.getValue() / 100.0);
+        }
+        bleedAtk = applySkillCrit(player, stats, sd, bleedAtk, mob);
+        data.putFloat("pl_bleed_atk", bleedAtk);
+        if (player.level() instanceof ServerLevel sl) {
+            SkillParticles.burst(sl, mob.getX(), mob.getY() + 1, mob.getZ(), 4, 0.3, ParticleTypes.DAMAGE_INDICATOR);
+        }
     }
 
     /**
@@ -1024,7 +1135,7 @@ public class StatEventHandler {
             SkillData sd = stats.getSkillData();
             float amount = event.getAmount();
 
-            // Shadow Strike bonus damage
+            // Shadow Strike bonus damage + apply 2 bleed stacks
             if (sd.isShadowStrikeActive()) {
                 float bonus = stats.getAttack(player) * AssassinSkills.getShadowStrikeMultiplier(stats);
                 amount += bonus;
@@ -1036,8 +1147,47 @@ public class StatEventHandler {
                     SkillParticles.burst(sl, target.getX(), target.getY() + 1, target.getZ(), 8, 0.3, ParticleTypes.ENCHANTED_HIT);
                     SkillSounds.playAt(player, SoundEvents.PLAYER_ATTACK_CRIT, 1.0f, 1.0f);
                 }
+                if (sd.getLevel(SkillType.VENOM) > 0 && event.getEntity() instanceof Monster mob) {
+                    applyBleedStacks(player, stats, sd, mob, 2);
+                }
                 player.sendSystemMessage(Component.literal(
                         "\u00a7b[System]\u00a7r \u00a7eShadow Strike hit! +" + String.format("%.1f", bonus) + " damage"));
+                syncToClient(player);
+            }
+
+            // Final Blow: massive bonus + consume bleed stacks
+            if (sd.isFinalBlowActive()) {
+                int fbLv = sd.getLevel(SkillType.FINAL_BLOW);
+                float fbMult = AssassinSkills.getFinalBlowMultiplier(fbLv, stats.getLuck());
+                int consumed = 0;
+                if (event.getEntity() instanceof Monster mob) {
+                    CompoundTag data = mob.getPersistentData();
+                    int bleedStacks = data.getInt("pl_bleed_stacks");
+                    if (bleedStacks > 0) {
+                        consumed = bleedStacks;
+                        fbMult += bleedStacks * 1.0f;
+                        data.putInt("pl_bleed_stacks", 0);
+                        data.putInt("pl_bleed_ticks", 0);
+                    }
+                }
+                float bonus = stats.getAttack(player) * fbMult;
+                amount += bonus;
+                sd.setFinalBlowActive(false);
+                sd.setFinalBlowTicks(0);
+                if (player.level() instanceof ServerLevel sl) {
+                    net.minecraft.world.entity.LivingEntity target = (net.minecraft.world.entity.LivingEntity) event.getEntity();
+                    SkillParticles.burst(sl, target.getX(), target.getY() + 1, target.getZ(), 15, 0.5, ParticleTypes.SOUL_FIRE_FLAME);
+                    SkillParticles.burst(sl, target.getX(), target.getY() + 1, target.getZ(), 10, 0.4, ParticleTypes.CRIT);
+                    if (consumed > 0) {
+                        SkillParticles.burst(sl, target.getX(), target.getY() + 1.5, target.getZ(), 12, 0.6, ParticleTypes.DRAGON_BREATH);
+                    }
+                    SkillSounds.playAt(player, SoundEvents.PLAYER_ATTACK_CRIT, 1.0f, 0.7f);
+                }
+                String msg = consumed > 0
+                        ? "\u00a7b[System]\u00a7r \u00a7cFinal Blow! +" + String.format("%.1f", bonus)
+                                + " damage! (" + consumed + " bleed consumed)"
+                        : "\u00a7b[System]\u00a7r \u00a7cFinal Blow! +" + String.format("%.1f", bonus) + " damage!";
+                player.sendSystemMessage(Component.literal(msg));
                 syncToClient(player);
             }
 
@@ -1047,21 +1197,14 @@ public class StatEventHandler {
                 syncToClient(player);
             }
 
-            // Venom: apply poison on hit (Wither for undead since they're immune to Poison)
-            if (sd.isVenomActive() && event.getEntity() instanceof Monster mob) {
-                int venomLv = sd.getLevel(SkillType.VENOM);
-                int poisonDur = AssassinSkills.getVenomPoisonDuration(venomLv);
-                int poisonAmp = Math.min(venomLv / 4, 2);
-                if (mob.getMobType() == net.minecraft.world.entity.MobType.UNDEAD) {
-                    mob.addEffect(new MobEffectInstance(MobEffects.WITHER, poisonDur, poisonAmp, false, true));
-                } else {
-                    mob.addEffect(new MobEffectInstance(MobEffects.POISON, poisonDur, poisonAmp, false, true));
-                }
-                // Direct magic damage on every hit (bypasses armor intentionally)
-                float venomDmg = 0.5f + venomLv * 0.15f;
-                mob.hurt(player.damageSources().magic(), venomDmg);
-                if (player.level() instanceof ServerLevel sl) {
-                    SkillParticles.burst(sl, mob.getX(), mob.getY() + 1, mob.getZ(), 8, 0.4, ParticleTypes.ITEM_SLIME);
+            // Bleeding Edge: passive chance to apply 1 bleed stack on hit
+            int bleedLv = sd.getLevel(SkillType.VENOM);
+            if (bleedLv > 0 && event.getEntity() instanceof Monster mob) {
+                float chance = AssassinSkills.getBleedChance(bleedLv) / 100.0f;
+                int lmLv = sd.getLevel(SkillType.LETHAL_MASTERY);
+                if (lmLv > 0) chance += AssassinSkills.getLethalMasteryBleedBonus(lmLv) / 100.0f;
+                if (player.getRandom().nextFloat() < chance) {
+                    applyBleedStacks(player, stats, sd, mob, 1);
                 }
             }
 
@@ -1082,12 +1225,14 @@ public class StatEventHandler {
                 CombatLog.pendingAoeSplashDmg = 0;
                 CombatLog.pendingAoeSplashCount = 0;
                 int splashHits = 0;
+                skipUnifiedAtk = true;
                 for (LivingEntity mob : nearby) {
                     if (splashHits >= 3) break;
                     mob.invulnerableTime = 0;
                     mob.hurt(player.damageSources().playerAttack(player), amount);
                     splashHits++;
                 }
+                skipUnifiedAtk = false;
                 CombatLog.suppressDamageLog = false;
                 // Tag main hit — onLivingDamage will log AoE summary with true damage
                 CombatLog.pendingAoe = "Slash Blast";
@@ -1122,28 +1267,15 @@ public class StatEventHandler {
                 syncToClient(player);
             }
 
-            // War Cry: ATK% bonus during buff
-            if (sd.getWarCryTicks() > 0 && !event.getSource().isIndirect()) {
-                amount *= 1.0f + sd.getWarCryAtkBonus() / 100.0f;
+            // === Unified ATK: use getAttack(player), preserve vanilla scaling (cooldown/crit/enchants) ===
+            // Skip when skill already computed ATK (executingSkill) or re-entrant hit (skipUnifiedAtk)
+            if (!event.getSource().isIndirect()
+                    && !SkillExecutor.executingSkill && !skipUnifiedAtk) {
+                float vanillaBase = (float) player.getAttributeValue(
+                        net.minecraft.world.entity.ai.attributes.Attributes.ATTACK_DAMAGE);
+                float scale = vanillaBase > 0 ? amount / vanillaBase : 1.0f;
+                amount = stats.getAttack(player) * scale;
             }
-
-            // Spirit Blade: flat ATK bonus (applied after % buffs)
-            if (sd.getSpiritBladeTicks() > 0 && !event.getSource().isIndirect()) {
-                amount += sd.getSpiritBladeAtk();
-            }
-
-            // Passive: Kunai Mastery — +AGI melee damage
-            float kmBonus = stats.getAttack(player) * NinjaSkills.getKunaiMasteryMeleeMultiplier(stats);
-            if (kmBonus > 0 && !event.getSource().isIndirect()) {
-                amount += kmBonus;
-            }
-
-            // Sage Mode: damage multiplier
-            amount *= NinjaSkills.getSageModeDamageMultiplier(sd);
-
-            // Eight Inner Gates: damage multiplier below 30% HP
-            float gatesHealthPct = player.getHealth() / player.getMaxHealth();
-            amount *= NinjaSkills.getGatesDamageMultiplier(stats, gatesHealthPct);
 
             // Rasengan buff: explode in 2-block radius around target, bonus AGI+LUK damage + 30% splash
             // Only triggers on normal melee attacks, not during skill execution
@@ -1164,9 +1296,11 @@ public class StatEventHandler {
                 CombatLog.suppressDamageLog = true;
                 CombatLog.pendingAoeSplashDmg = 0;
                 CombatLog.pendingAoeSplashCount = 0;
+                skipUnifiedAtk = true;
                 for (net.minecraft.world.entity.LivingEntity mob : nearby) {
                     mob.hurt(player.damageSources().playerAttack(player), splashDmg);
                 }
+                skipUnifiedAtk = false;
                 CombatLog.suppressDamageLog = false;
                 // Tag main hit — onLivingDamage will log combined AoE summary
                 CombatLog.pendingAoe = "Rasengan";
@@ -1307,9 +1441,11 @@ public class StatEventHandler {
                     float repeatDmg = amount * 0.5f;
                     LivingEntity faTarget = event.getEntity();
                     finalAttackInProgress = true;
+                    skipUnifiedAtk = true;
                     faTarget.invulnerableTime = 0;
                     CombatLog.nextSource = "Final Attack";
                     faTarget.hurt(player.damageSources().playerAttack(player), repeatDmg);
+                    skipUnifiedAtk = false;
                     finalAttackInProgress = false;
                     if (player.level() instanceof ServerLevel sl) {
                         sl.sendParticles(ParticleTypes.SWEEP_ATTACK,
@@ -1320,6 +1456,13 @@ public class StatEventHandler {
                     }
                 }
             }
+
+            // Sage Mode: damage multiplier (Damage% — applied after all skill-specific bonuses)
+            amount *= NinjaSkills.getSageModeDamageMultiplier(sd);
+
+            // Eight Inner Gates: damage multiplier below 30% HP (Damage%)
+            float gatesHealthPct = player.getHealth() / player.getMaxHealth();
+            amount *= NinjaSkills.getGatesDamageMultiplier(stats, gatesHealthPct);
 
             // Passive: Elemental Drain — +5% damage per active debuff on target (max +25%)
             int edLv = sd.getLevel(SkillType.ELEMENTAL_DRAIN);
@@ -1406,10 +1549,12 @@ public class StatEventHandler {
                 int spLv = sd.getLevel(SkillType.SHADOW_PARTNER);
                 float mirrorDmg = amount * AssassinSkills.getShadowPartnerDamageMultiplier(spLv);
                 if (player.level() instanceof ServerLevel sl) {
-                    ShadowPartnerEntity partner = AssassinSkills.findShadowPartner(player, sl);
-                    if (partner != null && !event.getSource().isIndirect()) {
-                        // Melee: partner teleports to target, attacks, returns
-                        partner.performMirrorAttack(mob, mirrorDmg);
+                    List<ShadowPartnerEntity> partners = AssassinSkills.findAllShadowPartners(player, sl);
+                    if (!partners.isEmpty() && !event.getSource().isIndirect()) {
+                        // Melee: all partners teleport to target, attack, return
+                        for (ShadowPartnerEntity partner : partners) {
+                            partner.performMirrorAttack(mob, mirrorDmg);
+                        }
                     } else {
                         // Ranged/no partner found: apply bonus magic damage directly (bypasses armor)
                         mob.hurt(player.damageSources().magic(), mirrorDmg);
@@ -1418,16 +1563,19 @@ public class StatEventHandler {
                 }
             }
 
-            // Equipment ATK% — multiplies physical (non-indirect) damage
+            // Melee Damage%: equipment + Kunai Mastery
             if (!event.getSource().isIndirect()) {
-                var atkPctInst = player.getAttribute(com.monody.projectleveling.item.ModAttributes.ATTACK_PERCENT.get());
-                if (atkPctInst != null && atkPctInst.getValue() > 0) {
-                    amount *= 1.0f + (float) (atkPctInst.getValue() / 100.0);
-                }
-                // Equipment Melee Damage% bonus
+                float meleePct = 0;
                 var meleeDmgInst = player.getAttribute(ModAttributes.MELEE_DAMAGE.get());
                 if (meleeDmgInst != null && meleeDmgInst.getValue() > 0) {
-                    amount *= 1.0f + (float) (meleeDmgInst.getValue() / 100.0);
+                    meleePct += (float) meleeDmgInst.getValue();
+                }
+                float kmMelee = NinjaSkills.getKunaiMasteryMeleeMultiplier(stats);
+                if (kmMelee > 0) {
+                    meleePct += kmMelee * 100;
+                }
+                if (meleePct > 0) {
+                    amount *= 1.0f + meleePct / 100.0f;
                 }
             }
 
@@ -1489,6 +1637,21 @@ public class StatEventHandler {
             if (smLv > 0) {
                 float reduction = NecromancerSkills.getSkeletalMasteryDamageReduction(smLv);
                 event.setAmount(event.getAmount() * (1 - reduction));
+            }
+        });
+    }
+
+    @SubscribeEvent(priority = net.minecraftforge.eventbus.api.EventPriority.HIGHEST)
+    public static void onMinionDamagePost(LivingDamageEvent event) {
+        if (!(event.getEntity() instanceof SkeletonMinionEntity minion)) return;
+        if (minion.getHealth() - event.getAmount() > 0) return; // not fatal
+        ServerPlayer owner = minion.getOwnerPlayer();
+        if (owner == null) return;
+        owner.getCapability(PlayerStatsCapability.PLAYER_STATS).ifPresent(stats -> {
+            SkillData sd = stats.getSkillData();
+            if (NecromancerSkills.isInsideNightDomain(sd, minion.getX(), minion.getY(), minion.getZ())) {
+                event.setAmount(0);
+                minion.setHealth(1);
             }
         });
     }
@@ -1614,7 +1777,7 @@ public class StatEventHandler {
         String dot = dotType;
         player.getCapability(PlayerStatsCapability.PLAYER_STATS).ifPresent(stats -> {
             SkillData sd = stats.getSkillData();
-            boolean relevant = sd.isVenomActive() || sd.isMistActive()
+            boolean relevant = sd.isMistActive()
                     || sd.getCooldownRemaining(SkillType.FLAME_ORB) > 0
                     || sd.getCooldownRemaining(SkillType.MIST_ERUPTION) > 0
                     || sd.getPhoenixTicks() > 0;
@@ -1622,6 +1785,46 @@ public class StatEventHandler {
                 CombatLog.damage(player, dot, event.getAmount(), mob);
             }
         });
+    }
+
+    // === Bleeding Edge: tick bleed damage on entities with bleed stacks ===
+
+    @SubscribeEvent
+    public static void onLivingTick(net.minecraftforge.event.entity.living.LivingEvent.LivingTickEvent event) {
+        if (!(event.getEntity() instanceof Monster mob)) return;
+        if (mob.level().isClientSide()) return;
+
+        CompoundTag data = mob.getPersistentData();
+        int stacks = data.getInt("pl_bleed_stacks");
+        if (stacks <= 0) return;
+
+        int ticks = data.getInt("pl_bleed_ticks") - 1;
+        if (ticks <= 0) {
+            // Bleed expired
+            data.putInt("pl_bleed_stacks", 0);
+            data.putInt("pl_bleed_ticks", 0);
+            return;
+        }
+        data.putInt("pl_bleed_ticks", ticks);
+
+        // Deal damage every 20 ticks (1 second)
+        if (ticks % 20 != 0) return;
+
+        float atk = data.getFloat("pl_bleed_atk");
+        float dmg = atk * AssassinSkills.getBleedMultiplier(stacks);
+        mob.hurt(mob.damageSources().magic(), dmg); // true damage (bypasses armor)
+
+        if (mob.level() instanceof ServerLevel sl) {
+            SkillParticles.burst(sl, mob.getX(), mob.getY() + 1, mob.getZ(), 3, 0.3, ParticleTypes.DAMAGE_INDICATOR);
+
+            // Combat log for owner
+            if (data.hasUUID("pl_bleed_owner")) {
+                ServerPlayer owner = sl.getServer().getPlayerList().getPlayer(data.getUUID("pl_bleed_owner"));
+                if (owner != null) {
+                    CombatLog.damage(owner, "Bleed x" + stacks, dmg, mob);
+                }
+            }
+        }
     }
 
     // === Limitless Infinity: block attacks before knockback/hit (LivingAttackEvent) ===
@@ -1840,6 +2043,13 @@ public class StatEventHandler {
         player.getCapability(PlayerStatsCapability.PLAYER_STATS).ifPresent(stats -> {
             SkillData sd = stats.getSkillData();
 
+            // Night of The Living Dead: cannot die inside domain
+            if (NecromancerSkills.isInsideNightDomain(sd, player.getX(), player.getY(), player.getZ())) {
+                event.setAmount(0);
+                player.setHealth(1);
+                return;
+            }
+
             // Unbreakable: revive on fatal damage (Warrior passive)
             int ubLv = sd.getLevel(SkillType.UNBREAKABLE);
             if (ubLv > 0 && sd.getUnbreakableCooldown() <= 0) {
@@ -1940,6 +2150,9 @@ public class StatEventHandler {
         // DEX: 0.05 atk per point
         applyModifier(player, Attributes.ATTACK_DAMAGE, DEX_ATK_UUID, "Project Leveling Dex ATK",
                 (stats.getDexterity() - 1) * 0.05);
+        // AGI: 0.05 atk per point
+        applyModifier(player, Attributes.ATTACK_DAMAGE, AGI_ATK_UUID, "Project Leveling Agi ATK",
+                (stats.getAgility() - 1) * 0.05);
 
         // Passive: Endurance — +2% max HP per level
         SkillData sd = stats.getSkillData();

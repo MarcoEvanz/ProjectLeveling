@@ -249,6 +249,20 @@ public class SkillExecutor {
                 }
             }
             StatEventHandler.syncToClient(player);
+        } else if (skill == SkillType.STAR_FALL) {
+            if (start) {
+                MageSkills.startStarFallChannel(player, stats, sd);
+            } else {
+                MageSkills.endStarFallChannel(player, sd);
+            }
+            StatEventHandler.syncToClient(player);
+        } else if (skill == SkillType.MAGIC_FINALE) {
+            if (start) {
+                HealerSkills.startFinaleChannel(player, stats, sd);
+            } else {
+                HealerSkills.releaseFinale(player, sd);
+            }
+            StatEventHandler.syncToClient(player);
         } else if (skill == SkillType.CURSED_TECHNIQUE_RED) {
             if (start) {
                 LimitlessSkills.startRedChannel(player, stats, sd);
@@ -269,8 +283,8 @@ public class SkillExecutor {
 
     public static void mirrorSkillFromPartner(ServerPlayer player, PlayerStats stats, SkillType skill) {
         if (!(player.level() instanceof ServerLevel sl)) return;
-        ShadowPartnerEntity partner = AssassinSkills.findShadowPartner(player, sl);
-        if (partner == null) return;
+        java.util.List<ShadowPartnerEntity> partners = AssassinSkills.findAllShadowPartners(player, sl);
+        if (partners.isEmpty()) return;
 
         int level = stats.getSkillData().getLevel(skill);
         if (level <= 0) return;
@@ -278,21 +292,23 @@ public class SkillExecutor {
         float multiplier = AssassinSkills.getShadowPartnerDamageMultiplier(
                 stats.getSkillData().getLevel(SkillType.SHADOW_PARTNER));
 
-        PlayerClass cls = skill.getRequiredClass();
-        if (cls == null) {
-            NoviceSkills.mirrorSkill(sl, partner, player, stats, skill, level, multiplier);
-        } else {
-            switch (cls) {
-                case WARRIOR -> WarriorSkills.mirrorSkill(sl, partner, player, stats, skill, level, multiplier);
-                case ASSASSIN -> AssassinSkills.mirrorSkill(sl, partner, player, stats, skill, level, multiplier);
-                case ARCHER -> ArcherSkills.mirrorSkill(sl, partner, player, stats, skill, level, multiplier);
-                case HEALER -> HealerSkills.mirrorSkill(sl, partner, player, stats, skill, level, multiplier);
-                case MAGE -> MageSkills.mirrorSkill(sl, partner, player, stats, skill, level, multiplier);
-                case NINJA -> NinjaSkills.mirrorSkill(sl, partner, player, stats, skill, level, multiplier);
-                case NECROMANCER -> NecromancerSkills.mirrorSkill(sl, partner, player, stats, skill, level, multiplier);
-                case BEAST_MASTER -> BeastMasterSkills.mirrorSkill(sl, partner, player, stats, skill, level, multiplier);
-                case LIMITLESS -> { /* Limitless skills cannot be mirrored */ }
-                default -> { /* no mirror */ }
+        for (ShadowPartnerEntity partner : partners) {
+            PlayerClass cls = skill.getRequiredClass();
+            if (cls == null) {
+                NoviceSkills.mirrorSkill(sl, partner, player, stats, skill, level, multiplier);
+            } else {
+                switch (cls) {
+                    case WARRIOR -> WarriorSkills.mirrorSkill(sl, partner, player, stats, skill, level, multiplier);
+                    case ASSASSIN -> AssassinSkills.mirrorSkill(sl, partner, player, stats, skill, level, multiplier);
+                    case ARCHER -> ArcherSkills.mirrorSkill(sl, partner, player, stats, skill, level, multiplier);
+                    case HEALER -> HealerSkills.mirrorSkill(sl, partner, player, stats, skill, level, multiplier);
+                    case MAGE -> MageSkills.mirrorSkill(sl, partner, player, stats, skill, level, multiplier);
+                    case NINJA -> NinjaSkills.mirrorSkill(sl, partner, player, stats, skill, level, multiplier);
+                    case NECROMANCER -> NecromancerSkills.mirrorSkill(sl, partner, player, stats, skill, level, multiplier);
+                    case BEAST_MASTER -> BeastMasterSkills.mirrorSkill(sl, partner, player, stats, skill, level, multiplier);
+                    case LIMITLESS -> { /* Limitless skills cannot be mirrored */ }
+                    default -> { /* no mirror */ }
+                }
             }
         }
     }

@@ -9,6 +9,7 @@ import com.monody.projectleveling.entity.ninja.ShadowCloneEntity;
 import com.monody.projectleveling.item.ModAttributes;
 import com.monody.projectleveling.item.ModItems;
 import com.monody.projectleveling.network.ModNetwork;
+import com.monody.projectleveling.particle.ModParticles;
 import com.monody.projectleveling.skill.StatContribRegistry;
 import com.monody.projectleveling.sound.ModSounds;
 import net.minecraft.world.entity.EntityType;
@@ -47,6 +48,9 @@ public class ProjectLeveling {
 
         // Register custom sounds
         ModSounds.SOUNDS.register(modEventBus);
+
+        // Register custom particles
+        ModParticles.PARTICLES.register(modEventBus);
 
         modEventBus.addListener(this::commonSetup);
         modEventBus.addListener(this::onEntityAttributeCreation);

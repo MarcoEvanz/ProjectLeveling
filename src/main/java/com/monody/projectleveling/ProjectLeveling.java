@@ -2,6 +2,8 @@ package com.monody.projectleveling;
 
 import com.mojang.logging.LogUtils;
 import com.monody.projectleveling.command.ModCommands;
+import com.monody.projectleveling.dimension.ModBiomeSources;
+import com.monody.projectleveling.dimension.ModChunkGenerators;
 import com.monody.projectleveling.entity.ModEntities;
 import com.monody.projectleveling.entity.assassin.ShadowPartnerEntity;
 import com.monody.projectleveling.entity.necromancer.SkeletonMinionEntity;
@@ -52,6 +54,10 @@ public class ProjectLeveling {
         // Register custom particles
         ModParticles.PARTICLES.register(modEventBus);
 
+        // Register dungeon dimension systems
+        ModBiomeSources.BIOME_SOURCES.register(modEventBus);
+        ModChunkGenerators.CHUNK_GENERATORS.register(modEventBus);
+
         modEventBus.addListener(this::commonSetup);
         modEventBus.addListener(this::onEntityAttributeCreation);
         modEventBus.addListener(this::onEntityAttributeModification);
@@ -61,7 +67,28 @@ public class ProjectLeveling {
 
     private void commonSetup(final FMLCommonSetupEvent event) {
         StatContribRegistry.init();
+
+        // Raise MAX_HEALTH cap from 1024 to 100000 so dungeon mobs can scale properly
+        try {
+            java.lang.reflect.Field maxField = net.minecraft.world.entity.ai.attributes.RangedAttribute.class
+                    .getDeclaredField("maxValue");
+            maxField.setAccessible(true);
+            // Use Unsafe to bypass final restriction in Java 17
+            sun.misc.Unsafe unsafe = getUnsafe();
+            long offset = unsafe.objectFieldOffset(maxField);
+            unsafe.putDouble(net.minecraft.world.entity.ai.attributes.Attributes.MAX_HEALTH, offset, 100000.0);
+            LOGGER.info("MAX_HEALTH cap raised to 100000");
+        } catch (Exception e) {
+            LOGGER.error("Failed to raise MAX_HEALTH cap", e);
+        }
+
         LOGGER.info("Project Leveling common setup");
+    }
+
+    private static sun.misc.Unsafe getUnsafe() throws Exception {
+        java.lang.reflect.Field f = sun.misc.Unsafe.class.getDeclaredField("theUnsafe");
+        f.setAccessible(true);
+        return (sun.misc.Unsafe) f.get(null);
     }
 
     private void onEntityAttributeCreation(EntityAttributeCreationEvent event) {

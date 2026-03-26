@@ -41,7 +41,7 @@ public class CombatLog {
 
     public static void aoeSkill(ServerPlayer player, String source, float rawDamage,
                                 List<? extends LivingEntity> targets) {
-        aoeSkill(player, source, rawDamage, targets, SkillDamageSource.get(player.level()));
+        aoeSkill(player, source, rawDamage, targets, SkillDamageSource.get(player.level(), player));
     }
 
     public static void aoeSkill(ServerPlayer player, String source, float rawDamage,
@@ -55,7 +55,7 @@ public class CombatLog {
     }
 
     public static void damageSkill(ServerPlayer player, String source, float rawDamage, LivingEntity target) {
-        damageSkill(player, source, rawDamage, target, SkillDamageSource.get(player.level()));
+        damageSkill(player, source, rawDamage, target, SkillDamageSource.get(player.level(), player));
     }
 
     public static void damageSkill(ServerPlayer player, String source, float rawDamage,

@@ -332,7 +332,7 @@ public final class AssassinSkills {
             // Deal burst damage
             float damage = stats.getAttack(player) * getShadowSneakMultiplier(level, stats.getLuck());
             CombatLog.nextSource = "Shadow Sneak";
-            target.hurt(SkillDamageSource.get(player.level()), damage);
+            target.hurt(SkillDamageSource.get(player.level(), player), damage);
 
             // Apply 5 bleed stacks
             if (sd.getLevel(SkillType.VENOM) > 0 && target instanceof Monster mob) {
@@ -557,7 +557,7 @@ public final class AssassinSkills {
                 List<Monster> mobs = sl.getEntitiesOfClass(Monster.class,
                         partner.getBoundingBox().inflate(radius));
                 for (Monster mob : mobs) {
-                    mob.hurt(SkillDamageSource.get(player.level()), dmg);
+                    mob.hurt(SkillDamageSource.get(player.level(), player), dmg);
                 }
                 CombatLog.aoeSkill(player, "Shadow Blade Fury", dmg, mobs);
                 SkillParticles.ring(sl, pos.x, pos.y + 0.5, pos.z, radius, 20, ParticleTypes.SWEEP_ATTACK);
@@ -582,7 +582,7 @@ public final class AssassinSkills {
                     partner.moveTo(bx, target.getY(), bz, yaw + 180, 0);
                     // Deal damage
                     float dmg = stats.getAttack(player) * getShadowSneakMultiplier(level, stats.getLuck()) * multiplier;
-                    target.hurt(SkillDamageSource.get(player.level()), dmg);
+                    target.hurt(SkillDamageSource.get(player.level(), player), dmg);
                     CombatLog.damageSkill(player, "Shadow Sneak", dmg, target);
                     SkillParticles.burst(sl, bx, target.getY() + 1, bz, 15, 0.5, ParticleTypes.PORTAL);
                     SkillParticles.burst(sl, target.getX(), target.getY() + 1, target.getZ(),
@@ -605,7 +605,7 @@ public final class AssassinSkills {
                         if (d < minDist) { minDist = d; target = nearby.get(i); }
                     }
                     float dmg = stats.getAttack(player) * getFinalBlowMultiplier(level, stats.getLuck()) * multiplier;
-                    target.hurt(SkillDamageSource.get(player.level()), dmg);
+                    target.hurt(SkillDamageSource.get(player.level(), player), dmg);
                     CombatLog.damageSkill(player, "Shadow Final Blow", dmg, target);
                     SkillParticles.burst(sl, target.getX(), target.getY() + 1, target.getZ(),
                             12, 0.5, ParticleTypes.SOUL_FIRE_FLAME);

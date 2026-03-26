@@ -258,7 +258,7 @@ public final class HealerSkills {
             } else {
                 dmg *= 0.5f;
             }
-            mob.hurt(SkillDamageSource.get(player.level()), dmg);
+            mob.hurt(SkillDamageSource.get(player.level(), player), dmg);
         }
         if (player.level() instanceof ServerLevel sl) {
             SkillParticles.burst(sl, player.getX(), player.getY() + 1, player.getZ(), 10, 0.6, ParticleTypes.HEART);
@@ -446,7 +446,7 @@ public final class HealerSkills {
         // Damage + slow enemies inside
         List<Monster> mobs = player.level().getEntitiesOfClass(Monster.class, area);
         for (Monster mob : mobs) {
-            mob.hurt(SkillDamageSource.get(player.level()), damage);
+            mob.hurt(SkillDamageSource.get(player.level(), player), damage);
             mob.addEffect(new MobEffectInstance(MobEffects.MOVEMENT_SLOWDOWN, 30, 0, false, false));
         }
         CombatLog.aoeSkill(player, "Benediction", damage, mobs);
@@ -732,7 +732,7 @@ public final class HealerSkills {
             double dx = mob.getX() - cx;
             double dz = mob.getZ() - cz;
             if (dx * dx + dz * dz <= FINALE_RADIUS * FINALE_RADIUS) {
-                mob.hurt(SkillDamageSource.get(player.level()), damage);
+                mob.hurt(SkillDamageSource.get(player.level(), player), damage);
             }
         }
         CombatLog.aoeSkill(player, "Magic: Finale", damage, mobs);
@@ -787,7 +787,7 @@ public final class HealerSkills {
                         partner.getBoundingBox().inflate(6),
                         m -> m.getMobType() == net.minecraft.world.entity.MobType.UNDEAD);
                 for (Monster mob : mobs) {
-                    mob.hurt(SkillDamageSource.get(player.level()), undeadDmg);
+                    mob.hurt(SkillDamageSource.get(player.level(), player), undeadDmg);
                 }
                 CombatLog.aoeSkill(player, "Shadow Holy Light", undeadDmg, mobs);
                 SkillParticles.burst(sl, pos.x, pos.y + 1, pos.z, 8, 0.5, ParticleTypes.HEART);

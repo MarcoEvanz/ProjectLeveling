@@ -225,7 +225,8 @@ public class ShadowCloneEntity extends PathfinderMob {
         for (Monster mob : mobs) {
             Vec3 toMob = mob.position().add(0, mob.getBbHeight() / 2, 0).subtract(eye).normalize();
             if (look.dot(toMob) < 0.3) continue;
-            mob.hurt(SkillDamageSource.get(sl), dmg);
+            ServerPlayer cloneOwner = getOwnerPlayer();
+            mob.hurt(cloneOwner != null ? SkillDamageSource.get(sl, cloneOwner) : SkillDamageSource.get(sl), dmg);
             hitMobs.add(mob);
         }
         for (int i = 0; i < 8; i++) {
@@ -258,14 +259,14 @@ public class ShadowCloneEntity extends PathfinderMob {
                     float splashDmg = rasenganDmg * 0.3f;
 
                     // Damage main target with rasengan bonus
-                    hitTarget.hurt(SkillDamageSource.get(sl), rasenganDmg);
+                    hitTarget.hurt(SkillDamageSource.get(sl, owner), rasenganDmg);
 
                     // AoE splash to nearby
                     AABB splashArea = hitTarget.getBoundingBox().inflate(2.0);
                     List<LivingEntity> nearby = sl.getEntitiesOfClass(LivingEntity.class, splashArea,
                             e -> e != hitTarget && e != this && !(e instanceof Player) && e instanceof Monster);
                     for (LivingEntity mob : nearby) {
-                        mob.hurt(SkillDamageSource.get(sl), splashDmg);
+                        mob.hurt(SkillDamageSource.get(sl, owner), splashDmg);
                     }
 
                     SkillParticles.explosion(sl, hitTarget.getX(), hitTarget.getY() + 1, hitTarget.getZ(),

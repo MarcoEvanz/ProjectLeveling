@@ -78,6 +78,7 @@ public class ClientEvents {
             event.register(KeyBindings.SKILL_SLOT_5);
             event.register(KeyBindings.SKILL_SLOT_6);
             event.register(KeyBindings.SKILL_SLOT_7);
+            event.register(KeyBindings.DUNGEON_SCREEN);
         }
 
         @SubscribeEvent
@@ -170,6 +171,10 @@ public class ClientEvents {
             if (KeyBindings.SKILL_TREE_SCREEN.consumeClick()) {
                 ModNetwork.sendToServer(new C2SRequestSyncPacket());
                 mc.setScreen(new SkillTreeScreen());
+            }
+            if (KeyBindings.DUNGEON_SCREEN.consumeClick()) {
+                ModNetwork.sendToServer(new C2SRequestSyncPacket());
+                mc.setScreen(new DungeonScreen());
             }
 
             // Skill activation (only when no screen is open)

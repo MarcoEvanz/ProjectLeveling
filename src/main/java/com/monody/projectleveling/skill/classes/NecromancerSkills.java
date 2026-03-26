@@ -248,7 +248,7 @@ public final class NecromancerSkills {
         List<Monster> mobs = player.level().getEntitiesOfClass(Monster.class, area);
         float totalDmg = 0;
         for (Monster mob : mobs) {
-            mob.hurt(SkillDamageSource.get(player.level()), damage);
+            mob.hurt(SkillDamageSource.get(player.level(), player), damage);
             totalDmg += damage;
         }
         float healAmount = totalDmg * healPct * (1 + stats.getMind() * 0.01f);
@@ -450,7 +450,7 @@ public final class NecromancerSkills {
             return;
         }
         float dotDmg = stats.getMagicAttack(player) * getDeathMarkDotMultiplier(level, stats.getIntelligence());
-        living.hurt(SkillDamageSource.get(player.level()), dotDmg);
+        living.hurt(SkillDamageSource.get(player.level(), player), dotDmg);
         CombatLog.damageSkill(player, "Death Mark", dotDmg, living);
         if (player.level() instanceof ServerLevel sl) {
             SkillParticles.burst(sl, living.getX(), living.getY() + 1.5, living.getZ(), 5, 0.3, ParticleTypes.WITCH);
@@ -469,7 +469,7 @@ public final class NecromancerSkills {
             AABB area = deadEntity.getBoundingBox().inflate(aoeRange);
             List<Monster> mobs = sl.getEntitiesOfClass(Monster.class, area, e -> e != deadEntity);
             for (Monster mob : mobs) {
-                mob.hurt(SkillDamageSource.get(player.level()), aoeDmg);
+                mob.hurt(SkillDamageSource.get(player.level(), player), aoeDmg);
                 mob.addEffect(new MobEffectInstance(MobEffects.GLOWING, 40, 0, false, true));
             }
             CombatLog.aoeSkill(player, "Death Mark Explosion", aoeDmg, mobs);

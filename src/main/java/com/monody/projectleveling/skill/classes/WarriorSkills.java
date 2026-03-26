@@ -314,7 +314,7 @@ public final class WarriorSkills {
         AABB area = player.getBoundingBox().inflate(range);
         List<Monster> mobs = player.level().getEntitiesOfClass(Monster.class, area);
         for (Monster mob : mobs) {
-            mob.hurt(SkillDamageSource.get(player.level()), damage);
+            mob.hurt(SkillDamageSource.get(player.level(), player), damage);
             mob.addEffect(new MobEffectInstance(MobEffects.MOVEMENT_SLOWDOWN, stunDuration, 3, false, true));
             StatEventHandler.tryFinalAttack(player, mob, damage);
         }
@@ -350,7 +350,7 @@ public final class WarriorSkills {
                 for (LivingEntity target : entities) {
                     if (target.invulnerableTime <= 0) {
                         target.invulnerableTime = 0;
-                        target.hurt(SkillDamageSource.get(player.level()), damage);
+                        target.hurt(SkillDamageSource.get(player.level(), player), damage);
                         target.invulnerableTime = 4; // Short iframe to prevent double-hit from same beam
                         CombatLog.damageSkill(player, "Beam Blade", damage, target);
                         StatEventHandler.tryFinalAttack(player, target, damage);
@@ -448,7 +448,7 @@ public final class WarriorSkills {
                 List<Monster> mobs = sl.getEntitiesOfClass(Monster.class,
                         partner.getBoundingBox().inflate(radius));
                 for (Monster mob : mobs) {
-                    mob.hurt(SkillDamageSource.get(player.level()), dmg);
+                    mob.hurt(SkillDamageSource.get(player.level(), player), dmg);
                     mob.addEffect(new MobEffectInstance(MobEffects.MOVEMENT_SLOWDOWN, 40 + level * 4, 2, false, true));
                 }
                 CombatLog.aoeSkill(player, "Shadow Ground Slam", dmg, mobs);
@@ -464,7 +464,7 @@ public final class WarriorSkills {
                                     point.x + 0.8, point.y + 0.8, point.z + 0.8));
                     for (Monster mob : mobs) {
                         if (mob.invulnerableTime <= 0) {
-                            mob.hurt(SkillDamageSource.get(player.level()), dmg);
+                            mob.hurt(SkillDamageSource.get(player.level(), player), dmg);
                             mob.invulnerableTime = 4;
                         }
                     }

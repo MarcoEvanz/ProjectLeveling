@@ -140,7 +140,7 @@ public class FlyingRaijinKunaiEntity extends AbstractArrow implements ItemSuppli
 
         if (getOwner() instanceof ServerPlayer owner) {
             // Deal damage
-            result.getEntity().hurt(SkillDamageSource.get(owner.level()), kunaiDamage);
+            result.getEntity().hurt(SkillDamageSource.get(owner.level(), owner), kunaiDamage);
             if (result.getEntity() instanceof LivingEntity target) {
                 CombatLog.damageSkill(owner, ssrzMode ? "FR: Zeroshiki" : "Flying Raijin", kunaiDamage, target);
             }

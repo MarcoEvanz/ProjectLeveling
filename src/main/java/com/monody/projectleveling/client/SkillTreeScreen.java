@@ -134,6 +134,15 @@ public class SkillTreeScreen extends Screen {
         int playerLevel = stats.getLevel();
         showClassSelection = sd.getSelectedClass() == PlayerClass.NONE && playerLevel >= 10;
 
+        // Wider panel for class selection (2-column layout needs more space)
+        if (showClassSelection) {
+            panelW = Math.max(380, Math.min(480, (int) (this.width * 0.55f)));
+            panelX = (this.width - panelW) / 2;
+        } else {
+            panelW = Math.max(MIN_PANEL_WIDTH, Math.min(MAX_PANEL_WIDTH, (int) (this.width * PANEL_WIDTH_RATIO)));
+            panelX = (this.width - panelW) / 2;
+        }
+
         int x = panelX;
         int y = panelY;
 
@@ -168,6 +177,46 @@ public class SkillTreeScreen extends Screen {
 
     // === Class Selection Mode ===
 
+    // Tag system for class boxes
+    private enum ClassTag {
+        NONE(null, 0),
+        NEW("NEW", 0xFF00CC00),
+        HOT("HOT", 0xFFFF4400),
+        REWORKED("REWORKED", 0xFF00AAFF),
+        WIP("WIP", 0xFFFFAA00),
+        UNAVAILABLE("N/A", 0xFF888888);
+
+        final String label;
+        final int color;
+        ClassTag(String label, int color) { this.label = label; this.color = color; }
+        boolean isSelectable() { return this != WIP && this != UNAVAILABLE; }
+    }
+
+    // Class selection data: {name, stat, line1, line2}
+    private static final String[][] CLASS_INFO = {
+            {"Warrior",      "STR",     "Trustworthy frontline with aoe buff",  "and aggro pulling."},
+            {"Assassin",     "LUK",     "Stealth assassin with bleed, crit",    "and burst execution."},
+            {"Ninja",        "AGI/LUK", "Fast fighter with shadow clones",      "and teleportation jutsu."},
+            {"Necromancer",  "INT/MND", "Summoner who raises skeleton army",    "with lifesteal and death magic."},
+            {"Archer",       "DEX",     "Ranged fighter with arrow volleys",    "and phoenix summon."},
+            {"Healer",       "FAI",     "Party support with healing, shields",  "and holy damage."},
+            {"Mage",         "INT",     "Elemental caster with fire, frost",    "and poison combo spells."},
+            {"Beast Master", "STR/VIT", "Melee fighter using tiger, bear,",     "turtle and phoenix techniques."},
+            {"Limitless",    "INT",     "Cursed energy user with gravity",      "manipulation and barriers."},
+    };
+    private static final int[] CLASS_COLORS = {
+            CLASS_WARRIOR, CLASS_ASSASSIN, CLASS_NINJA, CLASS_NECROMANCER,
+            CLASS_ARCHER, CLASS_HEALER, CLASS_MAGE, CLASS_BEAST_MASTER, CLASS_LIMITLESS
+    };
+    private static final ClassTag[] CLASS_TAGS = {
+            ClassTag.NONE, ClassTag.NONE, ClassTag.NONE, ClassTag.NONE,
+            ClassTag.NONE, ClassTag.NONE, ClassTag.NONE, ClassTag.WIP,
+            ClassTag.NONE,
+    };
+    private static final int[][] ALL_CLASS_BOUNDS = new int[9][4];
+
+    private int classScrollOffset = 0;
+
     private void renderClassSelection(GuiGraphics g, PlayerStats stats, int mx, int my) {
         int x = panelX;
         int y = panelY;
@@ -176,6 +225,8 @@ public class SkillTreeScreen extends Screen {
         int cx = x + panelW / 2;
 
         int rowY = y + pad + 2;
+
+        // Header
         String header = "CHOOSE YOUR CLASS";
         g.drawString(font, header, cx - font.width(header) / 2, rowY, TEXT_BRIGHT, false);
         rowY += lineH + 2;
@@ -186,61 +237,126 @@ public class SkillTreeScreen extends Screen {
         drawSep(g, left, rowY, innerW);
         rowY += 6;
 
-        // Row 1: Warrior, Assassin, Ninja, Necromancer (4-column)
-        int colGap = 4;
-        int colW4 = (innerW - colGap * 3) / 4;
-        int boxH = lineH * 4 + 6;
+        // 2 columns layout
+        int colGap = 6;
+        int colW = (innerW - colGap) / 2;
+        int boxH = lineH * 4 + 10;
+        int rowGap = 5;
 
-        renderClassBox(g, warriorBtnBounds, left, rowY, colW4, boxH,
-                "WARRIOR", "STR", CLASS_WARRIOR, new String[]{"Bloodlust", "Iron Will", "Domain"}, mx, my);
-        renderClassBox(g, assassinBtnBounds, left + (colW4 + colGap), rowY, colW4, boxH,
-                "ASSASSIN", "LUK", CLASS_ASSASSIN, new String[]{"Shadow Strike", "Stealth", "Ruler's Auth."}, mx, my);
-        renderClassBox(g, ninjaBtnBounds, left + (colW4 + colGap) * 2, rowY, colW4, boxH,
-                "NINJA", "AGI/LUK", CLASS_NINJA, new String[]{"Shadow Clone", "Rasengan", "Sage Mode"}, mx, my);
-        renderClassBox(g, necromancerBtnBounds, left + (colW4 + colGap) * 3, rowY, colW4, boxH,
-                "NECRO", "INT/MND", CLASS_NECROMANCER, new String[]{"Life Drain", "Raise Skeleton", "Army of Dead"}, mx, my);
+        // Clipping area
+        int clipTop = rowY;
+        int clipBottom = panelY + panelH - pad;
 
-        rowY += boxH + 6;
+        // Total content height for scrolling
+        int numRows = (CLASS_INFO.length + 1) / 2; // ceil division
+        int totalH = numRows * (boxH + rowGap) - rowGap;
+        int visibleH = clipBottom - clipTop;
+        int maxScroll = Math.max(0, totalH - visibleH);
+        classScrollOffset = Math.min(classScrollOffset, maxScroll);
 
-        // Row 2: Archer, Healer, Mage, Beast Master (4-column)
-        renderClassBox(g, archerBtnBounds, left, rowY, colW4, boxH,
-                "ARCHER", "DEX", CLASS_ARCHER, new String[]{"Arrow Rain", "Phoenix", "Hurricane"}, mx, my);
-        renderClassBox(g, healerBtnBounds, left + (colW4 + colGap), rowY, colW4, boxH,
-                "HEALER", "FAI", CLASS_HEALER, new String[]{"Holy Light", "Benediction", "Angel Ray"}, mx, my);
-        renderClassBox(g, mageBtnBounds, left + (colW4 + colGap) * 2, rowY, colW4, boxH,
-                "MAGE", "INT", CLASS_MAGE, new String[]{"Flame Orb", "Frost Bind", "Arc. Infinity"}, mx, my);
-        renderClassBox(g, beastMasterBtnBounds, left + (colW4 + colGap) * 3, rowY, colW4, boxH,
-                "BEASTM", "STR/VIT", CLASS_BEAST_MASTER, new String[]{"Tiger Claw", "Bear Paw", "Power of Nat."}, mx, my);
+        // Enable scissor for clipping
+        g.enableScissor(left, clipTop, left + innerW, clipBottom);
 
-        rowY += boxH + 6;
+        int startY = rowY - classScrollOffset;
+        for (int i = 0; i < CLASS_INFO.length; i++) {
+            int row = i / 2;
+            int col = i % 2;
+            int bx = left + col * (colW + colGap);
+            int by = startY + row * (boxH + rowGap);
 
-        // Row 3: Limitless
-        renderClassBox(g, limitlessBtnBounds, left, rowY, colW4, boxH,
-                "LIMITLESS", "INT", CLASS_LIMITLESS, new String[]{"Infinity", "C.T. Red", "RCT"}, mx, my);
+            renderClassBox(g, ALL_CLASS_BOUNDS[i], bx, by, colW, boxH,
+                    CLASS_INFO[i][0], CLASS_INFO[i][1], CLASS_COLORS[i],
+                    CLASS_INFO[i][2], CLASS_INFO[i][3], mx, my, clipTop, clipBottom,
+                    CLASS_TAGS[i]);
+        }
+
+        g.disableScissor();
+
+        // Copy bounds to named arrays for click handling
+        System.arraycopy(ALL_CLASS_BOUNDS[0], 0, warriorBtnBounds, 0, 4);
+        System.arraycopy(ALL_CLASS_BOUNDS[1], 0, assassinBtnBounds, 0, 4);
+        System.arraycopy(ALL_CLASS_BOUNDS[2], 0, ninjaBtnBounds, 0, 4);
+        System.arraycopy(ALL_CLASS_BOUNDS[3], 0, necromancerBtnBounds, 0, 4);
+        System.arraycopy(ALL_CLASS_BOUNDS[4], 0, archerBtnBounds, 0, 4);
+        System.arraycopy(ALL_CLASS_BOUNDS[5], 0, healerBtnBounds, 0, 4);
+        System.arraycopy(ALL_CLASS_BOUNDS[6], 0, mageBtnBounds, 0, 4);
+        System.arraycopy(ALL_CLASS_BOUNDS[7], 0, beastMasterBtnBounds, 0, 4);
+        System.arraycopy(ALL_CLASS_BOUNDS[8], 0, limitlessBtnBounds, 0, 4);
+
+        // Scrollbar
+        if (maxScroll > 0) {
+            int barX = left + innerW - 2;
+            int barH = Math.max(10, visibleH * visibleH / totalH);
+            int barY = clipTop + (int) ((float) classScrollOffset / maxScroll * (visibleH - barH));
+            g.fill(barX, clipTop, barX + 2, clipBottom, FRAME_DIM);
+            g.fill(barX, barY, barX + 2, barY + barH, TEXT_ACCENT);
+        }
     }
 
     private void renderClassBox(GuiGraphics g, int[] bounds, int bx, int by, int bw, int bh,
-                                 String name, String stat, int classColor, String[] skills, int mx, int my) {
+                                 String name, String stat, int classColor,
+                                 String desc, String skillList, int mx, int my,
+                                 int clipTop, int clipBottom, ClassTag tag) {
         bounds[0] = bx;
         bounds[1] = by;
         bounds[2] = bw;
         bounds[3] = bh;
 
-        boolean hov = isInside(mx, my, bounds);
-        g.fill(bx, by, bx + bw, by + bh, hov ? BTN_HOVER_BG : BTN_BG);
-        drawBox(g, bx, by, bw, bh, hov ? classColor : FRAME_DIM);
+        // Skip rendering if fully outside clip area
+        if (by + bh < clipTop || by > clipBottom) return;
 
-        int ty = by + 3;
-        g.drawString(font, name, bx + 4, ty, classColor, false);
-        g.drawString(font, stat, bx + bw - font.width(stat) - 4, ty, TEXT_DIM, false);
-        for (String skill : skills) {
-            ty += lineH;
-            String truncated = skill;
-            while (font.width(truncated) > bw - 8 && truncated.length() > 3) {
-                truncated = truncated.substring(0, truncated.length() - 1);
-            }
-            g.drawString(font, truncated, bx + 4, ty, TEXT_VALUE, false);
+        boolean disabled = !tag.isSelectable();
+        boolean hov = !disabled && isInside(mx, my, bounds) && my >= clipTop && my < clipBottom;
+        int accentColor = disabled ? 0xFF666666 : classColor;
+        int textDim = disabled ? 0xFF555555 : TEXT_DIM;
+        int textVal = disabled ? 0xFF555555 : TEXT_VALUE;
+
+        // Background
+        g.fill(bx, by, bx + bw, by + bh, hov ? 0xFF142840 : 0xFF0A1828);
+        // Accent bar on left
+        g.fill(bx, by, bx + 2, by + bh, hov ? accentColor : (accentColor & 0x00FFFFFF) | 0x80000000);
+        // Border
+        drawBox(g, bx, by, bw, bh, hov ? accentColor : FRAME_DIM);
+
+        int textX = bx + 7;
+        int maxTextW = bw - 12;
+        int ty = by + 4;
+
+        // Class name — leave room for tag badge + stat
+        int rightSpace = font.width(stat) + 8;
+        if (tag.label != null) {
+            int tagW = font.width(tag.label) + 6;
+            // Draw tag badge top-right
+            int tagX = bx + bw - font.width(stat) - tagW - 10;
+            int tagBg = (tag.color & 0x00FFFFFF) | 0x40000000;
+            g.fill(tagX, ty - 1, tagX + tagW, ty + lineH, tagBg);
+            g.drawString(font, tag.label, tagX + 3, ty, tag.color, false);
+            rightSpace += tagW + 5;
         }
+        String drawName = truncate(name, maxTextW - rightSpace);
+        g.drawString(font, drawName, textX, ty, accentColor, false);
+        // Stat tag right-aligned
+        g.drawString(font, stat, bx + bw - font.width(stat) - 5, ty, textDim, false);
+        ty += lineH + 1;
+
+        // Thin separator
+        g.fill(textX, ty, bx + bw - 5, ty + 1, (accentColor & 0x00FFFFFF) | 0x40000000);
+        ty += 4;
+
+        // Description lines
+        g.drawString(font, truncate(desc, maxTextW), textX, ty, textDim, false);
+        ty += lineH + 1;
+        g.drawString(font, truncate(skillList, maxTextW), textX, ty, textVal, false);
+    }
+
+    private String truncate(String text, int maxPixelWidth) {
+        if (font.width(text) <= maxPixelWidth) return text;
+        String ellipsis = "..";
+        int ellipsisW = font.width(ellipsis);
+        while (text.length() > 1 && font.width(text) + ellipsisW > maxPixelWidth) {
+            text = text.substring(0, text.length() - 1);
+        }
+        return text + ellipsis;
     }
 
     // === Normal Skill View ===
@@ -636,6 +752,7 @@ public class SkillTreeScreen extends Screen {
                 PlayerClass[] classes = {PlayerClass.WARRIOR, PlayerClass.ASSASSIN, PlayerClass.NINJA, PlayerClass.NECROMANCER, PlayerClass.ARCHER, PlayerClass.HEALER, PlayerClass.MAGE, PlayerClass.BEAST_MASTER, PlayerClass.LIMITLESS};
                 for (int i = 0; i < classBounds.length; i++) {
                     if (isInside((int) mx, (int) my, classBounds[i])) {
+                        if (!CLASS_TAGS[i].isSelectable()) return true;
                         ModNetwork.sendToServer(new C2SSelectClassPacket(classes[i].getId()));
                         return true;
                     }
@@ -679,7 +796,15 @@ public class SkillTreeScreen extends Screen {
                 List<SkillType> skills = sd.getVisibleSkills(TIER_NUMBERS[activeTab]);
                 for (int i = 0; i < skills.size() && i < 8; i++) {
                     if (isInside((int) mx, (int) my, plusBtnBounds[i])) {
-                        ModNetwork.sendToServer(new C2SUnlockSkillPacket(skills.get(i).getId()));
+                        SkillType skill = skills.get(i);
+                        if (hasShiftDown()) {
+                            int remaining = skill.getMaxLevel() - sd.getLevel(skill);
+                            int spAvail = sd.getTierSP(skill.getTier());
+                            int count = Math.max(1, Math.min(remaining, spAvail));
+                            ModNetwork.sendToServer(new C2SUnlockSkillPacket(skill.getId(), count));
+                        } else {
+                            ModNetwork.sendToServer(new C2SUnlockSkillPacket(skill.getId()));
+                        }
                         return true;
                     }
 
@@ -715,6 +840,10 @@ public class SkillTreeScreen extends Screen {
 
     @Override
     public boolean mouseScrolled(double mx, double my, double delta) {
+        if (showClassSelection) {
+            classScrollOffset = (int) Math.max(0, classScrollOffset - delta * 20);
+            return true;
+        }
         if (maxScrollOffset > 0) {
             scrollOffset = (int) Math.max(0, Math.min(maxScrollOffset, scrollOffset - delta * 20));
             return true;

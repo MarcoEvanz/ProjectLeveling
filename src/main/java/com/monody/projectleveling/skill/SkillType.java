@@ -295,7 +295,7 @@ public enum SkillType {
             "Rain homing arrows on enemies every 5s for 30s. Bypasses I-frame.", "SOA"),
 
     // --- Archer T5 ---
-    HAWK_EYE("hawk_eye", "Hawk Eye", 5, 5, PlayerClass.ARCHER, 120, false, true,
+    HAWK_EYE("hawk_eye", "Hawk Eye", 5, 4, PlayerClass.ARCHER, 120, false, true,
             0, 0, 0, 0,
             "Passive. +1% crit rate, +2% crit dmg per level.", "HE",
             stat(CRIT, 1.0), stat(CDMG, 2.0)),

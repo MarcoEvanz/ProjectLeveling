@@ -176,7 +176,7 @@ public class SkeletonMinionEntity extends PathfinderMob implements RangedAttackM
             AABB area = this.getBoundingBox().inflate(range);
             List<Monster> mobs = sl.getEntitiesOfClass(Monster.class, area);
             for (Monster mob : mobs) {
-                mob.hurt(SkillDamageSource.get(this.level()), explodeDamage);
+                mob.hurt(SkillDamageSource.get(this.level(), owner), explodeDamage);
             }
             owner.getCapability(PlayerStatsCapability.PLAYER_STATS).ifPresent(stats -> {
                 CombatLog.aoeSkill(owner, "Corpse Explosion", explodeDamage, mobs);

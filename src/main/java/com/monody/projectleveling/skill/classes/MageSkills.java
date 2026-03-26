@@ -240,7 +240,7 @@ public final class MageSkills {
             mob.setDeltaMovement(pullDir.scale(0.4));
             mob.hurtMarked = true;
             // Freeze + damage
-            mob.hurt(SkillDamageSource.get(player.level()), damage);
+            mob.hurt(SkillDamageSource.get(player.level(), player), damage);
             mob.addEffect(new MobEffectInstance(MobEffects.MOVEMENT_SLOWDOWN, freezeDuration, 3, false, true));
             mob.addEffect(new MobEffectInstance(MobEffects.WEAKNESS, freezeDuration, 0, false, true));
         }
@@ -283,7 +283,7 @@ public final class MageSkills {
                 sd.getMistX() + radius, sd.getMistY() + radius, sd.getMistZ() + radius);
         List<Monster> mobs = player.level().getEntitiesOfClass(Monster.class, area);
         for (Monster mob : mobs) {
-            mob.hurt(SkillDamageSource.get(player.level()), damage);
+            mob.hurt(SkillDamageSource.get(player.level(), player), damage);
             mob.addEffect(new MobEffectInstance(MobEffects.POISON, 40, 0, false, false));
         }
         CombatLog.aoeSkill(player, "Poison Mist", damage, mobs);
@@ -304,7 +304,7 @@ public final class MageSkills {
                     sd.getMistX() + radius, sd.getMistY() + radius, sd.getMistZ() + radius);
             List<Monster> mobs = player.level().getEntitiesOfClass(Monster.class, area);
             for (Monster mob : mobs) {
-                mob.hurt(SkillDamageSource.get(player.level()), damage);
+                mob.hurt(SkillDamageSource.get(player.level(), player), damage);
                 mob.setSecondsOnFire(3);
             }
             CombatLog.aoeSkill(player, "Mist Eruption", damage, mobs);
@@ -325,7 +325,7 @@ public final class MageSkills {
             AABB area = player.getBoundingBox().inflate(range);
             List<Monster> mobs = player.level().getEntitiesOfClass(Monster.class, area);
             for (Monster mob : mobs) {
-                mob.hurt(SkillDamageSource.get(player.level()), damage);
+                mob.hurt(SkillDamageSource.get(player.level(), player), damage);
             }
             CombatLog.aoeSkill(player, "Arcane Blast", damage, mobs);
             if (player.level() instanceof ServerLevel sl) {
@@ -557,7 +557,7 @@ public final class MageSkills {
                 List<Monster> mobs = sl.getEntitiesOfClass(Monster.class,
                         partner.getBoundingBox().inflate(radius));
                 for (Monster mob : mobs) {
-                    mob.hurt(SkillDamageSource.get(player.level()), dmg);
+                    mob.hurt(SkillDamageSource.get(player.level(), player), dmg);
                     mob.addEffect(new MobEffectInstance(MobEffects.MOVEMENT_SLOWDOWN, 60 + level * 4, 4, false, true));
                 }
                 CombatLog.aoeSkill(player, "Shadow Frost Bind", dmg, mobs);
@@ -568,7 +568,7 @@ public final class MageSkills {
                 List<Monster> mobs = sl.getEntitiesOfClass(Monster.class,
                         partner.getBoundingBox().inflate(4));
                 for (Monster mob : mobs) {
-                    mob.hurt(SkillDamageSource.get(player.level()), dmg);
+                    mob.hurt(SkillDamageSource.get(player.level(), player), dmg);
                     mob.addEffect(new MobEffectInstance(MobEffects.POISON, 60, 0, false, true));
                 }
                 CombatLog.aoeSkill(player, "Shadow Poison Mist", dmg, mobs);
@@ -580,7 +580,7 @@ public final class MageSkills {
                 List<Monster> mobs = sl.getEntitiesOfClass(Monster.class,
                         partner.getBoundingBox().inflate(radius));
                 for (Monster mob : mobs) {
-                    mob.hurt(SkillDamageSource.get(player.level()), dmg);
+                    mob.hurt(SkillDamageSource.get(player.level(), player), dmg);
                 }
                 CombatLog.aoeSkill(player, "Shadow Eruption", dmg, mobs);
                 SkillParticles.burst(sl, pos.x, pos.y + 1, pos.z, 15, radius * 0.4, ParticleTypes.ENCHANTED_HIT);

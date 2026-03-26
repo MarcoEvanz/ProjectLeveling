@@ -4,7 +4,10 @@ import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import com.monody.projectleveling.capability.PlayerStatsCapability;
+import com.monody.projectleveling.dimension.DungeonHelper;
+import com.monody.projectleveling.dimension.ModDimensions;
 import com.monody.projectleveling.event.StatEventHandler;
+import com.monody.projectleveling.mob.MobLevelUtil;
 import com.monody.projectleveling.skill.SkillData;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
@@ -319,6 +322,42 @@ public class ModCommands {
                                         )
                                 )
                         )
+                )
+
+                // ======== /plvl hunt <zone> ========
+                .then(Commands.literal("hunt")
+                        .then(Commands.argument("zone", IntegerArgumentType.integer(1, 20))
+                                .executes(ctx -> {
+                                    ServerPlayer player = ctx.getSource().getPlayerOrException();
+                                    int zone = IntegerArgumentType.getInteger(ctx, "zone") - 1;
+                                    if (DungeonHelper.teleportToZone(player, zone)) {
+                                        int minLv = MobLevelUtil.getDungeonMinLevel(zone);
+                                        int maxLv = MobLevelUtil.getDungeonMaxLevel(zone);
+                                        ctx.getSource().sendSuccess(() ->
+                                                Component.literal("Teleported to Dungeon " + (zone + 1)
+                                                        + " (Lv." + minLv + "-" + maxLv + ")"), false);
+                                    } else {
+                                        ctx.getSource().sendFailure(Component.literal("Failed to teleport."));
+                                    }
+                                    return 1;
+                                })
+                        )
+                )
+
+                // ======== /plvl return ========
+                .then(Commands.literal("return")
+                        .executes(ctx -> {
+                            ServerPlayer player = ctx.getSource().getPlayerOrException();
+                            if (ModDimensions.isDungeon(player.level().dimension())) {
+                                DungeonHelper.returnToOverworld(player);
+                                ctx.getSource().sendSuccess(() ->
+                                        Component.literal("Returned to the Overworld."), false);
+                            } else {
+                                ctx.getSource().sendFailure(
+                                        Component.literal("You are not in a dungeon."));
+                            }
+                            return 1;
+                        })
                 )
 
                 // ======== /plvl cd ========

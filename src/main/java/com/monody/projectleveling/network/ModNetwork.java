@@ -73,6 +73,18 @@ public class ModNetwork {
                 .decoder(S2CSyncStatsPacket::new)
                 .consumerMainThread(S2CSyncStatsPacket::handle)
                 .add();
+
+        CHANNEL.messageBuilder(C2STeleportToZonePacket.class, packetId++, NetworkDirection.PLAY_TO_SERVER)
+                .encoder(C2STeleportToZonePacket::encode)
+                .decoder(C2STeleportToZonePacket::new)
+                .consumerMainThread(C2STeleportToZonePacket::handle)
+                .add();
+
+        CHANNEL.messageBuilder(C2SReturnFromDungeonPacket.class, packetId++, NetworkDirection.PLAY_TO_SERVER)
+                .encoder(C2SReturnFromDungeonPacket::encode)
+                .decoder(C2SReturnFromDungeonPacket::new)
+                .consumerMainThread(C2SReturnFromDungeonPacket::handle)
+                .add();
     }
 
     public static void sendToServer(Object msg) {

@@ -6,13 +6,13 @@ public enum PlayerClass {
     // Each +1 bonus on even levels adds: T1=+10, T2=+15, T3=+20, T4=+30 to the total
     NONE("none", "None", new int[]{0, 0, 0, 0, 0}),
     WARRIOR("warrior", "Warrior", new int[]{0, 0, 0, 0, 0}),
-    ASSASSIN("assassin", "Assassin", new int[]{0, 0, 0, 0, 0}),
+    ASSASSIN("assassin", "Assassin", new int[]{0, 0, 0, 1, 0}), // T3=80
     ARCHER("archer", "Archer", new int[]{0, 0, 0, 0, 0}),
-    HEALER("healer", "Healer", new int[]{0, 0, 0, 0, 0}),
+    HEALER("healer", "Healer", new int[]{0, 0, 1, 0, 0}), // T2=60
     MAGE("mage", "Mage", new int[]{0, 0, 0, 0, 0}),
     NINJA("ninja", "Ninja", new int[]{0, 0, 1, 1, 0}), // T2=60, T3=80
-    NECROMANCER("necromancer", "Necromancer", new int[]{0, 1, 1, 2, 0}), // T1=40, T2=60, T3=100
-    BEAST_MASTER("beast_master", "Beast Master", new int[]{0, 2, 0, 2, 0}), // T1=50, T2=45, T3=100
+    NECROMANCER("necromancer", "Necromancer", new int[]{0, 1, 2, 2, 0}), // T1=40, T2=75, T3=100
+    BEAST_MASTER("beast_master", "Beast Master", new int[]{0, 2, 1, 2, 0}), // T1=50, T2=60, T3=100
     LIMITLESS("limitless", "Limitless", new int[]{0, 0, 0, 0, 1}); // T4 bonus for Limitless
 
     private final String id;

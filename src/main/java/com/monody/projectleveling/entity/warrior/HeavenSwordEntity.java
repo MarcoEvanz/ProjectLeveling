@@ -103,7 +103,7 @@ public class HeavenSwordEntity extends Entity {
                 getX() + radius, getY() + radius, getZ() + radius);
         List<Monster> mobs = sl.getEntitiesOfClass(Monster.class, area);
         for (Monster mob : mobs) {
-            mob.hurt(SkillDamageSource.get(sl), damage);
+            mob.hurt(owner != null ? SkillDamageSource.get(sl, owner) : SkillDamageSource.get(sl), damage);
             if (owner != null) {
                 StatEventHandler.tryFinalAttack(owner, mob, damage);
             }

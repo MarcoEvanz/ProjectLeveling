@@ -87,4 +87,12 @@ public class KeyBindings {
             GLFW.GLFW_KEY_GRAVE_ACCENT,
             CATEGORY
     );
+
+    public static final KeyMapping DUNGEON_SCREEN = new KeyMapping(
+            "key.projectleveling.dungeon_screen",
+            KeyConflictContext.IN_GAME,
+            InputConstants.Type.KEYSYM,
+            GLFW.GLFW_KEY_N,
+            CATEGORY
+    );
 }

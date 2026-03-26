@@ -306,7 +306,7 @@ public final class LimitlessSkills {
             entity.setDeltaMovement(look.scale(pushForce).add(0, 0.2, 0));
             entity.hurtMarked = true;
             if (entity instanceof Monster m) {
-                m.hurt(SkillDamageSource.get(player.level()), damage);
+                m.hurt(SkillDamageSource.get(player.level(), player), damage);
                 hitMobs.add(m);
             }
             pushed++;
@@ -450,7 +450,7 @@ public final class LimitlessSkills {
             entity.setDeltaMovement(entity.getDeltaMovement().add(pullDir.scale(force)));
             entity.hurtMarked = true;
             if (isDamageTick && entity instanceof Monster m) {
-                m.hurt(SkillDamageSource.get(player.level()), damage);
+                m.hurt(SkillDamageSource.get(player.level(), player), damage);
                 hitMobs.add(m);
             }
         }
@@ -677,7 +677,7 @@ public final class LimitlessSkills {
 
         List<Monster> hitMobs = new ArrayList<>();
         java.util.Set<Integer> alreadyHit = new java.util.HashSet<>();
-        DamageSource dmgSrc = SkillDamageSource.get(player.level());
+        DamageSource dmgSrc = SkillDamageSource.get(player.level(), player);
 
         // 1) Direct hit on first entity in beam path: full damage
         if (firstHit != null) {
@@ -962,7 +962,7 @@ public final class LimitlessSkills {
         List<LivingEntity> allEntities = player.level().getEntitiesOfClass(
                 LivingEntity.class, searchArea, e -> e != player && e.isAlive());
 
-        DamageSource dmgSrc = SkillDamageSource.get(player.level());
+        DamageSource dmgSrc = SkillDamageSource.get(player.level(), player);
         List<Monster> hitMobs = new ArrayList<>();
         java.util.Set<Integer> beamHitIds = new java.util.HashSet<>();
         List<Vec3> explosionPoints = new ArrayList<>();

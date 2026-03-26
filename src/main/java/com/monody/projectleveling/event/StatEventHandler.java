@@ -18,6 +18,9 @@ import com.monody.projectleveling.skill.SkillParticles;
 import com.monody.projectleveling.skill.classes.*;
 import com.monody.projectleveling.skill.SkillSounds;
 import com.monody.projectleveling.skill.SkillType;
+import com.monody.projectleveling.dimension.DungeonHelper;
+import com.monody.projectleveling.dimension.ModDimensions;
+import com.monody.projectleveling.mob.MobLevelUtil;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.server.level.ServerLevel;
@@ -31,6 +34,8 @@ import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.ai.attributes.AttributeInstance;
 import net.minecraft.world.entity.ai.attributes.AttributeModifier;
 import net.minecraft.world.entity.ai.attributes.Attributes;
+import net.minecraft.world.damagesource.DamageTypes;
+import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.monster.Monster;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
@@ -103,6 +108,15 @@ public class StatEventHandler {
                 applyStatModifiers(player, stats);
                 syncToClient(player);
             });
+
+            // Return to overworld if died in a dungeon
+            if (player.getPersistentData().getBoolean(DungeonHelper.KEY_DIED_IN_DUNGEON)) {
+                player.getPersistentData().remove(DungeonHelper.KEY_DIED_IN_DUNGEON);
+                player.getServer().tell(new net.minecraft.server.TickTask(
+                        player.getServer().getTickCount() + 1,
+                        () -> DungeonHelper.returnToOverworld(player)
+                ));
+            }
         }
     }
 
@@ -1153,6 +1167,8 @@ public class StatEventHandler {
     @SubscribeEvent
     public static void onLivingHurt(LivingHurtEvent event) {
         if (!(event.getSource().getEntity() instanceof ServerPlayer player)) return;
+        // Skill damage is fully computed inside each skill — skip melee/passive buffs
+        if (event.getSource().is(SkillDamageSource.SKILL)) return;
 
         player.getCapability(PlayerStatsCapability.PLAYER_STATS).ifPresent(stats -> {
             SkillData sd = stats.getSkillData();
@@ -1755,6 +1771,9 @@ public class StatEventHandler {
             return;
         }
 
+        // Skill damage is already logged by CombatLog inside each skill — skip here
+        if (event.getSource().is(SkillDamageSource.SKILL)) return;
+
         String label = event.getSource().isIndirect() ? "Ranged Attack" : "Melee Attack";
         CombatLog.damage(player, label, event.getAmount(), event.getEntity());
     }
@@ -2254,4 +2273,121 @@ public class StatEventHandler {
             ModNetwork.sendToPlayer(new S2CSyncStatsPacket(stats), player);
         });
     }
+
+    // === Dungeon: level hostile mobs on spawn ===
+
+    private static final java.util.UUID DUNGEON_HP_UUID =
+            java.util.UUID.fromString("d4e7f1a0-1234-4b5c-9a8d-0e1f2a3b4c5d");
+    private static final java.util.UUID DUNGEON_ATK_UUID =
+            java.util.UUID.fromString("d4e7f1a0-5678-4b5c-9a8d-0e1f2a3b4c5d");
+    private static final java.util.UUID DUNGEON_ARMOR_UUID =
+            java.util.UUID.fromString("d4e7f1a0-9abc-4b5c-9a8d-0e1f2a3b4c5d");
+
+    @SubscribeEvent
+    public static void onEntityJoinDungeon(EntityJoinLevelEvent event) {
+        if (event.getLevel().isClientSide()) return;
+        int dungeonIndex = ModDimensions.getDungeonIndex(event.getLevel().dimension());
+        if (dungeonIndex < 0) return;
+
+        if (event.getEntity() instanceof Monster mob) {
+            if (MobLevelUtil.isMobLeveled(mob)) return;
+
+            int mobLevel = MobLevelUtil.randomLevelForDungeon(dungeonIndex, new java.util.Random());
+            MobLevelUtil.setMobLevel(mob, mobLevel);
+
+            // Scale stats using AttributeModifiers (persisted in NBT, works for all spawn types)
+            double hpMult = MobLevelUtil.getHpMultiplier(mobLevel) - 1.0; // e.g. 18.9 for Lv.127
+            double atkMult = MobLevelUtil.getDamageMultiplier(mobLevel) - 1.0;
+            double armorBonus = MobLevelUtil.getArmorBonus(mobLevel);
+
+            AttributeInstance maxHp = mob.getAttribute(Attributes.MAX_HEALTH);
+            if (maxHp != null) {
+                maxHp.addPermanentModifier(new AttributeModifier(
+                        DUNGEON_HP_UUID, "dungeon_hp", hpMult,
+                        AttributeModifier.Operation.MULTIPLY_TOTAL));
+                mob.setHealth(mob.getMaxHealth());
+            }
+            AttributeInstance atk = mob.getAttribute(Attributes.ATTACK_DAMAGE);
+            if (atk != null) {
+                atk.addPermanentModifier(new AttributeModifier(
+                        DUNGEON_ATK_UUID, "dungeon_atk", atkMult,
+                        AttributeModifier.Operation.MULTIPLY_TOTAL));
+            }
+            AttributeInstance armor = mob.getAttribute(Attributes.ARMOR);
+            if (armor != null) {
+                armor.addPermanentModifier(new AttributeModifier(
+                        DUNGEON_ARMOR_UUID, "dungeon_armor", armorBonus,
+                        AttributeModifier.Operation.ADDITION));
+            }
+
+            // Set colored name tag
+            String mobName = mob.getType().getDescription().getString();
+            mob.setCustomName(MobLevelUtil.getLeveledName(mobLevel, mobName));
+            mob.setCustomNameVisible(true);
+        }
+    }
+
+    // === Dungeon: EXP on mob kill ===
+
+    @SubscribeEvent
+    public static void onMobKilledInDungeon(LivingDeathEvent event) {
+        if (!(event.getEntity() instanceof Monster mob)) return;
+        if (!MobLevelUtil.isMobLeveled(mob)) return;
+        if (mob.level().isClientSide()) return;
+
+        // Try getKillCredit first; fall back to damage source entity (for skill kills)
+        ServerPlayer player;
+        LivingEntity killer = mob.getKillCredit();
+        if (killer instanceof ServerPlayer sp) {
+            player = sp;
+        } else {
+            Entity sourceEntity = event.getSource().getEntity();
+            if (sourceEntity instanceof ServerPlayer sp2) {
+                player = sp2;
+            } else {
+                return;
+            }
+        }
+
+        int mobLevel = MobLevelUtil.getMobLevel(mob);
+        player.getCapability(PlayerStatsCapability.PLAYER_STATS).ifPresent(stats -> {
+            int expGain = MobLevelUtil.getExpReward(mobLevel, stats.getLevel(), mob.getMaxHealth());
+            int oldLevel = stats.getLevel();
+            int levelsGained = stats.addExp(expGain);
+            if (levelsGained > 0) {
+                applyStatModifiers(player, stats);
+                player.sendSystemMessage(Component.literal(
+                        "\u00a7a+" + expGain + " EXP \u00a76Level Up! " + oldLevel + " -> " + stats.getLevel()));
+            } else {
+                player.sendSystemMessage(Component.literal(
+                        "\u00a7a+" + expGain + " EXP \u00a77(" + stats.getCurrentExp() + "/" + stats.getMaxExp() + ")"));
+            }
+            syncToClient(player);
+        });
+    }
+
+    // === Dungeon: death flag for respawn handling ===
+
+    @SubscribeEvent
+    public static void onPlayerDeathInDungeon(LivingDeathEvent event) {
+        if (!(event.getEntity() instanceof ServerPlayer player)) return;
+        if (!ModDimensions.isDungeon(player.level().dimension())) return;
+        player.getPersistentData().putBoolean(DungeonHelper.KEY_DIED_IN_DUNGEON, true);
+    }
+
+    // === Dungeon: scale indirect damage (arrows, explosions, etc.) from leveled mobs ===
+
+    @SubscribeEvent
+    public static void onDungeonMobIndirectDamage(LivingHurtEvent event) {
+        Entity attacker = event.getSource().getEntity();
+        if (!(attacker instanceof Monster mob)) return;
+        if (!MobLevelUtil.isMobLeveled(mob)) return;
+
+        // Melee (mob_attack) is already scaled via ATTACK_DAMAGE attribute — skip it
+        if (event.getSource().is(DamageTypes.MOB_ATTACK)) return;
+
+        int mobLevel = MobLevelUtil.getMobLevel(mob);
+        event.setAmount(event.getAmount() * (float) MobLevelUtil.getDamageMultiplier(mobLevel));
+    }
+
 }

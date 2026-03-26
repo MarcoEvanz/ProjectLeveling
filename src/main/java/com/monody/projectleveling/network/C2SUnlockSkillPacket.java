@@ -11,17 +11,25 @@ import java.util.function.Supplier;
 
 public class C2SUnlockSkillPacket {
     private final String skillId;
+    private final int count;
 
     public C2SUnlockSkillPacket(String skillId) {
+        this(skillId, 1);
+    }
+
+    public C2SUnlockSkillPacket(String skillId, int count) {
         this.skillId = skillId;
+        this.count = Math.max(1, count);
     }
 
     public C2SUnlockSkillPacket(FriendlyByteBuf buf) {
         this.skillId = buf.readUtf(32);
+        this.count = buf.readInt();
     }
 
     public void encode(FriendlyByteBuf buf) {
         buf.writeUtf(skillId, 32);
+        buf.writeInt(count);
     }
 
     public void handle(Supplier<NetworkEvent.Context> ctx) {
@@ -30,9 +38,13 @@ public class C2SUnlockSkillPacket {
 
         player.getCapability(PlayerStatsCapability.PLAYER_STATS).ifPresent(stats -> {
             SkillType skill = SkillType.fromId(skillId);
-            if (skill != null && stats.getSkillData().unlockOrLevel(skill, stats.getLevel())) {
-                StatEventHandler.syncToClient(player);
+            if (skill == null) return;
+            boolean changed = false;
+            for (int i = 0; i < count; i++) {
+                if (!stats.getSkillData().unlockOrLevel(skill, stats.getLevel())) break;
+                changed = true;
             }
+            if (changed) StatEventHandler.syncToClient(player);
         });
 
         ctx.get().setPacketHandled(true);

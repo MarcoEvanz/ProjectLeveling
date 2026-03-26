@@ -347,7 +347,7 @@ public final class ArcherSkills {
         List<Monster> mobs = player.level().getEntitiesOfClass(Monster.class, area);
         if (!mobs.isEmpty()) {
             Monster target = mobs.get(0);
-            target.hurt(SkillDamageSource.get(player.level()), damage);
+            target.hurt(SkillDamageSource.get(player.level(), player), damage);
             if (player.getRandom().nextFloat() < 0.8f) {
                 target.addEffect(new MobEffectInstance(MobEffects.MOVEMENT_SLOWDOWN, 40, 2, false, false));
             }
@@ -505,7 +505,7 @@ public final class ArcherSkills {
                 List<Monster> mobs = sl.getEntitiesOfClass(Monster.class,
                         partner.getBoundingBox().inflate(4));
                 for (Monster mob : mobs) {
-                    mob.hurt(SkillDamageSource.get(player.level()), dmg);
+                    mob.hurt(SkillDamageSource.get(player.level(), player), dmg);
                     mob.setSecondsOnFire(2);
                 }
                 CombatLog.aoeSkill(player, "Shadow Phoenix", dmg, mobs);

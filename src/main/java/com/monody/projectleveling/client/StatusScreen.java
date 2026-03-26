@@ -568,7 +568,16 @@ public class StatusScreen extends Screen {
                 String[] names = {"strength", "vitality", "agility", "intelligence", "sight", "luck", "dexterity", "mind", "faith"};
                 for (int i = 0; i < NUM_STATS; i++) {
                     if (statBtnBounds[i][2] > 0 && isInside((int) mx, (int) my, statBtnBounds[i])) {
-                        ModNetwork.sendToServer(new C2SAllocateStatPacket(names[i]));
+                        if (hasShiftDown()) {
+                            Player player = Minecraft.getInstance().player;
+                            if (player != null) {
+                                int pts = player.getCapability(PlayerStatsCapability.PLAYER_STATS)
+                                        .map(PlayerStats::getRemainingPoints).orElse(1);
+                                ModNetwork.sendToServer(new C2SAllocateStatPacket(names[i], Math.max(1, pts)));
+                            }
+                        } else {
+                            ModNetwork.sendToServer(new C2SAllocateStatPacket(names[i]));
+                        }
                         return true;
                     }
                 }

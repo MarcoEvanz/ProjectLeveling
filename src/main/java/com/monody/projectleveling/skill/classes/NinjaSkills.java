@@ -393,7 +393,7 @@ public final class NinjaSkills {
                             e -> e != player && e != livingTarget && e.isAlive()
                                     && !(e instanceof ShadowCloneEntity sc && player.getUUID().equals(sc.getOwnerUUID())));
                     for (net.minecraft.world.entity.LivingEntity e : nearby) {
-                        e.hurt(SkillDamageSource.get(player.level()), splashDmg);
+                        e.hurt(SkillDamageSource.get(player.level(), player), splashDmg);
                     }
                     if (!nearby.isEmpty()) {
                         CombatLog.aoeSkill(player, "Flying Raijin: Rasengan", splashDmg, nearby);
@@ -761,7 +761,7 @@ public final class NinjaSkills {
                     net.minecraft.world.entity.LivingEntity.class, splashBox,
                     e -> e != player && e.isAlive() && e instanceof Monster);
             for (net.minecraft.world.entity.LivingEntity e : nearby) {
-                e.hurt(SkillDamageSource.get(player.level()), rasenganDmg);
+                e.hurt(SkillDamageSource.get(player.level(), player), rasenganDmg);
             }
             if (!nearby.isEmpty()) {
                 CombatLog.aoeSkill(player, "Clone Flying Raijin: Rasengan", rasenganDmg, nearby);

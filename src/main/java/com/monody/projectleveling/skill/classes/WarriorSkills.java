@@ -489,5 +489,19 @@ public final class WarriorSkills {
             tags.pct(SkillType.SPIRIT_BLADE.getAbbreviation(), val);
             return val;
         });
+        // War Cry: ATK% while active
+        reg(StatLine.ATK_PCT, (sd, p, s, tags) -> {
+            if (sd.getWarCryTicks() <= 0) return 0;
+            double val = sd.getWarCryAtkBonus();
+            tags.pct(SkillType.WAR_CRY.getAbbreviation() + "+", val);
+            return val;
+        });
+        // Spirit Blade: ATK% while active
+        reg(StatLine.ATK_PCT, (sd, p, s, tags) -> {
+            if (sd.getSpiritBladeTicks() <= 0) return 0;
+            double val = sd.getSpiritBladeAtk();
+            tags.pct(SkillType.SPIRIT_BLADE.getAbbreviation() + "+", val);
+            return val;
+        });
     }
 }

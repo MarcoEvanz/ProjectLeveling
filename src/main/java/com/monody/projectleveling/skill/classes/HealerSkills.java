@@ -1,6 +1,7 @@
 package com.monody.projectleveling.skill.classes;
 
 import com.monody.projectleveling.capability.PlayerStats;
+import com.monody.projectleveling.capability.PlayerStatsCapability;
 import com.monody.projectleveling.entity.assassin.ShadowPartnerEntity;
 import com.monody.projectleveling.entity.mage.SkillFireballEntity;
 import com.monody.projectleveling.particle.ModParticles;
@@ -34,7 +35,7 @@ public final class HealerSkills {
             SkillType.HOLY_LIGHT, SkillType.BLESS, SkillType.MP_RECOVERY,
             SkillType.HOLY_SHELL, SkillType.DISPEL, SkillType.DIVINE_PROTECTION, SkillType.HOLY_FERVOR,
             SkillType.BENEDICTION, SkillType.ANGEL_RAY, SkillType.BLESSED_ENSEMBLE,
-            SkillType.MAGIC_FINALE,
+            SkillType.MAGIC_FINALE, SkillType.RIGHTEOUSLY_INDIGNANT,
     };
 
     private HealerSkills() {}
@@ -43,6 +44,7 @@ public final class HealerSkills {
     // MATK multiplier helpers (damage only, healing stays flat)
     // ================================================================
 
+    // --- Damage multipliers (MATK × multiplier) ---
     /** Holy Light damage: MATK × this value. Undead full, others 50%. (~30% reduced) */
     public static float getHolyLightDmgMultiplier(int level, int fai) { return 0.70f + level * 0.06f + fai * 0.014f; }
     /** Benediction per-tick damage: MATK × this value. (~30% reduced) */
@@ -51,6 +53,22 @@ public final class HealerSkills {
     public static float getAngelRayMultiplier(int level, int fai) { return 1.00f + level * 0.07f + fai * 0.014f; }
     /** Magic: Finale beam damage: MATK × this value. Massive single hit. */
     public static float getFinaleMultiplier(int level, int intel, int faith) { return 5.0f + level * 0.3f + intel * 0.01f + faith * 0.015f; }
+
+    // --- Heal/absorb multipliers (HealPower × multiplier) ---
+    /** Holy Light heal: HealPower × this value */
+    public static float getHolyLightHealMultiplier(int level, int fai) { return 2.0f + level * 0.08f + fai * 0.015f; }
+    /** Bless heal: HealPower × this value */
+    public static float getBlessHealMultiplier(int level, int fai) { return 1.0f + level * 0.05f + fai * 0.01f; }
+    /** Holy Shell absorb: HealPower × this value */
+    public static float getHolyShellAbsorbMultiplier(int level, int fai) { return 1.5f + level * 0.06f + fai * 0.008f; }
+    /** Benediction per-tick heal: HealPower × this value */
+    public static float getBenedictionHealMultiplier(int level, int fai) { return 0.30f + level * 0.02f + fai * 0.004f; }
+    /** Angel Ray heal: HealPower × this value */
+    public static float getAngelRayHealMultiplier(int level, int fai) { return 1.0f + level * 0.05f + fai * 0.01f; }
+    /** Benediction ATK/MATK buff: 1% per level (20% at max) */
+    public static float getBenedictionBuffPct(int level) { return level * 1.0f; }
+    /** Righteously Indignant: HealPower→MATK conversion rate. 30% at lv1, 100% at lv25. */
+    public static float getIndignantConversionPct(int level) { return 30 + (level - 1) * 70.0f / 24.0f; }
 
     // ================================================================
     // Tooltips
@@ -61,9 +79,9 @@ public final class HealerSkills {
         switch (skill) {
             // === T1 ===
             case HOLY_LIGHT -> {
-                float heal = 2 + level * 0.8f + stats.getFaith() * 0.15f + stats.getHealingPower();
+                float heal = stats.getHealingPower() * getHolyLightHealMultiplier(level, stats.getFaith());
                 float dmgMult = getHolyLightDmgMultiplier(level, stats.getFaith()) * 100;
-                texts.add("Heal: " + String.format("%.1f", heal) + " HP (FAI scales)");
+                texts.add("Heal: " + String.format("%.1f", heal) + " HP (Heal x FAI)");
                 lines.add(new int[]{TEXT_VALUE});
                 texts.add("Undead dmg: MATK x " + String.format("%.0f", dmgMult) + "% (others 50%)");
                 lines.add(new int[]{TEXT_VALUE});
@@ -71,11 +89,13 @@ public final class HealerSkills {
                 lines.add(new int[]{TEXT_DIM});
             }
             case BLESS -> {
-                int strAmp = Math.min(level / 4, 1);
                 int dur = 30 + level * 3;
+                float heal = stats.getHealingPower() * getBlessHealMultiplier(level, stats.getFaith());
                 texts.add("Duration: " + dur + "s");
                 lines.add(new int[]{TEXT_VALUE});
-                texts.add("Buffs: Strength " + SkillTooltips.toRoman(strAmp + 1) + ", Resistance I, Regen I");
+                texts.add("Buffs: +10% ATK, +10% MATK, +10% DMG reduction");
+                lines.add(new int[]{TEXT_VALUE});
+                texts.add("Heal: " + String.format("%.1f", heal) + " HP (Heal x FAI)");
                 lines.add(new int[]{TEXT_VALUE});
                 texts.add("Range: 8 blocks (self + allies)");
                 lines.add(new int[]{TEXT_DIM});
@@ -90,8 +110,8 @@ public final class HealerSkills {
 
             // === T2 ===
             case HOLY_SHELL -> {
-                float absorb = 2 + level * 0.4f + stats.getFaith() * 0.05f + stats.getHealingPower();
-                texts.add("Absorption: " + String.format("%.1f", absorb) + " HP (FAI scales)");
+                float absorb = stats.getHealingPower() * getHolyShellAbsorbMultiplier(level, stats.getFaith());
+                texts.add("Absorption: " + String.format("%.1f", absorb) + " HP (Heal x FAI)");
                 lines.add(new int[]{TEXT_VALUE});
                 texts.add("Range: 6 blocks (self + allies)");
                 lines.add(new int[]{TEXT_VALUE});
@@ -120,32 +140,35 @@ public final class HealerSkills {
                 int dur = 15 + level;
                 double radius = 4 + level * 0.2 + stats.getFaith() * 0.05;
                 float dmgMult = getBenedictionDmgMultiplier(level, stats.getFaith()) * 100;
+                float healTick = stats.getHealingPower() * getBenedictionHealMultiplier(level, stats.getFaith());
+                float buffPct = getBenedictionBuffPct(level);
                 texts.add("Duration: " + dur + "s");
                 lines.add(new int[]{TEXT_VALUE});
                 texts.add("Radius: " + String.format("%.1f", radius) + " blocks (FAI scales)");
                 lines.add(new int[]{TEXT_VALUE});
-                texts.add("Allies: Regen II + Strength I each sec");
+                texts.add("Allies: +" + String.format("%.0f", buffPct) + "% ATK/MATK, " + String.format("%.1f", healTick) + " HP/sec");
                 lines.add(new int[]{TEXT_VALUE});
                 texts.add("Enemies: MATK x " + String.format("%.0f", dmgMult) + "% DPS + Slowness I");
                 lines.add(new int[]{TEXT_VALUE});
-                texts.add("Stationary zone");
+                texts.add("Zone follows caster");
                 lines.add(new int[]{TEXT_DIM});
             }
             case ANGEL_RAY -> {
                 float mult = getAngelRayMultiplier(level, stats.getFaith()) * 100;
+                float heal = stats.getHealingPower() * getAngelRayHealMultiplier(level, stats.getFaith());
                 texts.add("Damage: MATK x " + String.format("%.0f", mult) + "%");
                 lines.add(new int[]{TEXT_VALUE});
-                texts.add("AoE radius: 3 blocks on impact");
+                texts.add("Heal: " + String.format("%.1f", heal) + " HP (Heal x FAI)");
                 lines.add(new int[]{TEXT_VALUE});
-                texts.add("Heals allies: 30% of damage dealt");
+                texts.add("AoE radius: 3 blocks on impact");
                 lines.add(new int[]{TEXT_VALUE});
                 texts.add("Holy projectile, damages + heals");
                 lines.add(new int[]{TEXT_DIM});
             }
             case BLESSED_ENSEMBLE -> {
-                texts.add("Damage: +" + (level * 3) + "% per nearby player");
+                texts.add("Damage: +20% per nearby player (max 60%)");
                 lines.add(new int[]{TEXT_VALUE});
-                texts.add("XP bonus: +" + (level * 5) + "% per nearby player");
+                texts.add("XP bonus: +20% per nearby player (max 60%)");
                 lines.add(new int[]{TEXT_VALUE});
             }
             case HOLY_FERVOR -> {
@@ -157,7 +180,7 @@ public final class HealerSkills {
                 lines.add(new int[]{TEXT_VALUE});
                 texts.add("Crit damage: +" + level + "%");
                 lines.add(new int[]{TEXT_VALUE});
-                texts.add("MATK scaling: +" + String.format("%.0f", level * 1.5f) + "% of MATK added to skills");
+                texts.add("MATK: +" + String.format("%.1f", level * 1.5f) + "%");
                 lines.add(new int[]{TEXT_VALUE});
             }
 
@@ -168,9 +191,19 @@ public final class HealerSkills {
                 lines.add(new int[]{TEXT_VALUE});
                 texts.add("Radius: 15 blocks");
                 lines.add(new int[]{TEXT_VALUE});
-                texts.add("Channel: 12.5s (rooted, magic circle)");
+                texts.add("Channel: 15s (rooted, magic circle)");
                 lines.add(new int[]{TEXT_VALUE});
                 texts.add("Massive holy beam after channeling completes");
+                lines.add(new int[]{TEXT_DIM});
+            }
+            case RIGHTEOUSLY_INDIGNANT -> {
+                float convPct = getIndignantConversionPct(level);
+                float convertedMatk = stats.getRawHealingPower() * (convPct / 100.0f);
+                texts.add("Conversion: " + String.format("%.0f", convPct) + "% Heal Power -> MATK");
+                lines.add(new int[]{TEXT_VALUE});
+                texts.add("Effective: +" + String.format("%.1f", convertedMatk) + " MATK (additive to base)");
+                lines.add(new int[]{TEXT_VALUE});
+                texts.add("Heal Power becomes 0 while active");
                 lines.add(new int[]{TEXT_DIM});
             }
             default -> {}
@@ -189,6 +222,7 @@ public final class HealerSkills {
             case DISPEL -> executeDispel(player, stats, sd, level);
             case BENEDICTION -> executeBenediction(player, stats, sd, level);
             case ANGEL_RAY -> executeAngelRay(player, stats, sd, level);
+            case RIGHTEOUSLY_INDIGNANT -> executeRighteouslyIndignant(player, stats, sd, level);
             // MAGIC_FINALE uses hold-channel via handleHold(), not execute()
             default -> {}
         }
@@ -200,7 +234,7 @@ public final class HealerSkills {
 
     private static void executeHolyLight(ServerPlayer player, PlayerStats stats, SkillData sd, int level) {
         stats.setCurrentMp(stats.getCurrentMp() - SkillType.HOLY_LIGHT.getMpCost(level));
-        float healAmount = 2 + level * 0.8f + stats.getFaith() * 0.15f + stats.getHealingPower();
+        float healAmount = stats.getHealingPower() * getHolyLightHealMultiplier(level, stats.getFaith());
         double range = 6;
         // Heal self
         player.heal(healAmount);
@@ -248,20 +282,20 @@ public final class HealerSkills {
     private static void executeBless(ServerPlayer player, PlayerStats stats, SkillData sd, int level) {
         stats.setCurrentMp(stats.getCurrentMp() - SkillType.BLESS.getMpCost(level));
         int duration = (30 + level * 3) * 20; // 33-60 seconds
-        int amp = Math.min(level / 4, 1);
         double range = 8;
-        // Buff self
-        player.addEffect(new MobEffectInstance(MobEffects.DAMAGE_BOOST, duration, amp, false, true));
-        player.addEffect(new MobEffectInstance(MobEffects.DAMAGE_RESISTANCE, duration, 0, false, true));
-        player.addEffect(new MobEffectInstance(MobEffects.REGENERATION, duration, 0, false, true));
-        // Buff nearby players
+        float healAmount = stats.getHealingPower() * getBlessHealMultiplier(level, stats.getFaith());
+        // Buff self + nearby: heal, +10% ATK/MATK/DMG reduction tracked via blessTicks
+        player.heal(healAmount);
         AABB area = player.getBoundingBox().inflate(range);
         List<ServerPlayer> nearby = player.level().getEntitiesOfClass(ServerPlayer.class, area, p -> p != player);
         for (ServerPlayer p : nearby) {
-            p.addEffect(new MobEffectInstance(MobEffects.DAMAGE_BOOST, duration, amp, false, true));
-            p.addEffect(new MobEffectInstance(MobEffects.DAMAGE_RESISTANCE, duration, 0, false, true));
-            p.addEffect(new MobEffectInstance(MobEffects.REGENERATION, duration, 0, false, true));
+            p.heal(healAmount);
+            // Apply Bless buff to allies too
+            p.getCapability(PlayerStatsCapability.PLAYER_STATS).ifPresent(allyStats -> {
+                allyStats.getSkillData().setBlessTicks(duration);
+            });
         }
+        sd.setBlessTicks(duration);
         if (player.level() instanceof ServerLevel sl) {
             SkillParticles.burst(sl, player.getX(), player.getY() + 2, player.getZ(), 10, 0.4, ParticleTypes.TOTEM_OF_UNDYING);
             for (ServerPlayer p : nearby) {
@@ -269,6 +303,7 @@ public final class HealerSkills {
             }
             SkillSounds.playAt(player, SoundEvents.UI_TOAST_CHALLENGE_COMPLETE, 0.4f, 1.0f);
         }
+        CombatLog.heal(player, "Bless", healAmount);
         sd.startCooldown(SkillType.BLESS, level);
         player.sendSystemMessage(Component.literal(
                 "\u00a7b[System]\u00a7r \u00a7aBless! " + (nearby.size() + 1) + " allies blessed."));
@@ -276,7 +311,7 @@ public final class HealerSkills {
 
     private static void executeHolyShell(ServerPlayer player, PlayerStats stats, SkillData sd, int level) {
         stats.setCurrentMp(stats.getCurrentMp() - SkillType.HOLY_SHELL.getMpCost(level));
-        float absorb = 2 + level * 0.4f + stats.getFaith() * 0.05f + stats.getHealingPower();
+        float absorb = stats.getHealingPower() * getHolyShellAbsorbMultiplier(level, stats.getFaith());
         double range = 6;
         // Shield self
         player.setAbsorptionAmount(player.getAbsorptionAmount() + absorb);
@@ -337,7 +372,6 @@ public final class HealerSkills {
         stats.setCurrentMp(stats.getCurrentMp() - SkillType.BENEDICTION.getMpCost(level));
         int duration = (15 + level) * 20; // 16-35 seconds
         sd.setBenedictionTicks(duration);
-        sd.setBenedictionPos(player.getX(), player.getY(), player.getZ());
         if (player.level() instanceof ServerLevel sl) {
             SkillParticles.column(sl, player.getX(), player.getZ(), player.getY(), player.getY() + 3, 0.5, 20, ParticleTypes.END_ROD);
             SkillParticles.burst(sl, player.getX(), player.getY() + 1.5, player.getZ(), 10, 0.5, ParticleTypes.HEART);
@@ -345,7 +379,7 @@ public final class HealerSkills {
         }
         sd.startCooldown(SkillType.BENEDICTION, level);
         player.sendSystemMessage(Component.literal(
-                "\u00a7b[System]\u00a7r \u00a7aBenediction zone created!"));
+                "\u00a7b[System]\u00a7r \u00a7aBenediction active!"));
     }
 
     private static void executeAngelRay(ServerPlayer player, PlayerStats stats, SkillData sd, int level) {
@@ -355,10 +389,12 @@ public final class HealerSkills {
         if (hfLv > 0) damage *= 1.0f + hfLv * 0.02f;
         float aoeRadius = 3.0f;
         Vec3 look = player.getLookAngle();
+        float heal = stats.getHealingPower() * getAngelRayHealMultiplier(level, stats.getFaith());
         SkillFireballEntity ray = new SkillFireballEntity(
                 player.level(), player,
                 look.x * 0.5, look.y * 0.5, look.z * 0.5,
                 SkillFireballEntity.FireballType.ANGEL_RAY, damage, aoeRadius, level);
+        ray.setHealAmount(heal);
         ray.setPos(player.getX() + look.x, player.getEyeY(), player.getZ() + look.z);
         player.level().addFreshEntity(ray);
         SkillSounds.playAt(player, SoundEvents.BEACON_ACTIVATE, 0.5f, 1.5f);
@@ -367,25 +403,45 @@ public final class HealerSkills {
                 "\u00a7b[System]\u00a7r \u00a7aAngel Ray launched!"));
     }
 
+    private static void executeRighteouslyIndignant(ServerPlayer player, PlayerStats stats, SkillData sd, int level) {
+        if (stats.getCurrentMp() < SkillType.RIGHTEOUSLY_INDIGNANT.getToggleMpPerSecond(level, stats.getMaxMp())) {
+            player.sendSystemMessage(Component.literal("\u00a7cNot enough MP!"));
+            return;
+        }
+        sd.setToggleActive(SkillType.RIGHTEOUSLY_INDIGNANT, true);
+        SkillParticles.playerAura(player, 12, 1.2, ParticleTypes.ANGRY_VILLAGER);
+        SkillSounds.playAt(player, SoundEvents.BEACON_ACTIVATE, 0.5f, 0.8f);
+        float convPct = getIndignantConversionPct(level);
+        player.sendSystemMessage(Component.literal(
+                "\u00a7b[System]\u00a7r \u00a7cRighteously Indignant! Converting " + String.format("%.0f", convPct) + "% Heal Power to MATK."));
+    }
+
+    public static void deactivateToggle(ServerPlayer player, SkillData sd, SkillType skill) {
+        sd.setToggleActive(skill, false);
+        player.sendSystemMessage(Component.literal(
+                "\u00a7b[System]\u00a7r \u00a77" + skill.getDisplayName() + " deactivated."));
+    }
+
     // ================================================================
     // Tick methods (called while skill is active)
     // ================================================================
 
-    /** Called every second while benediction zone is active. */
+    /** Called every second while benediction zone is active. Zone follows the caster. */
     public static void tickBenediction(ServerPlayer player, PlayerStats stats, SkillData sd) {
         int level = sd.getLevel(SkillType.BENEDICTION);
         double radius = 4 + level * 0.2 + stats.getFaith() * 0.05;
         float damage = stats.getMagicAttack(player) * getBenedictionDmgMultiplier(level, stats.getFaith());
         int hfLv = sd.getLevel(SkillType.HOLY_FERVOR);
         if (hfLv > 0) damage *= 1.0f + hfLv * 0.02f;
-        AABB area = new AABB(
-                sd.getBenedictionX() - radius, sd.getBenedictionY() - radius, sd.getBenedictionZ() - radius,
-                sd.getBenedictionX() + radius, sd.getBenedictionY() + radius, sd.getBenedictionZ() + radius);
-        // Heal allies inside
+        float healPerTick = stats.getHealingPower() * getBenedictionHealMultiplier(level, stats.getFaith());
+        // Zone follows the caster
+        double cx = player.getX(), cy = player.getY(), cz = player.getZ();
+        AABB area = new AABB(cx - radius, cy - radius, cz - radius,
+                             cx + radius, cy + radius, cz + radius);
+        // Heal allies inside (HealPower-based)
         List<ServerPlayer> allies = player.level().getEntitiesOfClass(ServerPlayer.class, area);
         for (ServerPlayer p : allies) {
-            p.addEffect(new MobEffectInstance(MobEffects.REGENERATION, 30, 1, false, false));
-            p.addEffect(new MobEffectInstance(MobEffects.DAMAGE_BOOST, 30, 0, false, false));
+            p.heal(healPerTick);
         }
         // Damage + slow enemies inside
         List<Monster> mobs = player.level().getEntitiesOfClass(Monster.class, area);
@@ -395,8 +451,8 @@ public final class HealerSkills {
         }
         CombatLog.aoeSkill(player, "Benediction", damage, mobs);
         if (player.level() instanceof ServerLevel sl) {
-            SkillParticles.ring(sl, sd.getBenedictionX(), sd.getBenedictionY() + 0.1, sd.getBenedictionZ(), radius, 12, ParticleTypes.HEART);
-            SkillParticles.ring(sl, sd.getBenedictionX(), sd.getBenedictionY() + 0.5, sd.getBenedictionZ(), radius * 0.7, 8, ParticleTypes.END_ROD);
+            SkillParticles.ring(sl, cx, cy + 0.1, cz, radius, 12, ParticleTypes.HEART);
+            SkillParticles.ring(sl, cx, cy + 0.5, cz, radius * 0.7, 8, ParticleTypes.END_ROD);
         }
     }
 
@@ -404,9 +460,10 @@ public final class HealerSkills {
     // Magic: Finale (channel → beam)
     // ================================================================
 
-    public static final int FINALE_CAST_TICKS = 250;  // 12.5s channel
+    public static final int FINALE_CAST_TICKS = 300;  // 15s channel
     public static final int FINALE_BEAM_TICKS = 20;   // 1s beam sequence after channel
     public static final double FINALE_RADIUS = 15.0;
+    private static final int EXPAND_TICKS = 20;       // 1s expand from center
 
     public static void startFinaleChannel(ServerPlayer player, PlayerStats stats, SkillData sd) {
         int level = sd.getLevel(SkillType.MAGIC_FINALE);
@@ -438,7 +495,7 @@ public final class HealerSkills {
         if (player.level() instanceof ServerLevel sl) {
             double cx = hit.getLocation().x, cy = hit.getLocation().y, cz = hit.getLocation().z;
             SkillParticles.burst(sl, cx, cy + 1, cz, 20, 2.0, ParticleTypes.END_ROD, true);
-            SkillSounds.playAt(sl, cx, cy, cz, SoundEvents.BEACON_ACTIVATE, 1.0f, 0.5f);
+            SkillSounds.playAt(sl, cx, cy, cz, SoundEvents.BEACON_ACTIVATE, 3.0f, 0.5f);
         }
 
         player.sendSystemMessage(Component.literal(
@@ -467,67 +524,81 @@ public final class HealerSkills {
             double t = (double) tick / FINALE_CAST_TICKS;
             double spin = -tick * (2.0 * Math.PI / 400.0); // clockwise, 1 rotation per 20s
 
-            // Main pentagram every 2 ticks (lifetime=1 covers 2 frames, so no gaps)
-            if (tick % 2 == 0) {
-                drawPentagram(sl, cx, cy + 0.2, cz, FINALE_RADIUS, 0.35, ModParticles.SHORT_END_ROD.get(), spin);
+            // Main pentagram — expands from center over first 20 ticks
+            double mainExpand = Math.min(1.0, (double) tick / EXPAND_TICKS);
+            double mainR = FINALE_RADIUS * mainExpand;
+            if (mainR >= 0.5) {
+                drawPentagram(sl, cx, cy + 0.2, cz, mainR, 0.35, ModParticles.SHORT_END_ROD.get(), spin);
+                SkillParticles.ring(sl, cx, cy + 0.2, cz, mainR, (int) (mainR * 6), ModParticles.SHORT_END_ROD.get(), true);
             }
 
-            // Circle + center glow every 4 ticks
+            // Center glow every 4 ticks
             if (tick % 4 == 0) {
-                SkillParticles.ring(sl, cx, cy + 0.2, cz, FINALE_RADIUS, (int) (FINALE_RADIUS * 6), ParticleTypes.END_ROD, true);
                 SkillParticles.burst(sl, cx, cy + 0.5, cz, 3, 0.5, ParticleTypes.END_ROD, true);
             }
 
             // Layer 1: from 2.5s (tick 50) — 1/3 size, 8 blocks up, counter-clockwise
+            if (tick == 50) {
+                SkillParticles.burst(sl, cx, cy + 8.2, cz, 15, 1.5, ParticleTypes.END_ROD, true);
+                SkillSounds.playAt(sl, cx, cy + 8.2, cz, SoundEvents.BEACON_ACTIVATE, 3.0f, 0.7f);
+            }
             if (tick >= 50) {
-                double r1 = FINALE_RADIUS / 3.0;
+                double expand1 = Math.min(1.0, (double) (tick - 50) / EXPAND_TICKS);
+                double r1 = FINALE_RADIUS / 3.0 * expand1;
                 double s1 = tick * (2.0 * Math.PI / 400.0); // counter-clockwise
-                if (tick % 2 == 0) {
+                if (r1 >= 0.5) {
                     drawPentagram(sl, cx, cy + 8.2, cz, r1, 0.25, ModParticles.SHORT_END_ROD.get(), s1);
-                }
-                if (tick % 4 == 0) {
-                    SkillParticles.ring(sl, cx, cy + 8.2, cz, r1, (int) (r1 * 6), ParticleTypes.END_ROD, true);
+                    SkillParticles.ring(sl, cx, cy + 8.2, cz, r1, (int) (r1 * 6), ModParticles.SHORT_END_ROD.get(), true);
                 }
             }
 
             // Layer 2: from 5s (tick 100) — 2/3 size, cy+11.2, clockwise
+            if (tick == 100) {
+                SkillParticles.burst(sl, cx, cy + 11.2, cz, 15, 1.5, ParticleTypes.END_ROD, true);
+                SkillSounds.playAt(sl, cx, cy + 11.2, cz, SoundEvents.BEACON_ACTIVATE, 3.0f, 0.9f);
+            }
             if (tick >= 100) {
-                double r2 = FINALE_RADIUS * 2.0 / 3.0;
+                double expand2 = Math.min(1.0, (double) (tick - 100) / EXPAND_TICKS);
+                double r2 = FINALE_RADIUS * 2.0 / 3.0 * expand2;
                 double s2 = -tick * (2.0 * Math.PI / 400.0); // clockwise
-                if (tick % 2 == 0) {
+                if (r2 >= 0.5) {
                     drawPentagram(sl, cx, cy + 11.2, cz, r2, 0.3, ModParticles.SHORT_END_ROD.get(), s2);
-                }
-                if (tick % 4 == 0) {
-                    SkillParticles.ring(sl, cx, cy + 11.2, cz, r2, (int) (r2 * 6), ParticleTypes.END_ROD, true);
+                    SkillParticles.ring(sl, cx, cy + 11.2, cz, r2, (int) (r2 * 6), ModParticles.SHORT_END_ROD.get(), true);
                 }
             }
 
             // Layer 3: from 7.5s (tick 150) — same size as main, cy+14.2, counter-clockwise
+            if (tick == 150) {
+                SkillParticles.burst(sl, cx, cy + 14.2, cz, 15, 1.5, ParticleTypes.END_ROD, true);
+                SkillSounds.playAt(sl, cx, cy + 14.2, cz, SoundEvents.BEACON_ACTIVATE, 3.0f, 1.1f);
+            }
             if (tick >= 150) {
-                double r3 = FINALE_RADIUS;
+                double expand3 = Math.min(1.0, (double) (tick - 150) / EXPAND_TICKS);
+                double r3 = FINALE_RADIUS * expand3;
                 double s3 = tick * (2.0 * Math.PI / 400.0); // counter-clockwise
-                if (tick % 2 == 0) {
+                if (r3 >= 0.5) {
                     drawPentagram(sl, cx, cy + 14.2, cz, r3, 0.35, ModParticles.SHORT_END_ROD.get(), s3);
-                }
-                if (tick % 4 == 0) {
-                    SkillParticles.ring(sl, cx, cy + 14.2, cz, r3, (int) (r3 * 6), ParticleTypes.END_ROD, true);
+                    SkillParticles.ring(sl, cx, cy + 14.2, cz, r3, (int) (r3 * 6), ModParticles.SHORT_END_ROD.get(), true);
                 }
             }
 
             // Layer 4: from 10s (tick 200) — 1.25x size, cy+17.2, clockwise
+            if (tick == 200) {
+                SkillParticles.burst(sl, cx, cy + 17.2, cz, 15, 1.5, ParticleTypes.END_ROD, true);
+                SkillSounds.playAt(sl, cx, cy + 17.2, cz, SoundEvents.BEACON_ACTIVATE, 3.0f, 1.3f);
+            }
             if (tick >= 200) {
-                double r4 = FINALE_RADIUS * 1.25;
+                double expand4 = Math.min(1.0, (double) (tick - 200) / EXPAND_TICKS);
+                double r4 = FINALE_RADIUS * 1.25 * expand4;
                 double s4 = -tick * (2.0 * Math.PI / 400.0); // clockwise
-                if (tick % 2 == 0) {
+                if (r4 >= 0.5) {
                     drawPentagram(sl, cx, cy + 17.2, cz, r4, 0.35, ModParticles.SHORT_END_ROD.get(), s4);
-                }
-                if (tick % 4 == 0) {
-                    SkillParticles.ring(sl, cx, cy + 17.2, cz, r4, (int) (r4 * 6), ParticleTypes.END_ROD, true);
+                    SkillParticles.ring(sl, cx, cy + 17.2, cz, r4, (int) (r4 * 6), ModParticles.SHORT_END_ROD.get(), true);
                 }
             }
             // Rising sound
             if (tick % 20 == 0) {
-                SkillSounds.playAt(sl, cx, cy, cz, SoundEvents.BEACON_AMBIENT, 0.6f, (float) (0.5 + t * 1.5));
+                SkillSounds.playAt(sl, cx, cy, cz, SoundEvents.BEACON_AMBIENT, 3.0f, (float) (0.5 + t * 1.5));
             }
             return;
         }
@@ -578,7 +649,7 @@ public final class HealerSkills {
             SkillParticles.column(sl, cx, cz, bottom, cy + 50, 0.8, count / 2, ParticleTypes.FLASH, true);
             SkillParticles.column(sl, cx, cz, bottom, cy + 50, 3.5, (int) (count * 0.75), ParticleTypes.ENCHANT, true);
             if (bt % 2 == 0) {
-                SkillSounds.playAt(sl, cx, bottom, cz, SoundEvents.FIREWORK_ROCKET_LAUNCH, 1.0f, 0.5f + (float) progress);
+                SkillSounds.playAt(sl, cx, bottom, cz, SoundEvents.FIREWORK_ROCKET_LAUNCH, 3.0f, 0.5f + (float) progress);
             }
         }
 
@@ -598,9 +669,9 @@ public final class HealerSkills {
             drawPentagram(sl, cx, cy + 0.3, cz, FINALE_RADIUS, 0.2, ParticleTypes.END_ROD, impactSpin);
             SkillParticles.ring(sl, cx, cy + 0.3, cz, FINALE_RADIUS, (int) (FINALE_RADIUS * 6), ParticleTypes.END_ROD, true);
             // Impact sounds
-            SkillSounds.playAt(sl, cx, cy, cz, SoundEvents.ENDER_DRAGON_GROWL, 1.5f, 1.5f);
-            SkillSounds.playAt(sl, cx, cy, cz, SoundEvents.GENERIC_EXPLODE, 1.5f, 0.6f);
-            SkillSounds.playAt(sl, cx, cy, cz, SoundEvents.LIGHTNING_BOLT_THUNDER, 1.5f, 0.5f);
+            SkillSounds.playAt(sl, cx, cy, cz, SoundEvents.ENDER_DRAGON_GROWL, 3.0f, 1.5f);
+            SkillSounds.playAt(sl, cx, cy, cz, SoundEvents.GENERIC_EXPLODE, 3.0f, 0.6f);
+            SkillSounds.playAt(sl, cx, cy, cz, SoundEvents.LIGHTNING_BOLT_THUNDER, 3.0f, 0.5f);
             player.sendSystemMessage(Component.literal(
                     "\u00a7b[System]\u00a7r \u00a7a\u00a7lMagic: Finale! \u00a7r\u00a7aBeam strikes!"));
         }
@@ -750,10 +821,68 @@ public final class HealerSkills {
             tags.add("+" + String.format("%.1f", val) + "%");
             return val;
         });
+        // Holy Fervor: damage% in Stats UI
+        reg(StatLine.DMG, (sd, p, s, tags) -> {
+            int lv = sd.getLevel(SkillType.HOLY_FERVOR);
+            if (lv <= 0) return 0;
+            double val = lv * 2;
+            tags.add(SkillType.HOLY_FERVOR.getAbbreviation() + "+" + (int)val + "%");
+            return val;
+        });
+        // Blessed Ensemble: damage% in Stats UI (dynamic, nearby players)
         reg(StatLine.DMG, (sd, p, s, tags) -> {
             int lv = sd.getLevel(SkillType.BLESSED_ENSEMBLE);
-            if (lv > 0) tags.add(SkillType.BLESSED_ENSEMBLE.getAbbreviation() + "+" + lv * 3 + "%/plr");
-            return 0;
+            if (lv <= 0 || p == null) return 0;
+            int count = Math.min(p.level().getEntitiesOfClass(
+                    net.minecraft.world.entity.player.Player.class,
+                    p.getBoundingBox().inflate(10), other -> other != p).size(), 3);
+            if (count <= 0) return 0;
+            double val = count * 20;
+            tags.add(SkillType.BLESSED_ENSEMBLE.getAbbreviation() + "+" + (int)val + "%(" + count + "plr)");
+            return val;
+        });
+        reg(StatLine.MATK_PCT, (sd, p, s, tags) -> {
+            int lv = sd.getLevel(SkillType.HOLY_FERVOR);
+            if (lv <= 0) return 0;
+            double val = lv * 1.5;
+            tags.add(SkillType.HOLY_FERVOR.getAbbreviation() + "+" + String.format("%.1f", val) + "%");
+            return val;
+        });
+        // Bless: +10% ATK while active
+        reg(StatLine.ATK_PCT, (sd, p, s, tags) -> {
+            if (sd.getBlessTicks() <= 0) return 0;
+            tags.pct(SkillType.BLESS.getAbbreviation() + "+", 10);
+            return 10;
+        });
+        // Bless: +10% MATK while active
+        reg(StatLine.MATK_PCT, (sd, p, s, tags) -> {
+            if (sd.getBlessTicks() <= 0) return 0;
+            tags.add(SkillType.BLESS.getAbbreviation() + "+10%");
+            return 10;
+        });
+        // Bless: 10% DMG reduction while active
+        reg(StatLine.DMG_RED, (sd, p, s, tags) -> {
+            if (sd.getBlessTicks() <= 0) return 0;
+            tags.add(SkillType.BLESS.getAbbreviation() + "+10%");
+            return 10;
+        });
+        // Benediction: ATK% buff while zone active (1% per level)
+        reg(StatLine.ATK_PCT, (sd, p, s, tags) -> {
+            if (sd.getBenedictionTicks() <= 0) return 0;
+            int lv = sd.getLevel(SkillType.BENEDICTION);
+            if (lv <= 0) return 0;
+            double val = lv;
+            tags.pct(SkillType.BENEDICTION.getAbbreviation() + "+", val);
+            return val;
+        });
+        // Benediction: MATK% buff while zone active (1% per level)
+        reg(StatLine.MATK_PCT, (sd, p, s, tags) -> {
+            if (sd.getBenedictionTicks() <= 0) return 0;
+            int lv = sd.getLevel(SkillType.BENEDICTION);
+            if (lv <= 0) return 0;
+            double val = lv;
+            tags.add(SkillType.BENEDICTION.getAbbreviation() + "+" + (int) val + "%");
+            return val;
         });
     }
 }

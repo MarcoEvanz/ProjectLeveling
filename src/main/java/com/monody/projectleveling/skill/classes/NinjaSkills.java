@@ -974,6 +974,14 @@ public final class NinjaSkills {
             tags.pct(SkillType.SAGE_MODE.getAbbreviation() + "+", val);
             return val;
         });
+        // Mastered Sage Mode: ATK% passive
+        reg(StatLine.ATK_PCT, (sd, p, s, tags) -> {
+            int lv = sd.getLevel(SkillType.MASTERED_SAGE_MODE);
+            if (lv <= 0) return 0;
+            double val = lv * 0.4;
+            tags.pct(SkillType.MASTERED_SAGE_MODE.getAbbreviation() + "+", val);
+            return val;
+        });
         reg(StatLine.MP_REGEN, (sd, p, s, tags) -> {
             int lv = sd.getLevel(SkillType.CHAKRA_CONTROL);
             if (lv <= 0) return 0;

@@ -76,6 +76,9 @@ public class S2CSyncStatsPacket {
     // Limitless: Purple state
     private final boolean purpleChanneling;
     private final int purpleChannelTicks;
+    // Healer state
+    private final int blessTicks;
+    private final int benedictionTicks;
     // Generic channeling bar
     private final int channelTicks;
     private final int channelMaxTicks;
@@ -154,6 +157,8 @@ public class S2CSyncStatsPacket {
         this.redChannelTicks = sd.getRedChannelTicks();
         this.purpleChanneling = sd.isPurpleChanneling();
         this.purpleChannelTicks = sd.getPurpleChannelTicks();
+        this.blessTicks = sd.getBlessTicks();
+        this.benedictionTicks = sd.getBenedictionTicks();
         this.channelTicks = sd.getChannelTicks();
         this.channelMaxTicks = sd.getChannelMaxTicks();
         this.channelSkillName = sd.getChannelSkillName();
@@ -250,6 +255,8 @@ public class S2CSyncStatsPacket {
         this.redChannelTicks = buf.readInt();
         this.purpleChanneling = buf.readBoolean();
         this.purpleChannelTicks = buf.readInt();
+        this.blessTicks = buf.readInt();
+        this.benedictionTicks = buf.readInt();
         this.channelTicks = buf.readInt();
         this.channelMaxTicks = buf.readInt();
         this.channelSkillName = buf.readUtf(64);
@@ -338,6 +345,8 @@ public class S2CSyncStatsPacket {
         buf.writeInt(redChannelTicks);
         buf.writeBoolean(purpleChanneling);
         buf.writeInt(purpleChannelTicks);
+        buf.writeInt(blessTicks);
+        buf.writeInt(benedictionTicks);
         buf.writeInt(channelTicks);
         buf.writeInt(channelMaxTicks);
         buf.writeUtf(channelSkillName, 64);
@@ -422,6 +431,8 @@ public class S2CSyncStatsPacket {
             sd.setRedChannelTicks(redChannelTicks);
             sd.setPurpleChanneling(purpleChanneling);
             sd.setPurpleChannelTicks(purpleChannelTicks);
+            sd.setBlessTicks(blessTicks);
+            sd.setBenedictionTicks(benedictionTicks);
             sd.setChannelTicks(channelTicks);
             sd.setChannelMaxTicks(channelMaxTicks);
             sd.setChannelSkillName(channelSkillName);

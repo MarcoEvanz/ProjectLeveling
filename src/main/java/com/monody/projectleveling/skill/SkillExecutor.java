@@ -214,6 +214,7 @@ public class SkillExecutor {
                 case ARCHER -> ArcherSkills.deactivateToggle(player, sd, skill);
                 case MAGE -> MageSkills.deactivateToggle(player, sd, skill);
                 case NINJA -> NinjaSkills.deactivateToggle(player, sd, skill);
+                case HEALER -> HealerSkills.deactivateToggle(player, sd, skill);
                 case NECROMANCER -> NecromancerSkills.deactivateToggle(player, sd, skill);
                 case BEAST_MASTER -> BeastMasterSkills.deactivateToggle(player, sd, skill);
                 case LIMITLESS -> LimitlessSkills.deactivateToggle(player, sd, skill);

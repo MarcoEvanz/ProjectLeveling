@@ -18,7 +18,7 @@ import java.util.List;
  */
 public final class StatContribRegistry {
 
-    public enum StatLine { CRIT, CDMG, PROJ, DODGE, DMG_RED, DMG, HP_PCT, MP_REGEN, MATK_PCT }
+    public enum StatLine { CRIT, CDMG, PROJ, DODGE, DMG_RED, DMG, HP_PCT, MP_REGEN, ATK_PCT, MATK_PCT }
 
     /** Simple stat definition embedded in SkillType enum constants. */
     public record StatDef(StatLine line, double factor, boolean tagOnly) {}
@@ -127,6 +127,25 @@ public final class StatContribRegistry {
         double total = 0;
         for (StatContrib c : REGISTRY.get(line)) {
             total += c.apply(sd, player, stats, tags);
+        }
+        return total;
+    }
+
+    /**
+     * Same as {@link #applyContribs} but formats tags as absolute buff values:
+     * each contribution's pct is converted to {@code baseValue * pct / 100} and tagged as {@code LABEL+X.X[buff]}.
+     */
+    public static double applyContribsAsBuff(StatLine line, SkillData sd, Player player, PlayerStats stats, Tags tags, double baseValue) {
+        double total = 0;
+        for (StatContrib c : REGISTRY.get(line)) {
+            Tags temp = new Tags();
+            double pct = c.apply(sd, player, stats, temp);
+            if (pct > 0) {
+                String raw = temp.raw().trim();
+                String label = raw.split("\\+")[0];
+                tags.buff(label, baseValue * pct / 100.0);
+            }
+            total += pct;
         }
         return total;
     }

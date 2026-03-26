@@ -625,5 +625,13 @@ public final class AssassinSkills {
     // === Stat contributions ===
     public static void registerStats() {
         // Simple contributions (CE, EV, FB) defined in SkillType enum
+        // Lethal Mastery: ATK% passive
+        reg(StatLine.ATK_PCT, (sd, p, s, tags) -> {
+            int lv = sd.getLevel(SkillType.LETHAL_MASTERY);
+            if (lv <= 0) return 0;
+            double val = getLethalMasteryAtkPct(lv);
+            tags.pct(SkillType.LETHAL_MASTERY.getAbbreviation() + "+", val);
+            return val;
+        });
     }
 }

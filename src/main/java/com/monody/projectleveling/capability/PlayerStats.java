@@ -5,6 +5,7 @@ import com.monody.projectleveling.skill.PlayerClass;
 import com.monody.projectleveling.skill.SkillData;
 import com.monody.projectleveling.skill.SkillType;
 import com.monody.projectleveling.skill.classes.AssassinSkills;
+import com.monody.projectleveling.skill.classes.HealerSkills;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.world.entity.ai.attributes.AttributeInstance;
 import net.minecraft.world.entity.player.Player;
@@ -101,6 +102,15 @@ public class PlayerStats {
         if (lmLv > 0) {
             atkPct += AssassinSkills.getLethalMasteryAtkPct(lmLv);
         }
+        // Bless: +10% ATK while active
+        if (skillData.getBlessTicks() > 0) {
+            atkPct += 10;
+        }
+        // Benediction zone: ATK% buff (1% per level, 20% at max)
+        if (skillData.getBenedictionTicks() > 0) {
+            int benLv = skillData.getLevel(SkillType.BENEDICTION);
+            if (benLv > 0) atkPct += benLv;
+        }
         if (atkPct > 0) {
             base *= 1.0f + (float) (atkPct / 100.0);
         }
@@ -116,6 +126,14 @@ public class PlayerStats {
         if (player != null) {
             AttributeInstance inst = player.getAttribute(ModAttributes.MAGIC_ATTACK.get());
             if (inst != null) base += (float) inst.getValue();
+            // Righteously Indignant: convert HealPower → MATK (additive to base, same layer as weapon)
+            if (skillData.isToggleActive(SkillType.RIGHTEOUSLY_INDIGNANT)) {
+                int riLv = skillData.getLevel(SkillType.RIGHTEOUSLY_INDIGNANT);
+                if (riLv > 0) {
+                    float convPct = HealerSkills.getIndignantConversionPct(riLv);
+                    base += getRawHealingPower() * (convPct / 100.0f);
+                }
+            }
             // MATK% multiplier from equipment
             AttributeInstance matkPctInst = player.getAttribute(ModAttributes.MAGIC_ATTACK_PERCENT.get());
             if (matkPctInst != null && matkPctInst.getValue() > 0) {
@@ -131,11 +149,31 @@ public class PlayerStats {
         if (skillData.isToggleActive(SkillType.ARCANE_POWER)) {
             base *= 1.10f;
         }
+        // Holy Fervor: +1.5% MATK per level
+        int hfLv = skillData.getLevel(SkillType.HOLY_FERVOR);
+        if (hfLv > 0) {
+            base *= 1.0f + hfLv * 0.015f;
+        }
+        // Bless: +10% MATK while active
+        if (skillData.getBlessTicks() > 0) {
+            base *= 1.10f;
+        }
+        // Benediction zone: MATK% buff (1% per level, 20% at max)
+        if (skillData.getBenedictionTicks() > 0) {
+            int benLv = skillData.getLevel(SkillType.BENEDICTION);
+            if (benLv > 0) base *= 1.0f + benLv * 0.01f;
+        }
         return base;
     }
 
-    /** Healing Power: derived from Faith. 0.1 per Faith point. */
-    public float getHealingPower() { return faith * 0.1f; }
+    /** Raw Healing Power (unaffected by toggles). Used for conversion calculations. */
+    public float getRawHealingPower() { return faith * 0.1f; }
+
+    /** Healing Power: derived from Faith. 0.1 per Faith point. Returns 0 if Righteously Indignant is active. */
+    public float getHealingPower() {
+        if (skillData.isToggleActive(SkillType.RIGHTEOUSLY_INDIGNANT)) return 0;
+        return getRawHealingPower();
+    }
 
     public int getMaxMp() {
         int base = 100 + (mind - 1) * 10;

@@ -118,6 +118,8 @@ public class SkillData {
     private int tigerClawTimer = 0;              // Ticks until next hit (4 ticks = 0.2s)
     private boolean tigerClawEnhanced = false;   // Was Tiger Claw enhanced by Power of Nature?
     private boolean phoenixLifestealEnhanced = false; // Was Phoenix Wings enhanced?
+    // Healer: Bless MATK buff
+    private int blessTicks = 0;
     // Warrior: Slash Blast next-melee buff (4s duration)
     private boolean slashBlastActive = false;
     private float slashBlastPct = 0;             // Bonus damage %
@@ -430,6 +432,10 @@ public class SkillData {
     public boolean isPhoenixLifestealEnhanced() { return phoenixLifestealEnhanced; }
     public void setPhoenixLifestealEnhanced(boolean enhanced) { this.phoenixLifestealEnhanced = enhanced; }
 
+    // Healer: Bless
+    public int getBlessTicks() { return blessTicks; }
+    public void setBlessTicks(int ticks) { this.blessTicks = ticks; }
+
     // Warrior: Slash Blast
     public boolean isSlashBlastActive() { return slashBlastActive; }
     public void setSlashBlastActive(boolean active) { this.slashBlastActive = active; }
@@ -693,6 +699,7 @@ public class SkillData {
         tigerClawTimer = 0;
         tigerClawEnhanced = false;
         phoenixLifestealEnhanced = false;
+        blessTicks = 0;
         slashBlastActive = false;
         slashBlastPct = 0;
         slashBlastTicks = 0;

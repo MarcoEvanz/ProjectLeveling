@@ -156,13 +156,14 @@ public class StatEventHandler {
                 }
             }
 
-            // Passive: Blessed Ensemble — +5% XP per nearby player
+            // Passive: Blessed Ensemble — +20% XP per nearby player, cap 60%
             int beLv = sd.getLevel(SkillType.BLESSED_ENSEMBLE);
             if (beLv > 0) {
                 List<ServerPlayer> nearby = player.level().getEntitiesOfClass(ServerPlayer.class,
                         player.getBoundingBox().inflate(10), p -> p != player);
                 if (!nearby.isEmpty()) {
-                    int bonusExp = (int) (nearby.size() * beLv * 0.05 * 10); // approximate XP bonus
+                    int playerCount = Math.min(nearby.size(), 3); // cap at 3 players (60%)
+                    int bonusExp = (int) (playerCount * 0.20 * 10); // 20% per player
                     if (bonusExp > 0) {
                         stats.addExp(bonusExp);
                     }
@@ -310,6 +311,11 @@ public class StatEventHandler {
                 } else if (player.tickCount % 20 == 0) {
                     HealerSkills.tickBenediction(player, stats, sd);
                 }
+            }
+
+            // Bless MATK buff tick-down
+            if (sd.getBlessTicks() > 0) {
+                sd.setBlessTicks(sd.getBlessTicks() - 1);
             }
 
             // Magic: Finale channel tick
@@ -667,6 +673,23 @@ public class StatEventHandler {
                     } else {
                         sd.setToggleActive(SkillType.MAGIC_GUARD, false);
                         player.sendSystemMessage(Component.literal("\u00a7b[System]\u00a7r \u00a77Magic Guard deactivated (no MP)."));
+                        changed = true;
+                    }
+                }
+
+                // Righteously Indignant drain
+                if (sd.isToggleActive(SkillType.RIGHTEOUSLY_INDIGNANT)) {
+                    int level = sd.getLevel(SkillType.RIGHTEOUSLY_INDIGNANT);
+                    int drain = SkillType.RIGHTEOUSLY_INDIGNANT.getToggleMpPerSecond(level, stats.getMaxMp());
+                    if (stats.getCurrentMp() >= drain) {
+                        stats.setCurrentMp(stats.getCurrentMp() - drain);
+                        if (player.tickCount % 40 == 0) {
+                            SkillParticles.playerFeet(player, 6, 0.6, ParticleTypes.ANGRY_VILLAGER);
+                        }
+                        changed = true;
+                    } else {
+                        sd.setToggleActive(SkillType.RIGHTEOUSLY_INDIGNANT, false);
+                        player.sendSystemMessage(Component.literal("\u00a7b[System]\u00a7r \u00a77Righteously Indignant deactivated (no MP)."));
                         changed = true;
                     }
                 }
@@ -1988,6 +2011,11 @@ public class StatEventHandler {
                 int bsLv = sd.getLevel(SkillType.BONE_SHIELD);
                 float reduction = NecromancerSkills.getBoneShieldReduction(bsLv) / 100.0f;
                 event.setAmount(event.getAmount() * (1 - reduction));
+            }
+
+            // Bless: 10% damage reduction
+            if (sd.getBlessTicks() > 0) {
+                event.setAmount(event.getAmount() * 0.9f);
             }
 
             // Spirit Blade: self damage reduction

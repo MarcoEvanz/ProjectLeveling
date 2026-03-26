@@ -10,6 +10,7 @@ import com.monody.projectleveling.skill.SkillType;
 import com.monody.projectleveling.skill.StatContribRegistry;
 import com.monody.projectleveling.skill.StatContribRegistry.StatLine;
 import com.monody.projectleveling.skill.StatContribRegistry.Tags;
+import com.monody.projectleveling.skill.classes.HealerSkills;
 import com.monody.projectleveling.item.ModAttributes;
 import com.google.common.collect.Multimap;
 import net.minecraft.client.Minecraft;
@@ -274,34 +275,23 @@ public class StatusScreen extends Screen {
     }
 
     private int renderDamageStats(GuiGraphics g, PlayerStats stats, SkillData sd, Player player, int left, int rowY) {
-        // ATK% (calculated first, applied to ATK)
+        // ATK% via registry (same pattern as MATK%)
         double equipAtkPct = getEquipModifier(player, ModAttributes.ATTACK_PERCENT.get());
-        double atkPct = equipAtkPct;
-        if (sd.getWarCryTicks() > 0) atkPct += sd.getWarCryAtkBonus();
-        float sbPct = sd.getSpiritBladeTicks() > 0 ? sd.getSpiritBladeAtk() : 0;
-        if (sbPct > 0) atkPct += sbPct;
+        Tags atkPctTags = new Tags().wpn(equipAtkPct);
+        double skillAtkPct = StatContribRegistry.applyContribs(StatLine.ATK_PCT, sd, player, stats, atkPctTags);
+        double atkPct = equipAtkPct + skillAtkPct;
 
         // ATK: single source — getAttack(player). Tags for display breakdown only.
         double totalAtk = stats.getAttack(player);
         float weaponDmg = SkillExecutor.getWeaponDamage(player);
         double baseAtk = stats.getAttack() + weaponDmg; // before ATK%
-
-        int msmLv = sd.getLevel(SkillType.MASTERED_SAGE_MODE);
-        double msmPct = msmLv > 0 ? msmLv * 0.4 : 0;
-
         Tags atkTags = new Tags().base("WPN", weaponDmg);
-        if (equipAtkPct > 0) atkTags.buff("ATK%", baseAtk * equipAtkPct / 100.0);
-        if (sd.getWarCryTicks() > 0) atkTags.buff("WC", baseAtk * sd.getWarCryAtkBonus() / 100.0);
-        if (sbPct > 0) atkTags.buff("SB", baseAtk * sbPct / 100.0);
-        if (msmPct > 0) atkTags.buff("MSM", baseAtk * msmPct / 100.0);
+        if (equipAtkPct > 0) atkTags.buff("EQ", baseAtk * equipAtkPct / 100.0);
+        StatContribRegistry.applyContribsAsBuff(StatLine.ATK_PCT, sd, player, stats, atkTags, baseAtk);
         drawStat(g, "ATK:", String.format("+%.2f", totalAtk) + atkTags, left, rowY);
 
-        // ATK% display (includes MSM)
+        // ATK% display
         rowY += lineH;
-        Tags atkPctTags = new Tags().pct("WPN+", equipAtkPct);
-        if (sd.getWarCryTicks() > 0) atkPctTags.pct("WC+", sd.getWarCryAtkBonus());
-        if (sbPct > 0) atkPctTags.pct("SB+", sbPct);
-        if (msmPct > 0) atkPctTags.pct("MSM+", msmPct);
         drawStat(g, "ATK%:", String.format("+%.0f%%", atkPct) + atkPctTags, left, rowY);
 
         // MATK = (INT-base + staff) * (1 + MATK%/100)
@@ -311,11 +301,25 @@ public class StatusScreen extends Screen {
         double totalMatkPct = equipMatkPct + skillMatkPct;
         rowY += lineH;
         float equipMatk = (float) getEquipModifier(player, ModAttributes.MAGIC_ATTACK.get());
-        double totalMatk = stats.getIntelligence() * 0.1f + equipMatk;
+        double baseMatk = stats.getIntelligence() * 0.1f + equipMatk;
+        // Righteously Indignant: converted HealPower added to base (same layer as weapon)
+        float riConverted = 0;
+        if (sd.isToggleActive(SkillType.RIGHTEOUSLY_INDIGNANT)) {
+            int riLv = sd.getLevel(SkillType.RIGHTEOUSLY_INDIGNANT);
+            if (riLv > 0) {
+                float convPct = HealerSkills.getIndignantConversionPct(riLv);
+                riConverted = stats.getRawHealingPower() * (convPct / 100.0f);
+                baseMatk += riConverted;
+            }
+        }
+        double totalMatk = baseMatk;
         if (equipMatkPct > 0) totalMatk *= (1.0 + equipMatkPct / 100.0);
         if (skillMatkPct > 0) totalMatk *= (1.0 + skillMatkPct / 100.0);
         Tags matkTags = new Tags();
-        if (equipMatk > 0) matkTags.add("Staff+" + String.format("%.0f", equipMatk));
+        if (equipMatk > 0) matkTags.base("Staff", equipMatk);
+        if (riConverted > 0) matkTags.base("RI", riConverted);
+        if (equipMatkPct > 0) matkTags.buff("EQ", baseMatk * equipMatkPct / 100.0);
+        StatContribRegistry.applyContribsAsBuff(StatLine.MATK_PCT, sd, player, stats, matkTags, baseMatk);
         drawStat(g, "MATK:", String.format("+%.2f", totalMatk) + matkTags, left, rowY);
 
         // MATK% display
@@ -324,7 +328,7 @@ public class StatusScreen extends Screen {
 
         // HEAL
         rowY += lineH;
-        drawStat(g, "HEAL:", String.format("+%.2f", stats.getFaith() * 0.1f), left, rowY);
+        drawStat(g, "HEAL:", String.format("+%.2f", stats.getHealingPower()), left, rowY);
 
         // PROJ
         rowY += lineH;
@@ -505,6 +509,10 @@ public class StatusScreen extends Screen {
         if (sd.isBlueChanneling()) buffs.add("Blue");
         if (sd.isRedChanneling()) buffs.add("Red");
         if (sd.isPurpleChanneling()) buffs.add("Purple");
+        // Healer
+        if (sd.isToggleActive(SkillType.RIGHTEOUSLY_INDIGNANT)) buffs.add("R.Indignant");
+        if (sd.getBlessTicks() > 0) buffs.add("Bless " + fmtSec(sd.getBlessTicks()));
+        if (sd.getBenedictionTicks() > 0) buffs.add("Bene " + fmtSec(sd.getBenedictionTicks()));
         return buffs;
     }
 

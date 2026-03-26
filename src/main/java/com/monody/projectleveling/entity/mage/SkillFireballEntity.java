@@ -43,6 +43,7 @@ public class SkillFireballEntity extends AbstractHurtingProjectile implements It
 
     private float damage = 4.0f;
     private float aoeRadius = 3.0f;
+    private float healAmount = 0;   // Angel Ray: HealPower-based heal for allies
     private int skillLevel = 1;
     private boolean meteorLanded = false;
     private int meteorFadeTicks = 0;
@@ -62,6 +63,8 @@ public class SkillFireballEntity extends AbstractHurtingProjectile implements It
         this.aoeRadius = aoeRadius;
         this.skillLevel = skillLevel;
     }
+
+    public void setHealAmount(float healAmount) { this.healAmount = healAmount; }
 
     @Override
     protected void defineSynchedData() {
@@ -205,14 +208,14 @@ public class SkillFireballEntity extends AbstractHurtingProjectile implements It
                 for (Monster m : mobs) totalFinal += CombatLog.afterArmor(m, src, damage);
                 CombatLog.aoe(logPlayer, name, totalFinal / mobs.size(), mobs.size());
             }
-            // Heal nearby allies
-            float healAmount = damage * 0.3f;
+            // Heal nearby allies (HealPower-based, or fallback to 30% of damage)
+            float heal = this.healAmount > 0 ? this.healAmount : damage * 0.3f;
             List<ServerPlayer> allies = serverLevel.getEntitiesOfClass(ServerPlayer.class, area);
             for (ServerPlayer p : allies) {
-                p.heal(healAmount);
+                p.heal(heal);
                 SkillParticles.burst(serverLevel, p.getX(), p.getY() + 1, p.getZ(),
                         5, 0.3, ParticleTypes.HEART);
-                CombatLog.heal(p, "Angel Ray", healAmount);
+                CombatLog.heal(p, "Angel Ray", heal);
             }
             SkillParticles.explosion(serverLevel, getX(), getY(), getZ(), aoeRadius,
                     ParticleTypes.END_ROD, ParticleTypes.ENCHANTED_HIT);
@@ -282,6 +285,7 @@ public class SkillFireballEntity extends AbstractHurtingProjectile implements It
         tag.putInt("fireballType", getFireballType().ordinal());
         tag.putFloat("skillDamage", damage);
         tag.putFloat("aoeRadius", aoeRadius);
+        tag.putFloat("healAmount", healAmount);
         tag.putInt("skillLevel", skillLevel);
     }
 
@@ -291,6 +295,7 @@ public class SkillFireballEntity extends AbstractHurtingProjectile implements It
         this.entityData.set(DATA_TYPE, tag.getInt("fireballType"));
         this.damage = tag.getFloat("skillDamage");
         this.aoeRadius = tag.getFloat("aoeRadius");
+        this.healAmount = tag.getFloat("healAmount");
         this.skillLevel = tag.getInt("skillLevel");
     }
 }

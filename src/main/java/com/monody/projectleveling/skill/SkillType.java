@@ -309,12 +309,15 @@ public enum SkillType {
             "Holy beam that damages mobs and heals nearby allies.", "ARL"),
     BLESSED_ENSEMBLE("blessed_ensemble", "Blessed Ensemble", 20, 3, PlayerClass.HEALER, 60, false, true,
             0, 0, 0, 0,
-            "Passive. +3% damage per nearby player. +5% XP per nearby player.", "BE"),
+            "Passive. +20% damage per nearby player (max 60%). +20% XP per nearby player (max 60%).", "BE"),
 
     // --- Healer T4 ---
     MAGIC_FINALE("magic_finale", "Magic: Finale", 25, 4, PlayerClass.HEALER, 100, false, false,
             80, 55, 1800, 1800,
             "Channel 5s. Draw magic circle, then massive beam from the sky.", "MF"),
+    RIGHTEOUSLY_INDIGNANT("righteously_indignant", "Righteously Indignant", 25, 4, PlayerClass.HEALER, 100, true, false,
+            20, 15, 0, 0,
+            "Toggle. Convert all Heal Power to Magic Attack.", "RI"),
 
     // --- Mage ---
     MIST_ERUPTION("mist_eruption", "Mist Eruption", 20, 3, PlayerClass.MAGE, 60, false, false,

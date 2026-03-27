@@ -20,13 +20,11 @@ import net.minecraft.world.entity.player.Player;
 import java.util.List;
 
 public class SkillTreeScreen extends Screen {
-    private static final float PANEL_WIDTH_RATIO = 0.42f;
-    private static final float PANEL_HEIGHT_RATIO = 0.80f;
-    private static final int MIN_PANEL_WIDTH = 240;
-    private static final int MAX_PANEL_WIDTH = 320;
-    private static final int MIN_PANEL_HEIGHT = 260;
-
-    private static final int ICON_SIZE = 36;
+    private static final float PANEL_WIDTH_RATIO = 0.50f;
+    private static final float PANEL_HEIGHT_RATIO = 0.82f;
+    private static final int MIN_PANEL_WIDTH = 320;
+    private static final int MAX_PANEL_WIDTH = 420;
+    private static final int MIN_PANEL_HEIGHT = 280;
 
     // Colors
     private static final int BG = 0xF0051020;
@@ -368,101 +366,90 @@ public class SkillTreeScreen extends Screen {
         int left = x + pad;
         int innerW = panelW - pad * 2;
         int cx = x + panelW / 2;
+        int fh = font.lineHeight;
 
-        // Header
         int rowY = y + pad + 2;
+
+        // === Header ===
         String header = "SKILLS";
         if (sd.getSelectedClass() != PlayerClass.NONE) {
             header += " - " + sd.getSelectedClass().getDisplayName();
         }
         g.drawString(font, header, cx - font.width(header) / 2, rowY, TEXT_BRIGHT, false);
-        rowY += lineH + 2;
+        rowY += fh + 4;
 
-        // Skill points
-        String spText = "SP: " + sd.getTierSP(activeTab);
-        g.drawString(font, spText, cx - font.width(spText) / 2, rowY, TEXT_ACCENT, false);
-        rowY += lineH + 2;
+        // === SP display ===
+        int sp = sd.getTierSP(activeTab);
+        String spText = "SP: " + sp;
+        g.drawString(font, spText, cx - font.width(spText) / 2, rowY,
+                sp > 0 ? SKILL_UNLOCKED : TEXT_DIM, false);
+        rowY += fh + 4;
         drawSep(g, left, rowY, innerW);
-        rowY += 6;
+        rowY += 5;
 
-        // 4 Tier tabs
+        // === Tier Tabs ===
         int tabGap = 3;
         int tabCount = 5;
-        int totalGap = tabGap * (tabCount - 1);
-        int tabW = (innerW - totalGap) / tabCount;
-        int tabH = lineH + 2;
+        int tabW = (innerW - tabGap * (tabCount - 1)) / tabCount;
+        int tabH = fh + 4;
 
         for (int i = 0; i < tabCount; i++) {
             int tabX = left + i * (tabW + tabGap);
-            int tabY = rowY;
-            tabBounds[i] = new int[]{tabX, tabY, tabW, tabH};
+            tabBounds[i] = new int[]{tabX, rowY, tabW, tabH};
 
             boolean isActive = activeTab == i;
             boolean tierLocked = playerLevel < TIER_REQ_LEVELS[i];
             boolean isHovered = !isActive && !tierLocked && isInside(mouseX, mouseY, tabBounds[i]);
 
             int tbg, tborder, ttext;
-            if (isActive) {
-                tbg = TAB_ACTIVE_BG;
-                tborder = TAB_ACTIVE_BORDER;
-                ttext = TAB_ACTIVE_TEXT;
-            } else if (tierLocked) {
-                tbg = TAB_INACTIVE_BG;
-                tborder = TAB_INACTIVE_BORDER;
-                ttext = TAB_LOCKED_TEXT;
-            } else if (isHovered) {
-                tbg = BTN_HOVER_BG;
-                tborder = BTN_HOVER_BORDER;
-                ttext = BTN_TEXT;
-            } else {
-                tbg = TAB_INACTIVE_BG;
-                tborder = TAB_INACTIVE_BORDER;
-                ttext = TAB_INACTIVE_TEXT;
-            }
+            if (isActive) { tbg = TAB_ACTIVE_BG; tborder = TAB_ACTIVE_BORDER; ttext = TAB_ACTIVE_TEXT; }
+            else if (tierLocked) { tbg = TAB_INACTIVE_BG; tborder = TAB_INACTIVE_BORDER; ttext = TAB_LOCKED_TEXT; }
+            else if (isHovered) { tbg = BTN_HOVER_BG; tborder = BTN_HOVER_BORDER; ttext = BTN_TEXT; }
+            else { tbg = TAB_INACTIVE_BG; tborder = TAB_INACTIVE_BORDER; ttext = TAB_INACTIVE_TEXT; }
 
-            g.fill(tabX, tabY, tabX + tabW, tabY + tabH, tbg);
-            drawBox(g, tabX, tabY, tabW, tabH, tborder);
+            g.fill(tabX, rowY, tabX + tabW, rowY + tabH, tbg);
+            drawBox(g, tabX, rowY, tabW, tabH, tborder);
             String label = TAB_LABELS[i];
-            int lw = font.width(label);
-            g.drawString(font, label, tabX + (tabW - lw) / 2,
-                    tabY + (tabH - font.lineHeight) / 2, ttext, false);
+            g.drawString(font, label, tabX + (tabW - font.width(label)) / 2,
+                    rowY + (tabH - fh) / 2, ttext, false);
         }
 
         rowY += tabH + 4;
 
-        // Show level requirement if active tab is locked
         int activeTier = TIER_NUMBERS[activeTab];
         boolean activeTierLocked = playerLevel < TIER_REQ_LEVELS[activeTab];
         if (activeTierLocked) {
             String lockMsg = "Requires Player Level " + TIER_REQ_LEVELS[activeTab];
             g.drawString(font, lockMsg, cx - font.width(lockMsg) / 2, rowY + 2, SKILL_LOCKED, false);
-            rowY += lineH + 2;
+            rowY += fh + 4;
         }
 
         drawSep(g, left, rowY, innerW);
-        rowY += 8;
+        rowY += 6;
 
-        // Get visible skills for current tab
+        // === Skill Cards (2 columns) ===
         List<SkillType> skills = sd.getVisibleSkills(activeTier);
         hoveredSkill = null;
 
-        int rowGap = 4;
-        int infoX = left + ICON_SIZE + 6;
-        int infoW = innerW - ICON_SIZE - 6;
+        int cols = 2;
+        int tileGap = 5;
+        int tileW = (innerW - tileGap) / cols;
+        int iconS = 28;
+        int tileH = iconS + 8;
 
-        // Calculate skill list area (between tabs and equip section)
+        // Scroll area
         skillListTop = rowY;
-        int equipReserved = lineH * 2 + 14 + lineH + 8 + pad;
+        int equipReserved = fh * 3 + 28 + pad;
         skillListBottom = y + panelH - equipReserved;
         int availableHeight = skillListBottom - skillListTop;
-        int totalContentHeight = skills.size() * (ICON_SIZE + rowGap) - (skills.isEmpty() ? 0 : rowGap);
+        int numGridRows = (skills.size() + cols - 1) / cols;
+        int totalContentHeight = numGridRows > 0 ? numGridRows * (tileH + tileGap) - tileGap : 0;
         maxScrollOffset = Math.max(0, totalContentHeight - availableHeight);
         scrollOffset = Math.min(scrollOffset, maxScrollOffset);
 
-        // Enable scissor clipping for skill list area
         g.enableScissor(left, skillListTop, left + innerW, skillListBottom);
 
-        int scrolledRowY = rowY - scrollOffset;
+        int scrolledY = rowY - scrollOffset;
 
         for (int i = 0; i < skills.size() && i < 8; i++) {
             SkillType skill = skills.get(i);
@@ -470,169 +457,168 @@ public class SkillTreeScreen extends Screen {
             boolean unlocked = level > 0;
             boolean canUnlock = sd.canUnlock(skill, playerLevel);
             boolean maxed = level >= skill.getMaxLevel();
+            int displayLevel = Math.max(level, 1);
 
-            int iy = scrolledRowY;
-            skillRowBounds[i] = new int[]{left, iy, innerW, ICON_SIZE};
-            iconBounds[i] = new int[]{left, iy, ICON_SIZE, ICON_SIZE};
+            int col = i % cols;
+            int row = i / cols;
+            int tx = left + col * (tileW + tileGap);
+            int ty = scrolledY + row * (tileH + tileGap);
 
-            // Only check hover if within visible area
-            boolean rowHov = iy >= skillListTop - ICON_SIZE && iy < skillListBottom
+            skillRowBounds[i] = new int[]{tx, ty, tileW, tileH};
+
+            boolean hov = ty >= skillListTop - tileH && ty < skillListBottom
                     && isInside(mouseX, mouseY, skillRowBounds[i]);
-            if (rowHov) hoveredSkill = skill;
+            if (hov) hoveredSkill = skill;
 
-            // Icon background + border
-            g.fill(left, iy, left + ICON_SIZE, iy + ICON_SIZE, rowHov ? ICON_BG_HOVER : ICON_BG);
-            int borderColor = maxed ? SKILL_MAX : (unlocked ? SKILL_UNLOCKED : (canUnlock ? FRAME : SKILL_LOCKED));
-            drawBox(g, left, iy, ICON_SIZE, ICON_SIZE, borderColor);
+            int stateColor = maxed ? SKILL_MAX : (unlocked ? SKILL_UNLOCKED : (canUnlock ? FRAME : SKILL_LOCKED));
+            boolean selected = pendingEquipSkill == skill;
 
-            if (pendingEquipSkill == skill) {
-                drawBox(g, left + 1, iy + 1, ICON_SIZE - 2, ICON_SIZE - 2, TEXT_ACCENT);
+            // Card background
+            g.fill(tx, ty, tx + tileW, ty + tileH, selected ? 0xFF0C2848 : (hov ? 0xFF0E1E30 : 0xFF081420));
+            drawBox(g, tx, ty, tileW, tileH, hov || selected ? stateColor : FRAME_DIM);
+
+            // Left accent strip (3px, colored by state)
+            g.fill(tx + 1, ty + 1, tx + 4, ty + tileH - 1, stateColor);
+
+            // Icon box (left side)
+            int iconX = tx + 7;
+            int iconY = ty + (tileH - iconS) / 2;
+            int iconFill = skill.isPassive() ? 0xFF0A1830 : (skill.isToggle() ? 0xFF0A1830 : 0xFF081828);
+            g.fill(iconX, iconY, iconX + iconS, iconY + iconS, hov ? ICON_BG_HOVER : iconFill);
+            int iconBorder = maxed ? SKILL_MAX : (unlocked ? SKILL_UNLOCKED : (canUnlock ? FRAME : FRAME_DIM));
+            drawBox(g, iconX, iconY, iconS, iconS, iconBorder);
+
+            // Type indicator — small colored dot in icon top-left
+            if (skill.isPassive()) {
+                g.fill(iconX + 1, iconY + 1, iconX + 4, iconY + 4, PASSIVE_COLOR);
+            } else if (skill.isToggle()) {
+                g.fill(iconX + 1, iconY + 1, iconX + 4, iconY + 4, TEXT_ACCENT);
             }
 
-            // Abbreviation
+            // Abbreviation centered in icon
             String abbr = skill.getAbbreviation();
-            int abbrColor = unlocked ? TEXT_BRIGHT : (canUnlock ? TEXT_VALUE : TEXT_DIM);
-            g.drawString(font, abbr, left + (ICON_SIZE - font.width(abbr)) / 2,
-                    iy + (ICON_SIZE - font.lineHeight) / 2, abbrColor, false);
+            int abbrColor = maxed ? SKILL_MAX : (unlocked ? TEXT_BRIGHT : (canUnlock ? TEXT_VALUE : TEXT_DIM));
+            g.drawString(font, abbr, iconX + (iconS - font.width(abbr)) / 2,
+                    iconY + (iconS - fh) / 2, abbrColor, false);
 
-            // Info panel
-            g.fill(infoX, iy, left + innerW, iy + ICON_SIZE, rowHov ? ICON_BG_HOVER : ICON_BG);
-            drawBox(g, infoX, iy, infoW, ICON_SIZE, rowHov ? BTN_HOVER_BORDER : FRAME_DIM);
+            // Text area (right of icon)
+            int textX = iconX + iconS + 5;
+            int textW = tileW - (textX - tx) - 4;
+            int textY = ty + 4;
 
-            int textX = infoX + 4;
-            int textY1 = iy + 3;
-            String displayName = skill.getDisplayName();
-            if (skill.isPassive()) displayName += " (P)";
-            else if (skill.isToggle()) displayName += " (T)";
+            // Line 1: Skill name
+            String name = skill.getDisplayName();
             int nameColor = unlocked ? TEXT_BRIGHT : (canUnlock ? TEXT_VALUE : TEXT_DIM);
-            g.drawString(font, displayName, textX, textY1, nameColor, false);
+            g.drawString(font, truncate(name, textW - 16), textX, textY, nameColor, false);
+            textY += fh + 2;
 
-            String lvText = "Lv " + level + "/" + skill.getMaxLevel();
-            int lvColor = maxed ? SKILL_MAX : TEXT_VALUE;
-            g.drawString(font, lvText, left + innerW - font.width(lvText) - 4, textY1, lvColor, false);
+            // Line 2: Level
+            String lvText = maxed ? "MAX" : "Lv " + level + "/" + skill.getMaxLevel();
+            int lvColor = maxed ? SKILL_MAX : (unlocked ? TEXT_VALUE : TEXT_DIM);
+            g.drawString(font, lvText, textX, textY, lvColor, false);
+            textY += fh + 2;
 
-            int textY2 = iy + 3 + font.lineHeight + 2;
-            if (activeTierLocked) {
-                g.drawString(font, "Lv " + TIER_REQ_LEVELS[activeTab] + " required", textX, textY2, TEXT_DIM, false);
-            } else if (!unlocked && !canUnlock) {
-                g.drawString(font, getReqText(skill, sd), textX, textY2, TEXT_DIM, false);
-            } else if (skill.isPassive()) {
-                g.drawString(font, "Passive - Always Active", textX, textY2, PASSIVE_COLOR, false);
+            // Line 3: MP/CD or type
+            if (skill.isPassive()) {
+                g.drawString(font, "Passive", textX, textY, PASSIVE_COLOR, false);
+            } else if (skill.isToggle()) {
+                String drain = "MP: " + String.format("%.1f", skill.getToggleDrainPercent(displayLevel)) + "%/s";
+                g.drawString(font, drain, textX, textY, TEXT_DIM, false);
             } else {
-                int displayLevel = Math.max(level, 1);
-                String mpText = skill.isToggle()
-                        ? "MP: " + String.format("%.1f", skill.getToggleDrainPercent(displayLevel)) + "%/sec"
-                        : "MP: " + skill.getMpCost(displayLevel);
-                g.drawString(font, mpText, textX, textY2, TEXT_DIM, false);
-
-                String cdText = "CD: " + String.format("%.1f", skill.getCooldownTicks(displayLevel) / 20.0) + "s";
-                g.drawString(font, cdText, textX + font.width(mpText) + 8, textY2, TEXT_DIM, false);
+                String cost = "MP:" + skill.getMpCost(displayLevel) + " CD:" +
+                        String.format("%.0f", skill.getCooldownTicks(displayLevel) / 20.0) + "s";
+                g.drawString(font, truncate(cost, textW), textX, textY, TEXT_DIM, false);
             }
 
-            // [+] button
+            // [+] button (top-right of card)
             if (canUnlock && !maxed) {
-                int pW = 14;
-                int pH = 14;
-                int px = left + innerW - pW - 3;
-                int py = iy + ICON_SIZE - pH - 3;
-                plusBtnBounds[i] = new int[]{px, py, pW, pH};
-
+                int pS = 13;
+                int px = tx + tileW - pS - 2;
+                int py = ty + 2;
+                plusBtnBounds[i] = new int[]{px, py, pS, pS};
                 boolean plusHov = isInside(mouseX, mouseY, plusBtnBounds[i]);
                 int plusColor = unlocked ? SKILL_MAX : SKILL_UNLOCKED;
-                g.fill(px, py, px + pW, py + pH, plusHov ? BTN_HOVER_BG : BTN_BG);
-                drawBox(g, px, py, pW, pH, plusHov ? BTN_HOVER_BORDER : plusColor);
-                g.drawString(font, "+", px + (pW - font.width("+")) / 2,
-                        py + (pH - font.lineHeight) / 2, plusHov ? BTN_HOVER_BORDER : plusColor, false);
+                g.fill(px, py, px + pS, py + pS, plusHov ? BTN_HOVER_BG : BTN_BG);
+                drawBox(g, px, py, pS, pS, plusHov ? BTN_HOVER_BORDER : plusColor);
+                g.drawString(font, "+", px + (pS - font.width("+")) / 2,
+                        py + (pS - fh) / 2, plusHov ? BTN_HOVER_BORDER : plusColor, false);
             } else {
                 plusBtnBounds[i] = new int[]{0, 0, 0, 0};
             }
 
-            scrolledRowY += ICON_SIZE + rowGap;
+            // Selected-for-equip glow
+            if (selected) {
+                drawBox(g, tx + 1, ty + 1, tileW - 2, tileH - 2, TEXT_ACCENT);
+            }
         }
 
         g.disableScissor();
 
-        // Clear unused bounds
         for (int i = skills.size(); i < 8; i++) {
             skillRowBounds[i] = new int[]{0, 0, 0, 0};
             iconBounds[i] = new int[]{0, 0, 0, 0};
             plusBtnBounds[i] = new int[]{0, 0, 0, 0};
         }
 
-        // Show "no skills" message if empty
         if (skills.isEmpty() && !activeTierLocked) {
             String msg = sd.getSelectedClass() == PlayerClass.NONE
                     ? "Choose a class at Lv 10" : "No skills in this tier";
-            g.drawString(font, msg, cx - font.width(msg) / 2, skillListTop, TEXT_DIM, false);
+            g.drawString(font, msg, cx - font.width(msg) / 2, skillListTop + 10, TEXT_DIM, false);
         }
 
-        // Scroll indicator
+        // Scrollbar
         if (maxScrollOffset > 0) {
             int barX = left + innerW - 3;
             int barH = Math.max(10, availableHeight * availableHeight / totalContentHeight);
             int barY = skillListTop + (int)((float) scrollOffset / maxScrollOffset * (availableHeight - barH));
-            g.fill(barX, barY, barX + 2, barY + barH, FRAME_DIM);
+            g.fill(barX, barY, barX + 2, barY + barH, TEXT_ACCENT);
         }
 
-        // Equip slots section at bottom
-        int equipSectionY = y + panelH - pad - lineH * 2 - 14;
-        drawSep(g, left, equipSectionY, innerW);
-        equipSectionY += 6;
+        // === Equip Section ===
+        int eqY = skillListBottom + 2;
+        drawSep(g, left, eqY, innerW);
+        eqY += 5;
 
         if (pendingEquipSkill != null) {
-            String eqText = "Equip " + pendingEquipSkill.getDisplayName() + " to:";
-            while (font.width(eqText) > innerW && eqText.length() > 10) {
-                eqText = eqText.substring(0, eqText.length() - 1);
-            }
-            g.drawString(font, eqText, cx - font.width(eqText) / 2, equipSectionY, TEXT_ACCENT, false);
+            String eqText = "Equip: " + pendingEquipSkill.getDisplayName();
+            g.drawString(font, truncate(eqText, innerW), cx - font.width(truncate(eqText, innerW)) / 2, eqY, TEXT_ACCENT, false);
         } else {
-            String eqLabel = "EQUIPPED";
-            g.drawString(font, eqLabel, cx - font.width(eqLabel) / 2, equipSectionY, TEXT_DIM, false);
+            g.drawString(font, "EQUIPPED", cx - font.width("EQUIPPED") / 2, eqY, TEXT_DIM, false);
         }
-        equipSectionY += lineH + 2;
+        eqY += fh + 3;
 
+        // Equip slots
         KeyMapping[] slotMappings = {
                 KeyBindings.SKILL_SLOT_1, KeyBindings.SKILL_SLOT_2, KeyBindings.SKILL_SLOT_3,
                 KeyBindings.SKILL_SLOT_4, KeyBindings.SKILL_SLOT_5, KeyBindings.SKILL_SLOT_6,
                 KeyBindings.SKILL_SLOT_7
         };
-        String[] slotKeys = new String[SkillData.MAX_SLOTS];
+        int slotGap = 3;
+        int slotW = (innerW - (SkillData.MAX_SLOTS - 1) * slotGap) / SkillData.MAX_SLOTS;
+        int slotH = fh * 2 + 6;
+
         for (int i = 0; i < SkillData.MAX_SLOTS; i++) {
-            String name = slotMappings[i].getKey().getDisplayName().getString().toUpperCase();
-            if (name.startsWith("BUTTON ")) {
-                name = "B" + name.substring(7);
-            }
-            slotKeys[i] = name;
-        }
-        int slotW = (innerW - (SkillData.MAX_SLOTS - 1) * 4) / SkillData.MAX_SLOTS;
-        int slotH = lineH + 6;
-        for (int i = 0; i < SkillData.MAX_SLOTS; i++) {
-            int sx = left + i * (slotW + 4);
-            equipSlotBounds[i] = new int[]{sx, equipSectionY, slotW, slotH};
+            int sx = left + i * (slotW + slotGap);
+            equipSlotBounds[i] = new int[]{sx, eqY, slotW, slotH};
 
             boolean hov = isInside(mouseX, mouseY, equipSlotBounds[i]);
             SkillType equipped = sd.getEquipped(i);
-            int bg = hov ? BTN_HOVER_BG : EQUIP_SLOT_BG;
-            int border = hov ? BTN_HOVER_BORDER : FRAME_DIM;
 
-            g.fill(sx, equipSectionY, sx + slotW, equipSectionY + slotH, bg);
-            drawBox(g, sx, equipSectionY, slotW, slotH, border);
+            g.fill(sx, eqY, sx + slotW, eqY + slotH, hov ? BTN_HOVER_BG : EQUIP_SLOT_BG);
+            drawBox(g, sx, eqY, slotW, slotH, hov ? BTN_HOVER_BORDER : FRAME_DIM);
 
-            String keyLabel = "[" + slotKeys[i] + "]";
-            g.drawString(font, keyLabel, sx + 3, equipSectionY + 2, TEXT_DIM, false);
+            // Key binding (top, centered)
+            String keyName = slotMappings[i].getKey().getDisplayName().getString().toUpperCase();
+            if (keyName.startsWith("BUTTON ")) keyName = "B" + keyName.substring(7);
+            String keyLabel = "[" + keyName + "]";
+            g.drawString(font, truncate(keyLabel, slotW - 2),
+                    sx + (slotW - font.width(truncate(keyLabel, slotW - 2))) / 2, eqY + 2, TEXT_DIM, false);
 
-            String skillName = equipped != null ? equipped.getDisplayName() : "---";
-            int nameColor = equipped != null ? TEXT_VALUE : TEXT_DIM;
-            int nameX = sx + font.width(keyLabel) + 4;
-            String truncated = skillName;
-            while (font.width(truncated) > slotW - font.width(keyLabel) - 8 && truncated.length() > 3) {
-                truncated = truncated.substring(0, truncated.length() - 1);
-            }
-            g.drawString(font, truncated, nameX, equipSectionY + 2, nameColor, false);
-
-            if (equipped != null && hov) {
-                g.drawString(font, "R-click: unequip", sx, equipSectionY + slotH + 1, TEXT_DIM, false);
-            }
+            // Skill abbreviation (bottom, centered)
+            String slotText = equipped != null ? equipped.getAbbreviation() : "---";
+            int slotColor = equipped != null ? TEXT_VALUE : TEXT_DIM;
+            g.drawString(font, slotText, sx + (slotW - font.width(slotText)) / 2,
+                    eqY + fh + 3, slotColor, false);
         }
 
         // Tooltip
@@ -697,6 +683,18 @@ public class SkillTreeScreen extends Screen {
         if (shiftHeld) {
             texts.add("--- Details ---");
             lines.add(new int[]{FRAME});
+            SkillType.MultInfo mi = skill.getMultInfo();
+            if (mi != null) {
+                texts.add(mi.toFormula());
+                lines.add(new int[]{TEXT_ACCENT});
+            }
+            String[] extras = skill.getExtraFormulas();
+            if (extras != null) {
+                for (String f : extras) {
+                    texts.add(f);
+                    lines.add(new int[]{TEXT_ACCENT});
+                }
+            }
             SkillTooltips.addDetailLines(texts, lines, skill, displayLevel, stats);
         } else {
             texts.add("[Shift] More details");

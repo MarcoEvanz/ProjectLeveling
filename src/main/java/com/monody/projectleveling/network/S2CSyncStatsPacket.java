@@ -8,6 +8,9 @@ import com.monody.projectleveling.skill.SkillType;
 import net.minecraft.client.Minecraft;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.world.entity.player.Player;
+import net.minecraftforge.api.distmarker.Dist;
+import net.minecraftforge.api.distmarker.OnlyIn;
+import net.minecraftforge.fml.DistExecutor;
 import net.minecraftforge.network.NetworkEvent;
 
 import java.util.EnumMap;
@@ -353,6 +356,12 @@ public class S2CSyncStatsPacket {
     }
 
     public void handle(Supplier<NetworkEvent.Context> ctx) {
+        DistExecutor.unsafeRunWhenOn(Dist.CLIENT, () -> this::applyOnClient);
+        ctx.get().setPacketHandled(true);
+    }
+
+    @OnlyIn(Dist.CLIENT)
+    private void applyOnClient() {
         Player player = Minecraft.getInstance().player;
         if (player == null) return;
 
@@ -437,7 +446,5 @@ public class S2CSyncStatsPacket {
             sd.setChannelMaxTicks(channelMaxTicks);
             sd.setChannelSkillName(channelSkillName);
         });
-
-        ctx.get().setPacketHandled(true);
     }
 }

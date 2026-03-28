@@ -1,0 +1,16 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "pattern": [
+    "MMM",
+    " S ",
+    " S "
+  ],
+  "key": {
+    "M": {"tag": "minecraft:planks"},
+    "S": {"item": "minecraft:stick"}
+  },
+  "result": {
+    "item": "projectleveling:wood_axe",
+    "count": 1
+  }
+}

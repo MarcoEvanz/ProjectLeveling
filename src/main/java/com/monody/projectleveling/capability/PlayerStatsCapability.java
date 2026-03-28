@@ -38,15 +38,14 @@ public class PlayerStatsCapability {
 
         @SubscribeEvent
         public static void onPlayerClone(PlayerEvent.Clone event) {
-            if (event.isWasDeath()) {
-                event.getOriginal().reviveCaps();
-                event.getOriginal().getCapability(PLAYER_STATS).ifPresent(oldStats -> {
-                    event.getEntity().getCapability(PLAYER_STATS).ifPresent(newStats -> {
-                        newStats.copyFrom(oldStats);
-                    });
+            // Always copy data — Clone fires on death AND End return
+            event.getOriginal().reviveCaps();
+            event.getOriginal().getCapability(PLAYER_STATS).ifPresent(oldStats -> {
+                event.getEntity().getCapability(PLAYER_STATS).ifPresent(newStats -> {
+                    newStats.copyFrom(oldStats);
                 });
-                event.getOriginal().invalidateCaps();
-            }
+            });
+            event.getOriginal().invalidateCaps();
         }
     }
 }

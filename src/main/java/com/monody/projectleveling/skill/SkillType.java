@@ -92,7 +92,7 @@ public enum SkillType {
             "Buffer 3-13s. First hit negated, teleport behind attacker.", "SUB"),
     KUNAI_MASTERY("kunai_mastery", "Kunai Mastery", 10, 1, PlayerClass.NINJA, 10, false, true,
             0, 0, 0, 0,
-            "Passive. +AGI melee damage, +LUK crit rate, +1.5% projectile damage per level.", "KM",
+            "Passive. +ATK% (AGI scales), +LUK crit rate, +1.5% projectile damage per level.", "KM",
             stat(PROJ, 1.5)),
 
     // --- Necromancer (INT + Mind) ---
@@ -605,7 +605,7 @@ public enum SkillType {
         FORMULA_MAP.put(MAGIC_GUARD, new String[]{"Redirect: 0.3 + Lv*0.03"});
         FORMULA_MAP.put(MIST_ERUPTION, new String[]{"No Mist: 0.8 + Lv*0.04 + INT*0.006"});
         // --- Ninja ---
-        FORMULA_MAP.put(KUNAI_MASTERY, new String[]{"Melee: Lv*0.006 + AGI*0.001", "Proj: 1.0 + Lv*0.015"});
+        FORMULA_MAP.put(KUNAI_MASTERY, new String[]{"ATK%: AGI*0.008*Lv", "Proj: 1.0 + Lv*0.015"});
         FORMULA_MAP.put(SHADOW_CLONE, new String[]{"Stats: 0.2 + (Lv-1)*0.0214"});
         FORMULA_MAP.put(CHAKRA_CONTROL, new String[]{"Cost: 1.0 - Lv*0.01", "MP Regen: Lv*0.015"});
         FORMULA_MAP.put(EIGHT_INNER_GATES, new String[]{"DMG: 1.0 + Lv*0.02"});

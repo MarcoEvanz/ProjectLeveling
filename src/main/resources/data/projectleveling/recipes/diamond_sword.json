@@ -1,0 +1,16 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "pattern": [
+    " M",
+    "MM",
+    " S"
+  ],
+  "key": {
+    "M": {"item": "minecraft:diamond"},
+    "S": {"item": "minecraft:stick"}
+  },
+  "result": {
+    "item": "projectleveling:diamond_sword",
+    "count": 1
+  }
+}

@@ -1,0 +1,16 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "pattern": [
+    " MS",
+    "M S",
+    " MS"
+  ],
+  "key": {
+    "M": {"item": "minecraft:diamond"},
+    "S": {"item": "minecraft:string"}
+  },
+  "result": {
+    "item": "projectleveling:diamond_bow",
+    "count": 1
+  }
+}

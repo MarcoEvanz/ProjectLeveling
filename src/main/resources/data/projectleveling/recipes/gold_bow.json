@@ -1,0 +1,16 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "pattern": [
+    " MS",
+    "M S",
+    " MS"
+  ],
+  "key": {
+    "M": {"item": "minecraft:gold_ingot"},
+    "S": {"item": "minecraft:string"}
+  },
+  "result": {
+    "item": "projectleveling:gold_bow",
+    "count": 1
+  }
+}

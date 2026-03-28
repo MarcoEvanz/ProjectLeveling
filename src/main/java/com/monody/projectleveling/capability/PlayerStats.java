@@ -6,6 +6,7 @@ import com.monody.projectleveling.skill.SkillData;
 import com.monody.projectleveling.skill.SkillType;
 import com.monody.projectleveling.skill.classes.AssassinSkills;
 import com.monody.projectleveling.skill.classes.HealerSkills;
+import com.monody.projectleveling.skill.classes.NinjaSkills;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.world.entity.ai.attributes.AttributeInstance;
 import net.minecraft.world.entity.player.Player;
@@ -101,6 +102,11 @@ public class PlayerStats {
         int lmLv = skillData.getLevel(SkillType.LETHAL_MASTERY);
         if (lmLv > 0) {
             atkPct += AssassinSkills.getLethalMasteryAtkPct(lmLv);
+        }
+        // Kunai Mastery: ATK% passive
+        int kmLv = skillData.getLevel(SkillType.KUNAI_MASTERY);
+        if (kmLv > 0) {
+            atkPct += NinjaSkills.getKunaiMasteryAtkPct(this);
         }
         // Bless: +10% ATK while active
         if (skillData.getBlessTicks() > 0) {

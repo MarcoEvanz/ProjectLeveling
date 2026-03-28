@@ -1,0 +1,15 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "pattern": [
+    "ML",
+    "LM"
+  ],
+  "key": {
+    "M": {"tag": "minecraft:planks"},
+    "L": {"item": "minecraft:leather"}
+  },
+  "result": {
+    "item": "projectleveling:wood_cestus",
+    "count": 1
+  }
+}

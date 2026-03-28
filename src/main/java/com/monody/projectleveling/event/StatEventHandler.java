@@ -1602,16 +1602,12 @@ public class StatEventHandler {
                 }
             }
 
-            // Melee Damage%: equipment + Kunai Mastery
+            // Melee Damage%: equipment only (Kunai Mastery moved to ATK%)
             if (!event.getSource().isIndirect()) {
                 float meleePct = 0;
                 var meleeDmgInst = player.getAttribute(ModAttributes.MELEE_DAMAGE.get());
                 if (meleeDmgInst != null && meleeDmgInst.getValue() > 0) {
                     meleePct += (float) meleeDmgInst.getValue();
-                }
-                float kmMelee = NinjaSkills.getKunaiMasteryMeleeMultiplier(stats);
-                if (kmMelee > 0) {
-                    meleePct += kmMelee * 100;
                 }
                 if (meleePct > 0) {
                     amount *= 1.0f + meleePct / 100.0f;

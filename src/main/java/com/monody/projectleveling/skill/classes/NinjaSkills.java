@@ -64,10 +64,10 @@ public final class NinjaSkills {
                 lines.add(new int[]{TEXT_DIM});
             }
             case KUNAI_MASTERY -> {
-                float meleeMult = (level * 0.006f + stats.getAgility() * 0.001f) * 100;
+                float atkPct = stats.getAgility() * 0.008f * level;
                 float projBonus = level * 1.5f;
                 float critBonus = stats.getLuck() * 0.05f * level / 10.0f;
-                texts.add("Melee dmg: ATK x " + String.format("%.1f", meleeMult) + "%");
+                texts.add("ATK +" + String.format("%.1f", atkPct) + "% (AGI scales)");
                 lines.add(new int[]{TEXT_VALUE});
                 texts.add("Projectile dmg: +" + String.format("%.1f", projBonus) + "%");
                 lines.add(new int[]{TEXT_VALUE});
@@ -818,11 +818,11 @@ public final class NinjaSkills {
         return 1.00f + level * 0.05f + agi * 0.008f;
     }
 
-    /** Kunai Mastery melee ATK multiplier. ATK × this = flat melee bonus. */
-    public static float getKunaiMasteryMeleeMultiplier(PlayerStats stats) {
+    /** Kunai Mastery ATK% bonus: AGI * 0.008 * level. Added to ATK% pool. */
+    public static float getKunaiMasteryAtkPct(PlayerStats stats) {
         int level = stats.getSkillData().getLevel(SkillType.KUNAI_MASTERY);
         if (level <= 0) return 0;
-        return level * 0.006f + stats.getAgility() * 0.001f;
+        return stats.getAgility() * 0.008f * level;
     }
 
     /** Kunai Mastery projectile damage multiplier (1.0 = no bonus). */
@@ -972,6 +972,14 @@ public final class NinjaSkills {
             if (lv <= 0 || !sd.isToggleActive(SkillType.SAGE_MODE)) return 0;
             double val = 20 + lv;
             tags.pct(SkillType.SAGE_MODE.getAbbreviation() + "+", val);
+            return val;
+        });
+        // Kunai Mastery: ATK% passive
+        reg(StatLine.ATK_PCT, (sd, p, s, tags) -> {
+            int km = sd.getLevel(SkillType.KUNAI_MASTERY);
+            if (km <= 0) return 0;
+            double val = s.getAgility() * 0.008 * km;
+            if (val > 0) tags.pct(SkillType.KUNAI_MASTERY.getAbbreviation() + "+", val);
             return val;
         });
         // Mastered Sage Mode: ATK% passive

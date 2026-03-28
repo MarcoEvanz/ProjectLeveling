@@ -21,6 +21,8 @@ import com.monody.projectleveling.skill.SkillType;
 import com.monody.projectleveling.dimension.DungeonHelper;
 import com.monody.projectleveling.dimension.ModDimensions;
 import com.monody.projectleveling.mob.MobLevelUtil;
+import com.monody.projectleveling.party.Party;
+import com.monody.projectleveling.party.PartyManager;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.server.level.ServerLevel;
@@ -2332,34 +2334,48 @@ public class StatEventHandler {
         if (mob.level().isClientSide()) return;
 
         // Try getKillCredit first; fall back to damage source entity (for skill kills)
-        ServerPlayer player;
-        LivingEntity killer = mob.getKillCredit();
-        if (killer instanceof ServerPlayer sp) {
-            player = sp;
+        ServerPlayer killer;
+        LivingEntity killCredit = mob.getKillCredit();
+        if (killCredit instanceof ServerPlayer sp) {
+            killer = sp;
         } else {
             Entity sourceEntity = event.getSource().getEntity();
             if (sourceEntity instanceof ServerPlayer sp2) {
-                player = sp2;
+                killer = sp2;
             } else {
                 return;
             }
         }
 
         int mobLevel = MobLevelUtil.getMobLevel(mob);
-        player.getCapability(PlayerStatsCapability.PLAYER_STATS).ifPresent(stats -> {
-            int expGain = MobLevelUtil.getExpReward(mobLevel, stats.getLevel(), mob.getMaxHealth());
-            int oldLevel = stats.getLevel();
-            int levelsGained = stats.addExp(expGain);
-            if (levelsGained > 0) {
-                applyStatModifiers(player, stats);
-                player.sendSystemMessage(Component.literal(
-                        "\u00a7a+" + expGain + " EXP \u00a76Level Up! " + oldLevel + " -> " + stats.getLevel()));
-            } else {
-                player.sendSystemMessage(Component.literal(
-                        "\u00a7a+" + expGain + " EXP \u00a77(" + stats.getCurrentExp() + "/" + stats.getMaxExp() + ")"));
-            }
-            syncToClient(player);
-        });
+        double mobMaxHp = mob.getMaxHealth();
+
+        // Party EXP: all members in the same dimension get full EXP
+        java.util.List<ServerPlayer> recipients;
+        Party party = PartyManager.getParty(killer.getUUID());
+        if (party != null && killer.getServer() != null) {
+            recipients = PartyManager.getMembersInDimension(
+                    party, killer.getServer(), killer.level().dimension());
+        } else {
+            recipients = java.util.List.of(killer);
+        }
+
+        for (ServerPlayer recipient : recipients) {
+            recipient.getCapability(PlayerStatsCapability.PLAYER_STATS).ifPresent(stats -> {
+                int expGain = MobLevelUtil.getExpReward(mobLevel, stats.getLevel(), mobMaxHp);
+                int oldLevel = stats.getLevel();
+                int levelsGained = stats.addExp(expGain);
+                if (levelsGained > 0) {
+                    applyStatModifiers(recipient, stats);
+                    recipient.sendSystemMessage(Component.literal(
+                            "\u00a7a+" + expGain + " EXP \u00a76Level Up! " + oldLevel + " -> " + stats.getLevel()));
+                } else {
+                    recipient.sendSystemMessage(Component.literal(
+                            "\u00a7a+" + expGain + " EXP \u00a77(" + stats.getCurrentExp() + "/" + stats.getMaxExp() + ")"));
+                }
+                syncToClient(recipient);
+            });
+        }
     }
 
     // === Dungeon: death flag for respawn handling ===

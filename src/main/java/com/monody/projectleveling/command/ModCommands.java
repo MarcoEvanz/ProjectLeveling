@@ -8,11 +8,18 @@ import com.monody.projectleveling.dimension.DungeonHelper;
 import com.monody.projectleveling.dimension.ModDimensions;
 import com.monody.projectleveling.event.StatEventHandler;
 import com.monody.projectleveling.mob.MobLevelUtil;
+import com.monody.projectleveling.party.Party;
+import com.monody.projectleveling.party.PartyManager;
 import com.monody.projectleveling.skill.SkillData;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
+import net.minecraft.commands.arguments.EntityArgument;
 import net.minecraft.network.chat.Component;
+import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
+
+import java.util.List;
+import java.util.UUID;
 
 public class ModCommands {
 
@@ -373,6 +380,190 @@ public class ModCommands {
                             });
                             return 1;
                         })
+                )
+
+                // ======== /plvl party ========
+                .then(Commands.literal("party")
+
+                        // /plvl party create
+                        .then(Commands.literal("create")
+                                .executes(ctx -> {
+                                    ServerPlayer player = ctx.getSource().getPlayerOrException();
+                                    Party party = PartyManager.createParty(player.getUUID());
+                                    if (party != null) {
+                                        ctx.getSource().sendSuccess(() ->
+                                                Component.literal("\u00a7aParty created! Invite players with /plvl party invite <player>"), false);
+                                    } else {
+                                        ctx.getSource().sendFailure(Component.literal("You are already in a party."));
+                                    }
+                                    return 1;
+                                })
+                        )
+
+                        // /plvl party invite <player>
+                        .then(Commands.literal("invite")
+                                .then(Commands.argument("target", EntityArgument.player())
+                                        .executes(ctx -> {
+                                            ServerPlayer player = ctx.getSource().getPlayerOrException();
+                                            ServerPlayer target = EntityArgument.getPlayer(ctx, "target");
+                                            if (player.getUUID().equals(target.getUUID())) {
+                                                ctx.getSource().sendFailure(Component.literal("You can't invite yourself."));
+                                                return 1;
+                                            }
+                                            int result = PartyManager.invite(player.getUUID(), target.getUUID());
+                                            switch (result) {
+                                                case 0 -> {
+                                                    ctx.getSource().sendSuccess(() ->
+                                                            Component.literal("\u00a7aInvited " + target.getScoreboardName() + " to the party."), false);
+                                                    target.sendSystemMessage(Component.literal(
+                                                            "\u00a7e" + player.getScoreboardName() + " invited you to a party! Use /plvl party accept or /plvl party decline"));
+                                                }
+                                                case 1 -> ctx.getSource().sendFailure(Component.literal("Only the party leader can invite."));
+                                                case 2 -> ctx.getSource().sendFailure(Component.literal(target.getScoreboardName() + " is already in a party."));
+                                                case 3 -> ctx.getSource().sendFailure(Component.literal("Party is full (max " + Party.MAX_MEMBERS + ")."));
+                                                case 4 -> ctx.getSource().sendFailure(Component.literal(target.getScoreboardName() + " already has a pending invite."));
+                                                case 5 -> ctx.getSource().sendFailure(Component.literal("You are not in a party. Create one with /plvl party create"));
+                                            }
+                                            return 1;
+                                        })
+                                )
+                        )
+
+                        // /plvl party accept
+                        .then(Commands.literal("accept")
+                                .executes(ctx -> {
+                                    ServerPlayer player = ctx.getSource().getPlayerOrException();
+                                    Party party = PartyManager.acceptInvite(player.getUUID());
+                                    if (party != null) {
+                                        ctx.getSource().sendSuccess(() ->
+                                                Component.literal("\u00a7aYou joined the party!"), false);
+                                        MinecraftServer server = ctx.getSource().getServer();
+                                        for (ServerPlayer member : PartyManager.getOnlineMembers(party, server)) {
+                                            if (!member.getUUID().equals(player.getUUID())) {
+                                                member.sendSystemMessage(Component.literal(
+                                                        "\u00a7e" + player.getScoreboardName() + " joined the party."));
+                                            }
+                                        }
+                                    } else {
+                                        ctx.getSource().sendFailure(
+                                                Component.literal("No pending invite, party is full, or you are already in a party."));
+                                    }
+                                    return 1;
+                                })
+                        )
+
+                        // /plvl party decline
+                        .then(Commands.literal("decline")
+                                .executes(ctx -> {
+                                    ServerPlayer player = ctx.getSource().getPlayerOrException();
+                                    if (PartyManager.declineInvite(player.getUUID())) {
+                                        ctx.getSource().sendSuccess(() ->
+                                                Component.literal("\u00a7cInvite declined."), false);
+                                    } else {
+                                        ctx.getSource().sendFailure(Component.literal("No pending invite."));
+                                    }
+                                    return 1;
+                                })
+                        )
+
+                        // /plvl party leave
+                        .then(Commands.literal("leave")
+                                .executes(ctx -> {
+                                    ServerPlayer player = ctx.getSource().getPlayerOrException();
+                                    Party party = PartyManager.getParty(player.getUUID());
+                                    if (party == null) {
+                                        ctx.getSource().sendFailure(Component.literal("You are not in a party."));
+                                        return 1;
+                                    }
+                                    MinecraftServer server = ctx.getSource().getServer();
+                                    List<ServerPlayer> members = PartyManager.getOnlineMembers(party, server);
+                                    PartyManager.leave(player.getUUID());
+                                    ctx.getSource().sendSuccess(() ->
+                                            Component.literal("\u00a7cYou left the party."), false);
+                                    for (ServerPlayer member : members) {
+                                        if (!member.getUUID().equals(player.getUUID())) {
+                                            member.sendSystemMessage(Component.literal(
+                                                    "\u00a7e" + player.getScoreboardName() + " left the party."));
+                                            Party updated = PartyManager.getParty(member.getUUID());
+                                            if (updated != null && updated.isLeader(member.getUUID())) {
+                                                member.sendSystemMessage(Component.literal(
+                                                        "\u00a76You are now the party leader."));
+                                            }
+                                        }
+                                    }
+                                    return 1;
+                                })
+                        )
+
+                        // /plvl party kick <player>
+                        .then(Commands.literal("kick")
+                                .then(Commands.argument("target", EntityArgument.player())
+                                        .executes(ctx -> {
+                                            ServerPlayer player = ctx.getSource().getPlayerOrException();
+                                            ServerPlayer target = EntityArgument.getPlayer(ctx, "target");
+                                            int result = PartyManager.kick(player.getUUID(), target.getUUID());
+                                            switch (result) {
+                                                case 0 -> {
+                                                    ctx.getSource().sendSuccess(() ->
+                                                            Component.literal("\u00a7c" + target.getScoreboardName() + " has been kicked."), false);
+                                                    target.sendSystemMessage(Component.literal(
+                                                            "\u00a7cYou have been kicked from the party."));
+                                                }
+                                                case 1 -> ctx.getSource().sendFailure(Component.literal("Only the party leader can kick."));
+                                                case 2 -> ctx.getSource().sendFailure(Component.literal(target.getScoreboardName() + " is not in your party."));
+                                                case 3 -> ctx.getSource().sendFailure(Component.literal("You can't kick yourself. Use /plvl party leave"));
+                                                case 4 -> ctx.getSource().sendFailure(Component.literal("You are not in a party."));
+                                            }
+                                            return 1;
+                                        })
+                                )
+                        )
+
+                        // /plvl party list
+                        .then(Commands.literal("list")
+                                .executes(ctx -> {
+                                    ServerPlayer player = ctx.getSource().getPlayerOrException();
+                                    Party party = PartyManager.getParty(player.getUUID());
+                                    if (party == null) {
+                                        ctx.getSource().sendFailure(Component.literal("You are not in a party."));
+                                        return 1;
+                                    }
+                                    MinecraftServer server = ctx.getSource().getServer();
+                                    StringBuilder sb = new StringBuilder("\u00a76=== Party Members ===\n");
+                                    for (UUID memberUUID : party.getMembers()) {
+                                        ServerPlayer member = server.getPlayerList().getPlayer(memberUUID);
+                                        String name = member != null ? member.getScoreboardName() : memberUUID.toString().substring(0, 8) + "...";
+                                        String status = member != null ? "\u00a7a(online)" : "\u00a77(offline)";
+                                        String leader = party.isLeader(memberUUID) ? " \u00a7e[Leader]" : "";
+                                        sb.append("\u00a7f- ").append(name).append(" ").append(status).append(leader).append("\n");
+                                    }
+                                    sb.append("\u00a76Members: ").append(party.size()).append("/").append(Party.MAX_MEMBERS);
+                                    ctx.getSource().sendSuccess(() -> Component.literal(sb.toString()), false);
+                                    return 1;
+                                })
+                        )
+
+                        // /plvl party disband
+                        .then(Commands.literal("disband")
+                                .executes(ctx -> {
+                                    ServerPlayer player = ctx.getSource().getPlayerOrException();
+                                    Party party = PartyManager.getParty(player.getUUID());
+                                    if (party == null) {
+                                        ctx.getSource().sendFailure(Component.literal("You are not in a party."));
+                                        return 1;
+                                    }
+                                    MinecraftServer server = ctx.getSource().getServer();
+                                    List<ServerPlayer> members = PartyManager.getOnlineMembers(party, server);
+                                    if (PartyManager.disband(player.getUUID())) {
+                                        for (ServerPlayer member : members) {
+                                            member.sendSystemMessage(Component.literal("\u00a7cThe party has been disbanded."));
+                                        }
+                                    } else {
+                                        ctx.getSource().sendFailure(Component.literal("Only the party leader can disband."));
+                                    }
+                                    return 1;
+                                })
+                        )
                 )
         );
     }
